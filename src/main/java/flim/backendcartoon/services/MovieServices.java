@@ -19,4 +19,7 @@ public interface MovieServices {
     List<Movie> findAllMoviesByGenre(String genre);
     // tìm phim với title chứa từ khóa
     List<Movie> findMoviesByTitleContaining(String title);
+
+    //lọc phim theo tháng và năm
+    List<Movie> findMoviesByMonthAndYear(int month, int year);
 }

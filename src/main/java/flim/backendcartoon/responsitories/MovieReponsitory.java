@@ -8,6 +8,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -69,4 +71,29 @@ public class MovieReponsitory {
     public List<Movie> findAllMovies() {
         return table.scan().items().stream().collect(Collectors.toList());
     }
+
+    //tìm phim theo tháng và năm
+    public List<Movie> findPhimThangVaNam(int month, int year) {
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
+        int curentYear = LocalDateTime.now().getYear();
+        return table.scan().items().stream()
+                .filter(movie -> {
+                    try {
+
+                        LocalDateTime time = LocalDateTime.parse(movie.getCreatedAt(), formatter);
+                        if (month == 0 && year > 0) return time.getYear() == year;
+                        else if (month > 0 && year == 0) {
+                            return time.getYear() == curentYear && time.getMonthValue() == month;
+                        } else if (month > 0 && year > 0) {
+                            return time.getYear() == year && time.getMonthValue() == month;
+                        } else {
+                            return true;
+                        }
+
+                    } catch (Exception e) {
+                        return false; // Nếu có lỗi trong việc phân tích ngày, bỏ qua phim này
+                    }
+                }).collect(Collectors.toList());
+    }
+
 }

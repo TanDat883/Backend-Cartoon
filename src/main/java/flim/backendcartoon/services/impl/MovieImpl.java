@@ -90,4 +90,9 @@ public class MovieImpl implements MovieServices {
                 .filter(movie -> movie.getTitle() != null && movie.getTitle().toLowerCase().contains(title.toLowerCase()))
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<Movie> findMoviesByMonthAndYear(int month, int year) {
+        return movieReponsitory.findPhimThangVaNam(month, year);
+    }
 }

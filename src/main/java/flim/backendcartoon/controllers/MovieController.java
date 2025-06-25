@@ -65,7 +65,7 @@ public class MovieController {
         }
     }
 
-    @PutMapping("/{movieId}/increament-view")
+    @PutMapping("/{movieId}/increment-view")
     public ResponseEntity<?> incrementViewCount(
             @PathVariable String movieId) {
         try {
@@ -188,5 +188,25 @@ public class MovieController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(null);
         }
+    }
+
+    //lọc phim theo tháng và năm
+    @GetMapping("/filter")
+    public ResponseEntity<List<Movie>> searchMoviesByYear(
+            @RequestParam(required = false, defaultValue = "0") int month,
+            @RequestParam(required = false, defaultValue = "0") int year) {
+            try{
+                int thang = Integer.parseInt(String.valueOf(month));
+                int nam = Integer.parseInt(String.valueOf(year));
+                List<Movie> movies = movieServices.findMoviesByMonthAndYear(thang,nam );
+                if(movies.isEmpty()) {
+                    return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
+                }
+                return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+            }catch (Exception e) {
+                e.printStackTrace();
+                return ResponseEntity.internalServerError().body(null);
+            }
+
     }
 }
