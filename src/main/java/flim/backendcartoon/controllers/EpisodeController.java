@@ -28,10 +28,18 @@ public class EpisodeController {
             @RequestParam("movieId") String movieId,
             @RequestParam("title") String title,
             @RequestParam("episodeNumber") Integer episodeNumber,
-            @RequestPart("video") MultipartFile video
+            @RequestPart(value = "video", required = false) MultipartFile video,
+            @RequestParam(value = "videoLink",required = false) String videoLink
     ) {
         try {
-            String videoUrl = s3Services.uploadVideo(video);
+            String videoUrl;
+            if(video!=null && !video.isEmpty()) {
+                videoUrl = s3Services.uploadVideo(video);
+            } else if (videoLink!=null && !videoLink.isBlank()) {
+                videoUrl = videoLink;
+            }else {
+                    return ResponseEntity.badRequest().body("Video file or video link is required");
+            }
 
             Episode episode = new Episode();
             episode.setEpisodeId(UUID.randomUUID().toString());
