@@ -1,7 +1,7 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.User;
-import flim.backendcartoon.responsitories.UserReponsitory;
+import flim.backendcartoon.repositories.UserReponsitory;
 import flim.backendcartoon.services.UserServices;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

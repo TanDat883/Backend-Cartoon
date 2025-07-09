@@ -1,4 +1,4 @@
-package flim.backendcartoon.responsitories;
+package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;

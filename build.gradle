@@ -68,6 +68,7 @@ dependencies {
 
     implementation 'software.amazon.awssdk:http-client-spi:2.29.43'
 
+    implementation 'vn.payos:payos-java:1.0.0' // Thư viện PayOS để xử lý thanh toán
 
 }
 

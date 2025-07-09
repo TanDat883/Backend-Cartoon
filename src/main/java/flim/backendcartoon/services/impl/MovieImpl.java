@@ -1,7 +1,7 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Movie;
-import flim.backendcartoon.responsitories.MovieReponsitory;
+import flim.backendcartoon.repositories.MovieReponsitory;
 import flim.backendcartoon.services.MovieServices;
 import org.springframework.stereotype.Service;
 

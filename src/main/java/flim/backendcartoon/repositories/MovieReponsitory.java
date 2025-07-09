@@ -1,8 +1,7 @@
-package flim.backendcartoon.responsitories;
+package flim.backendcartoon.repositories;
 
 
 import flim.backendcartoon.entities.Movie;
-import flim.backendcartoon.entities.User;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
