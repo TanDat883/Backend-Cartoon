@@ -22,4 +22,6 @@ public interface MovieServices {
 
     //lọc phim theo tháng và năm
     List<Movie> findMoviesByMonthAndYear(int month, int year);
+    //lọc ra top 10 phim theo view count
+    List<Movie> findTop10MoviesByViewCount();
 }

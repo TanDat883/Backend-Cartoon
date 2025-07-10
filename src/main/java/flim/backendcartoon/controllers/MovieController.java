@@ -209,4 +209,21 @@ public class MovieController {
             }
 
     }
+
+    //top 10 phim theo view count
+    @GetMapping("/popular")
+    public  ResponseEntity<List<Movie>> popularMovies() {
+        try {
+            List<Movie> movies = movieServices.findTop10MoviesByViewCount();
+            if (movies.isEmpty()) {
+                return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
+            }
+            return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
+
+
 }

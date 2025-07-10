@@ -11,6 +11,7 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -96,4 +97,11 @@ public class MovieReponsitory {
                 }).collect(Collectors.toList());
     }
 
+    public List<Movie> top10MoviesByViewCount() {
+        return table.scan().items().stream()
+                .sorted((m1, m2) -> Long.compare(m2.getViewCount() != null ? m2.getViewCount() : 0L,
+                        m1.getViewCount() != null ? m1.getViewCount() : 0L))
+                .limit(10)
+                .collect(Collectors.toList());
+    }
 }

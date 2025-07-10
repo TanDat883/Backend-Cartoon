@@ -95,4 +95,9 @@ public class MovieImpl implements MovieServices {
     public List<Movie> findMoviesByMonthAndYear(int month, int year) {
         return movieReponsitory.findPhimThangVaNam(month, year);
     }
+
+    @Override
+    public List<Movie> findTop10MoviesByViewCount() {
+        return movieReponsitory.top10MoviesByViewCount();
+    }
 }
