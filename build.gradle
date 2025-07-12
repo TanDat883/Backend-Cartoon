@@ -68,6 +68,8 @@ dependencies {
 
     implementation 'software.amazon.awssdk:http-client-spi:2.29.43'
 
+    // JWT này mạnh hơn và có nhiều tính năng hơn so với thư viện JWT cũ
+    implementation 'com.nimbusds:nimbus-jose-jwt:10.3'
 
 }
 
