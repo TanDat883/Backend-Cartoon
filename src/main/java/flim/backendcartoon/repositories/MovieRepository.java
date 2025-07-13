@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Repository
-public class MovieReponsitory {
+public class MovieRepository {
     private final DynamoDbTable<Movie> table;
 
-    public MovieReponsitory(DynamoDbEnhancedClient enhancedClient) {
+    public MovieRepository(DynamoDbEnhancedClient enhancedClient) {
         this.table = enhancedClient.table("Movie", TableSchema.fromBean(Movie.class));
     }
 

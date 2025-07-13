@@ -2,19 +2,19 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.UserReponsitory;
-import flim.backendcartoon.services.UserServices;
+import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-public class UserImpl implements UserServices {
+public class UserServiceImpl implements UserService {
     private final UserReponsitory userRepository;
 
 
     @Autowired
-    public UserImpl(UserReponsitory userRepository) {
+    public UserServiceImpl(UserReponsitory userRepository) {
         this.userRepository = userRepository;
     }
 

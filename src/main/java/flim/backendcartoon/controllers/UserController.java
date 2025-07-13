@@ -1,14 +1,15 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.User;
-import flim.backendcartoon.services.UserServices;
+import flim.backendcartoon.repositories.PaymentOrderRepository;
+import flim.backendcartoon.services.PaymentService;
+import flim.backendcartoon.services.PriceService;
+import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -17,11 +18,15 @@ import java.util.UUID;
 @RequestMapping("/users")
 public class UserController {
 
-    private final UserServices userService;
+    private final UserService userService;
+    private final PriceService priceService;
+    private final PaymentService paymentService;
 
     @Autowired
-    public UserController(UserServices userService) {
+    public UserController(UserService userService, PriceService priceService, PaymentService paymentService, PaymentOrderRepository paymentOrderRepository) {
         this.userService = userService;
+        this.priceService = priceService;
+        this.paymentService = paymentService;
     }
 
     @PostMapping("/create")

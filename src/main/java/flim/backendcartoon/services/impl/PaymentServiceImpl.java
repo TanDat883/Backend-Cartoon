@@ -13,6 +13,7 @@ package flim.backendcartoon.services.impl;
  * @created: 09-July-2025 12:30 PM
  */
 
+import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.services.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class PaymentServiceImpl implements PaymentService {
 
             return payOS.createPaymentLink(paymentData);
         }catch (Exception e) {
-            throw new RuntimeException("Failed to create payment link: " + e.getMessage());
+            throw new BaseException("Failed to create payment link: " + e.getMessage());
         }
     }
 
@@ -59,7 +60,7 @@ public class PaymentServiceImpl implements PaymentService {
         try {
             return payOS.getPaymentLinkInformation(orderCode);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve order: " + e.getMessage());
+            throw new BaseException("Failed to retrieve order: " + e.getMessage());
         }
     }
 
@@ -68,7 +69,8 @@ public class PaymentServiceImpl implements PaymentService {
         try {
             return payOS.cancelPaymentLink(orderCode, null);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to cancel order: " + e.getMessage());
+            throw new BaseException("Failed to cancel order: " + e.getMessage());
         }
     }
+
 }
