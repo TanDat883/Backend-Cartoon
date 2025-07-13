@@ -3,13 +3,14 @@ package flim.backendcartoon.controllers;
 import flim.backendcartoon.entities.DTO.MovieDetailDTO;
 import flim.backendcartoon.entities.Episode;
 import flim.backendcartoon.entities.Movie;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.services.EpisodeService;
-import flim.backendcartoon.services.MovieServices;
-import flim.backendcartoon.services.S3Services;
+import flim.backendcartoon.services.MovieService;
+import flim.backendcartoon.services.S3Service;
+import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,12 +24,14 @@ import java.util.UUID;
 public class MovieController {
 
     @Autowired
-    private S3Services s3Service;
+    private S3Service s3Service;
 
     @Autowired
-    private MovieServices movieServices;
+    private MovieService movieService;
     @Autowired
     private EpisodeService episodeService;
+    @Autowired
+    private UserService userService;
 
     @PostMapping(value = "/create", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadMovie(
@@ -57,7 +60,7 @@ public class MovieController {
             movie.setThumbnailUrl(thumbnailUrl);
 
 
-            movieServices.saveMovie(movie);
+            movieService.saveMovie(movie);
 
             return ResponseEntity.ok(movie);
         } catch (Exception e) {
@@ -70,7 +73,7 @@ public class MovieController {
     public ResponseEntity<?> incrementViewCount(
             @PathVariable String movieId) {
         try {
-            Long viewCount = movieServices.increaseViewCount(movieId);
+            Long viewCount = movieService.increaseViewCount(movieId);
             return ResponseEntity.ok("View count incremented successfully. New view count: " + viewCount);
         } catch (Exception e) {
             e.printStackTrace();
@@ -82,7 +85,7 @@ public class MovieController {
     @GetMapping("/all")
     public ResponseEntity<List<Movie>> getAllMovies() {
         try {
-            List<Movie> movies = movieServices.findAllMovies();
+            List<Movie> movies = movieService.findAllMovies();
             if (movies.isEmpty()) {
                 return ResponseEntity.noContent().build(); // HTTP 204 nếu danh sách rỗng
             }
@@ -98,7 +101,7 @@ public class MovieController {
     public ResponseEntity<?> getMovieById(
             @PathVariable String movieId) {
         try {
-            Movie movie = movieServices.findMovieById(movieId);
+            Movie movie = movieService.findMovieById(movieId);
             if (movie == null) {
                 return ResponseEntity.status(404).body("Movie not found with ID: " + movieId);
             }
@@ -118,7 +121,7 @@ public class MovieController {
             @ModelAttribute Movie updatedMovie,
             @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail) {
         try {
-            Movie existingMovie = movieServices.findMovieById(movieId);
+            Movie existingMovie = movieService.findMovieById(movieId);
             if (existingMovie == null) {
                 return ResponseEntity.status(404).body("Movie not found with ID: " + movieId);
             }
@@ -136,7 +139,7 @@ public class MovieController {
 
 
 
-            movieServices.updateMovie(existingMovie);
+            movieService.updateMovie(existingMovie);
 
             return ResponseEntity.ok(existingMovie);
         } catch (Exception e) {
@@ -150,7 +153,7 @@ public class MovieController {
     public ResponseEntity<?> deleteMoviesByIds(
             @RequestBody List<String> movieIds) {
         try {
-            movieServices.deleteMoviesByIds(movieIds);
+            movieService.deleteMoviesByIds(movieIds);
             return ResponseEntity.ok("Movies deleted successfully");
         } catch (Exception e) {
             e.printStackTrace();
@@ -164,7 +167,7 @@ public class MovieController {
     public ResponseEntity<List<Movie>> getMoviesByGenre(
             @PathVariable String genre) {
         try {
-            List<Movie> movies = movieServices.findAllMoviesByGenre(genre);
+            List<Movie> movies = movieService.findAllMoviesByGenre(genre);
             if (movies.isEmpty()) {
                 return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
             }
@@ -180,7 +183,7 @@ public class MovieController {
     public ResponseEntity<List<Movie>> searchMoviesByTitle(
             @RequestParam String title) {
         try {
-            List<Movie> movies = movieServices.findMoviesByTitleContaining(title);
+            List<Movie> movies = movieService.findMoviesByTitleContaining(title);
             if (movies.isEmpty()) {
                 return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
             }
@@ -199,7 +202,7 @@ public class MovieController {
             try{
                 int thang = Integer.parseInt(String.valueOf(month));
                 int nam = Integer.parseInt(String.valueOf(year));
-                List<Movie> movies = movieServices.findMoviesByMonthAndYear(thang,nam );
+                List<Movie> movies = movieService.findMoviesByMonthAndYear(thang,nam );
                 if(movies.isEmpty()) {
                     return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
                 }
@@ -208,14 +211,14 @@ public class MovieController {
                 e.printStackTrace();
                 return ResponseEntity.internalServerError().body(null);
             }
-
     }
+
 
     //top 10 phim theo view count
     @GetMapping("/popular")
     public  ResponseEntity<List<Movie>> popularMovies() {
         try {
-            List<Movie> movies = movieServices.findTop10MoviesByViewCount();
+            List<Movie> movies = movieService.findTop10MoviesByViewCount();
             if (movies.isEmpty()) {
                 return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
             }
@@ -226,5 +229,14 @@ public class MovieController {
         }
     }
 
+
+
+    @GetMapping("/{id}/watch")
+    public ResponseEntity<?> watchMovie(@PathVariable String id, @RequestHeader("userId") String userId) {
+        User user = userService.findUserById(userId);
+        Movie movie = movieService.getMovieIfAccessible(id, user);
+
+        return ResponseEntity.ok("🎬 Bạn được phép xem: " + movie.getTitle());
+    }
 
 }

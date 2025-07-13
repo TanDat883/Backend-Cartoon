@@ -1,7 +1,7 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Episode;
-import flim.backendcartoon.responsitories.EpisodeRepository;
+import flim.backendcartoon.repositories.EpisodeRepository;
 import flim.backendcartoon.services.EpisodeService;
 import org.springframework.stereotype.Service;
 

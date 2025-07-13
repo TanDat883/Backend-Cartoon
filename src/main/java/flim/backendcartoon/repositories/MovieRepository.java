@@ -1,8 +1,7 @@
-package flim.backendcartoon.responsitories;
+package flim.backendcartoon.repositories;
 
 
 import flim.backendcartoon.entities.Movie;
-import flim.backendcartoon.entities.User;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -15,10 +14,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
-public class MovieReponsitory {
+public class MovieRepository {
     private final DynamoDbTable<Movie> table;
 
-    public MovieReponsitory(DynamoDbEnhancedClient enhancedClient) {
+    public MovieRepository(DynamoDbEnhancedClient enhancedClient) {
         this.table = enhancedClient.table("Movie", TableSchema.fromBean(Movie.class));
     }
 

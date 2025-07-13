@@ -2,7 +2,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.Role;
 import flim.backendcartoon.entities.User;
-import flim.backendcartoon.services.UserServices;
+import flim.backendcartoon.services.UserService;
 import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,7 +15,6 @@ import software.amazon.awssdk.services.sns.model.CreateSmsSandboxPhoneNumberRequ
 import software.amazon.awssdk.services.cognitoidentityprovider.model.GetUserRequest;
 import software.amazon.awssdk.services.sns.model.PublishRequest;
 import software.amazon.awssdk.services.sns.model.VerifySmsSandboxPhoneNumberRequest;
-import flim.backendcartoon.entities.User;
 
 
 import javax.crypto.Mac;
@@ -36,7 +35,7 @@ public class AuthController {
     private SnsClient snsClient;
 
     @Autowired
-    private UserServices userService;
+    private UserService userService;
 
 
     private final Dotenv dotenv = Dotenv.load();

@@ -16,6 +16,8 @@ public class Movie {
     private String userId;
     private List<String> genres;
     private Long viewCount;
+    private String rating;
+    private VipLevel accessVipLevel;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("movieId")
@@ -51,5 +53,12 @@ public class Movie {
     public Long getViewCount() { return viewCount; }
     public void setViewCount(Long viewCount) { this.viewCount = viewCount;}
 
+    @DynamoDbAttribute("rating")
+    public String getRating() { return rating; }
+    public void setRating(String rating) { this.rating = rating;}
+
+    @DynamoDbAttribute("accessVipLevel")
+    public VipLevel getAccessVipLevel() { return accessVipLevel; }
+    public void setAccessVipLevel(VipLevel accessVipLevel) { this.accessVipLevel = accessVipLevel;}
 
 }

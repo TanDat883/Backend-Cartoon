@@ -1,20 +1,17 @@
 package flim.backendcartoon.services;
 
 import io.github.cdimascio.dotenv.Dotenv;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
-import java.net.URL;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 
 @Service
-public class S3Services {
+public class S3Service {
 
     private final S3Client s3Client;
 
@@ -23,7 +20,7 @@ public class S3Services {
     private final String bucketName = dotenv.get("AWS_S3_BUCKET_NAME");
 
 
-    public S3Services(S3Client s3Client) {
+    public S3Service(S3Client s3Client) {
         this.s3Client = s3Client;
     }
 

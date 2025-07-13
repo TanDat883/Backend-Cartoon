@@ -1,4 +1,4 @@
-package flim.backendcartoon.responsitories;
+package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.Episode;
 import org.springframework.stereotype.Repository;

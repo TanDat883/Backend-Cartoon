@@ -3,7 +3,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.Episode;
 import flim.backendcartoon.services.EpisodeService;
-import flim.backendcartoon.services.S3Services;
+import flim.backendcartoon.services.S3Service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +22,7 @@ public class EpisodeController {
     @Autowired
     private EpisodeService episodeService;
     @Autowired
-    private S3Services s3Services;
+    private S3Service s3Service;
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadEpisode(
@@ -35,7 +35,7 @@ public class EpisodeController {
         try {
             String videoUrl;
             if(video!=null && !video.isEmpty()) {
-                videoUrl = s3Services.uploadVideo(video);
+                videoUrl = s3Service.uploadVideo(video);
             } else if (videoLink!=null && !videoLink.isBlank()) {
                 videoUrl = videoLink;
             }else {

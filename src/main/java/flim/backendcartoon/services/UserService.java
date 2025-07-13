@@ -5,7 +5,7 @@ import flim.backendcartoon.entities.User;
 
 import java.util.List;
 
-public interface UserServices {
+public interface UserService {
     void createUser(User user);
     User findUserById(String id);
     User findUserByPhoneNumber(String phoneNumber);

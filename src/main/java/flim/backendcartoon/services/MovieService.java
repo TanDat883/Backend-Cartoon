@@ -1,10 +1,11 @@
 package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Movie;
+import flim.backendcartoon.entities.User;
 
 import java.util.List;
 
-public interface MovieServices {
+public interface MovieService {
     void saveMovie(Movie movie);
     Movie findMovieById(String id);
     Movie findMovieByName(String name);
@@ -22,6 +23,11 @@ public interface MovieServices {
 
     //lọc phim theo tháng và năm
     List<Movie> findMoviesByMonthAndYear(int month, int year);
+
     //lọc ra top 10 phim theo view count
     List<Movie> findTop10MoviesByViewCount();
+
+
+    Movie getMovieIfAccessible(String movieId, User userId);
+
 }
