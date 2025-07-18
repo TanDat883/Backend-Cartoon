@@ -7,7 +7,6 @@
 package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.PaymentOrder;
-import flim.backendcartoon.entities.Price;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;

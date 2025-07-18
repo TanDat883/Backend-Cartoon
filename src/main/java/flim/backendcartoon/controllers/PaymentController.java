@@ -15,13 +15,13 @@ package flim.backendcartoon.controllers;
 
 import com.amazonaws.services.kms.model.NotFoundException;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
+import flim.backendcartoon.entities.PackageVip;
 import flim.backendcartoon.entities.PaymentOrder;
-import flim.backendcartoon.entities.Price;
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.entities.VipLevel;
 import flim.backendcartoon.services.PaymentOrderService;
 import flim.backendcartoon.services.PaymentService;
-import flim.backendcartoon.services.PriceService;
+import flim.backendcartoon.services.PackageVipService;
 import flim.backendcartoon.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -38,26 +38,26 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaymentOrderService paymentOrderService;
-    private final PriceService priceService;
+    private final PackageVipService packageVipService;
     private final UserService userService;
 
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody CreatePaymentRequest req) throws Exception {
         User user = userService.findUserById(req.getUserId());
         if (user == null) {
-            throw new NotFoundException("Không tìm thấy người dùng");
+            return ResponseEntity.badRequest().body("Không tìm thấy người dùng");
         }
 
-        Price price = priceService.findPriceById(req.getPriceId());
-        if (price == null || price.getMovieId() != null) {
-            throw new NotFoundException("Không tìm thấy gói VIP hợp lệ");
+        PackageVip packageVip = packageVipService.findPackageVipById(req.getPackageId());
+        if (packageVip == null) {
+            return ResponseEntity.badRequest().body("Không tìm thấy gói VIP");
         }
 
-        // Tạo dữ liệu đơn hàng từ price
-        VipLevel vip = price.getApplicableVipLevels().get(0);
+        // Tạo dữ liệu đơn hàng từ packageVip
+        VipLevel vip = packageVip.getApplicableVipLevel();
         String productName = "Gói VIP " + vip.name();
-        String description = "Gói " + vip.name() + " thời hạn " + price.getDurationInDays() + " ngày";
-        int amount = price.getAmount().intValue();
+        String description = "Gói " + vip.name() + " thời hạn " + packageVip.getDurationInDays() + " ngày";
+        int amount = packageVip.getAmount().intValue();
 
         // Gọi PayOS để tạo link thanh toán
         CheckoutResponseData data = paymentService.createPaymentLink(
@@ -69,14 +69,16 @@ public class PaymentController {
         PaymentOrder order = new PaymentOrder();
         order.setOrderCode(data.getOrderCode());
         order.setUserId(req.getUserId());
-        order.setPriceId(req.getPriceId());
+        order.setPackageId(req.getPackageId());
         order.setStatus("PENDING");
+        order.setAmount((double) amount);
+        order.setCreatedAt(LocalDate.now());
+
+
         paymentOrderService.savePaymentOrder(order);
 
         return ResponseEntity.ok(data);
     }
-
-
 
     @GetMapping("/{orderId}")
     public ResponseEntity<?> get(@PathVariable long orderId) throws Exception {
@@ -90,7 +92,6 @@ public class PaymentController {
 
     @PostMapping("/webhook")
     public ResponseEntity<?> webhook(@RequestBody Map<String, Object> payload) {
-        System.out.println("📩 Webhook received: " + payload);
         String status = (String) payload.get("status");
         Long orderCode = ((Number) payload.get("orderCode")).longValue();
 
@@ -98,22 +99,30 @@ public class PaymentController {
             PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
             if (order == null) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng");
 
-            Price price = priceService.findPriceById(order.getPriceId());
+            PackageVip packageVip = packageVipService.findPackageVipById(order.getPackageId());
             User user = userService.findUserById(order.getUserId());
 
             // Update VIP
-            VipLevel vip = price.getApplicableVipLevels().get(0);
+            VipLevel vip = packageVip.getApplicableVipLevel();
             LocalDate now = LocalDate.now();
             user.setVipLevel(vip);
             user.setVipStartDate(now);
-            user.setVipEndDate(now.plusDays(price.getDurationInDays()));
+            user.setVipEndDate(now.plusDays(packageVip.getDurationInDays()));
             userService.updateUser(user);
 
             // Update order
             order.setStatus("PAID");
             paymentOrderService.updatePaymentOrder(order);
 
-            System.out.println("✅ Cập nhật user VIP thành công cho " + user.getUserId());
+        } else if ("CANCELED".equalsIgnoreCase(status)) {
+            PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
+            if (order == null) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng");
+
+            // Update order status
+            order.setStatus("CANCELED");
+            paymentOrderService.updatePaymentOrder(order);
+        } else {
+            return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
         }
 
         return ResponseEntity.ok("Webhook processed");
