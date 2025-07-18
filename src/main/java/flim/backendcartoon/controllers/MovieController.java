@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 
+
 @RestController
 @RequestMapping("/movies")
 public class MovieController {
@@ -74,7 +75,7 @@ public class MovieController {
             @PathVariable String movieId) {
         try {
             Long viewCount = movieService.increaseViewCount(movieId);
-            return ResponseEntity.ok("View count incremented successfully. New view count: " + viewCount);
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to increment view count: " + e.getMessage());
@@ -149,7 +150,7 @@ public class MovieController {
     }
 
     //delete many movies by ids
-    @DeleteMapping("/delete")
+    @PostMapping("/delete")
     public ResponseEntity<?> deleteMoviesByIds(
             @RequestBody List<String> movieIds) {
         try {

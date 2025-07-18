@@ -31,4 +31,13 @@ public class EpisodeServiceImpl implements EpisodeService {
         List<Episode> episodes = episodeRepository.findByMovieId(movieId);
         return episodes.size();
     }
+
+    @Override
+    public Episode findEpisodeById(String episodeId) {
+        Episode episode = episodeRepository.findById(episodeId);
+        if (episode == null) {
+            throw new RuntimeException("Episode not found with id: " + episodeId);
+        }
+        return episode;
+    }
 }

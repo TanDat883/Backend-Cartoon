@@ -31,4 +31,7 @@ public class EpisodeRepository {
     }
 
 
+    public Episode findById(String episodeId) {
+        return table.getItem(r -> r.key(k -> k.partitionValue(episodeId)));
+    }
 }

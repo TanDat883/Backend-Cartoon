@@ -9,4 +9,6 @@ public interface EpisodeService {
     List<Episode> findEpisodesByMovieId(String movieId);
     //num of episodes in a movie
     int countEpisodesByMovieId(String movieId);
+    //find by episodeId
+    Episode findEpisodeById(String episodeId);
 }

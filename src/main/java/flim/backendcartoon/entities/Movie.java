@@ -15,7 +15,7 @@ public class Movie {
     private String createdAt;
     private String userId;
     private List<String> genres;
-    private Long viewCount;
+    private Long viewCount = 0L; // Default view count is 0
     private String rating;
     private VipLevel accessVipLevel;
 

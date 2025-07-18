@@ -35,7 +35,7 @@ public class EpisodeController {
         try {
             String videoUrl;
             if(video!=null && !video.isEmpty()) {
-                videoUrl = s3Service.uploadVideo(video);
+                videoUrl = s3Service.convertAndUploadToHLS(video);
             } else if (videoLink!=null && !videoLink.isBlank()) {
                 videoUrl = videoLink;
             }else {
@@ -59,7 +59,7 @@ public class EpisodeController {
         }
     }
 
-
+    //find by episodeId
     @GetMapping("/movie/{movieId}")
     public ResponseEntity<?> getEpisodesByMovie(@PathVariable String movieId) {
         List<Episode> episodes = episodeService.findEpisodesByMovieId(movieId);
@@ -72,4 +72,12 @@ public class EpisodeController {
         int count = episodeService.countEpisodesByMovieId(movieId);
         return ResponseEntity.ok(Map.of("count", count)); // ✅ bọc trong object JSON
     }
+
+    @GetMapping("/episodes/{episodeId}")
+    public ResponseEntity<Episode> getEpisodeById(@PathVariable String episodeId) {
+        Episode ep = episodeService.findEpisodeById(episodeId);
+
+        return ResponseEntity.ok(ep);
+    }
+
 }

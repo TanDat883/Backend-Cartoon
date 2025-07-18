@@ -63,12 +63,18 @@ public class MovieServiceImpl implements MovieService {
     @Override
     public Long increaseViewCount(String movieId) {
         Movie movie = movieRepository.findById(movieId);
-        if(movie !=null){
-            Long currentViewCount = movie.getViewCount() != null ? movie.getViewCount() : 0L;
-            movie.setViewCount(currentViewCount + 1);
-            movieRepository.update(movie);
-            return movie.getViewCount();
-        }  return null;
+        if (movie == null) {
+            throw new NotFoundException("Phim không tồn tại");
+        }
+
+        Long currentView = movie.getViewCount();
+        if (currentView == null) {
+            currentView = 0L; // Khởi tạo nếu null
+        }
+
+        movie.setViewCount(currentView + 1);
+        movieRepository.save(movie);
+        return movie.getViewCount();
     }
 
     @Override

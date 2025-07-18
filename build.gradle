@@ -76,7 +76,10 @@ dependencies {
     implementation 'vn.payos:payos-java:1.0.0'
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8" // Thư viện PayOS để xử lý thanh toán
 
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 
+// https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-oauth2-resource-server
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server:3.5.3'
 }
 
 dependencyManagement {
