@@ -109,7 +109,7 @@ public class MovieServiceImpl implements MovieService {
         Movie movie = movieRepository.findById(movieId);
 
         if (movie == null) {
-            throw new NotFoundException("Không tìm thấy phim");
+            throw new BaseException("Phim không tồn tại.");
         }
 
         // Nếu không yêu cầu VIP hoặc người dùng có đủ cấp độ

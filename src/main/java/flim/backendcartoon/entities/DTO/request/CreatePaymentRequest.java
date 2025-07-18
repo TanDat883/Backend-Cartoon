@@ -18,7 +18,7 @@ import lombok.Data;
 @Data
 public class CreatePaymentRequest {
     private String userId;
-    private String priceId;
+    private String packageId;
     private String returnUrl;
     private String cancelUrl;
 }

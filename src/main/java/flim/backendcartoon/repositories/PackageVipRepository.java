@@ -6,8 +6,7 @@
 
 package flim.backendcartoon.repositories;
 
-import flim.backendcartoon.entities.Price;
-import flim.backendcartoon.entities.User;
+import flim.backendcartoon.entities.PackageVip;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -21,20 +20,20 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
  * @created: 13-July-2025 1:29 PM
  */
 @Repository
-public class PriceRepository {
-    private final DynamoDbTable<Price> table;
+public class PackageVipRepository {
+    private final DynamoDbTable<PackageVip> table;
 
     @Autowired
-    public PriceRepository(DynamoDbEnhancedClient enhancedClient) {
-        this.table = enhancedClient.table("Price", TableSchema.fromBean(Price.class));
+    public PackageVipRepository(DynamoDbEnhancedClient enhancedClient) {
+        this.table = enhancedClient.table("PackageVip", TableSchema.fromBean(PackageVip.class));
     }
 
-    public void save(Price price) {
-        System.out.println("Saving price to DynamoDB: " + price);
-        table.putItem(price);
+    public void save(PackageVip packageVip) {
+        System.out.println("Saving packageVip to DynamoDB: " + packageVip);
+        table.putItem(packageVip);
     }
 
-    public Price findById(String priceId) {
-        return table.getItem(r -> r.key(k -> k.partitionValue(priceId)));
+    public PackageVip findById(String packageId) {
+        return table.getItem(r -> r.key(k -> k.partitionValue(packageId)));
     }
 }

@@ -3,7 +3,7 @@ package flim.backendcartoon.controllers;
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
 import flim.backendcartoon.services.PaymentService;
-import flim.backendcartoon.services.PriceService;
+import flim.backendcartoon.services.PackageVipService;
 import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,13 +20,13 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
-    private final PriceService priceService;
+    private final PackageVipService packageVipService;
     private final PaymentService paymentService;
 
     @Autowired
-    public UserController(UserService userService, PriceService priceService, PaymentService paymentService, PaymentOrderRepository paymentOrderRepository) {
+    public UserController(UserService userService, PackageVipService packageVipService, PaymentService paymentService, PaymentOrderRepository paymentOrderRepository) {
         this.userService = userService;
-        this.priceService = priceService;
+        this.packageVipService = packageVipService;
         this.paymentService = paymentService;
     }
 

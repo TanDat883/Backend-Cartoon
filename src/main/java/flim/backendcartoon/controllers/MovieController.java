@@ -234,6 +234,9 @@ public class MovieController {
     @GetMapping("/{id}/watch")
     public ResponseEntity<?> watchMovie(@PathVariable String id, @RequestHeader("userId") String userId) {
         User user = userService.findUserById(userId);
+        if (user == null) {
+            return ResponseEntity.status(404).body("Người dùng không tồn tại");
+        }
         Movie movie = movieService.getMovieIfAccessible(id, user);
 
         return ResponseEntity.ok("🎬 Bạn được phép xem: " + movie.getTitle());

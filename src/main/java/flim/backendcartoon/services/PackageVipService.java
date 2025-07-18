@@ -7,7 +7,7 @@
 package flim.backendcartoon.services;
 
 
-import flim.backendcartoon.entities.Price;
+import flim.backendcartoon.entities.PackageVip;
 
 /*
  * @description
@@ -15,9 +15,9 @@ import flim.backendcartoon.entities.Price;
  * @version: 1.0
  * @created: 13-July-2025 1:32 PM
  */
-public interface PriceService {
-    void savePrice(Price price);
-    Price findPriceById(String priceId);
+public interface PackageVipService {
+    void savePackageVip(PackageVip packageVip);
+    PackageVip findPackageVipById(String packageId);
 }
 
     

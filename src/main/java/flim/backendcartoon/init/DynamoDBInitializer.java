@@ -2,7 +2,6 @@ package flim.backendcartoon.init;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
-import software.amazon.awssdk.services.dynamodb.model.ResourceInUseException;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import flim.backendcartoon.entities.*;
@@ -25,8 +24,12 @@ public class DynamoDBInitializer implements CommandLineRunner {
         createTableIfNotExists(User.class, "User");
         createTableIfNotExists(Movie.class, "Movie");
         createTableIfNotExists(Episode.class, "Episode");
-        createTableIfNotExists(Price.class, "Price");
+        createTableIfNotExists(PackageVip.class, "PackageVip");
         createTableIfNotExists(PaymentOrder.class, "PaymentOrder");
+        createTableIfNotExists(Promotion.class, "Promotion");
+        createTableIfNotExists(Feedback.class, "Feedback");
+        createTableIfNotExists(Wishlist.class, "Wishlist");
+        createTableIfNotExists(Author.class, "Author");
     }
 
     private <T> void createTableIfNotExists(Class<T> clazz, String tableName) {

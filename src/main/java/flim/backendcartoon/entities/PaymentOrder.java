@@ -23,8 +23,9 @@ import java.time.LocalDate;
 public class PaymentOrder {
     private Long orderCode;
     private String userId;
-    private String priceId;
-    private String status; // PENDING, PAID, CANCELLED
+    private String packageId;
+    private String status;
+    private Double amount;
     private LocalDate createdAt;
 
     @DynamoDbPartitionKey
@@ -36,13 +37,17 @@ public class PaymentOrder {
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
-    @DynamoDbAttribute("priceId")
-    public String getPriceId() { return priceId; }
-    public void setPriceId(String priceId) { this.priceId = priceId; }
+    @DynamoDbAttribute("packageId")
+    public String getPackageId() { return packageId; }
+    public void setPackageId(String packageId) { this.packageId = packageId; }
 
     @DynamoDbAttribute("status")
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    @DynamoDbAttribute("amount")
+    public Double getAmount() { return amount; }
+    public void setAmount(Double amount) { this.amount = amount; }
 
     @DynamoDbAttribute("createdAt")
     public LocalDate getCreatedAt() { return createdAt; }
