@@ -4,12 +4,15 @@ import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
 import flim.backendcartoon.services.PaymentService;
 import flim.backendcartoon.services.PackageVipService;
+import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,9 +25,13 @@ public class UserController {
     private final UserService userService;
     private final PackageVipService packageVipService;
     private final PaymentService paymentService;
+    private final S3Service s3Service;
 
     @Autowired
-    public UserController(UserService userService, PackageVipService packageVipService, PaymentService paymentService, PaymentOrderRepository paymentOrderRepository) {
+    public UserController(UserService userService, PackageVipService packageVipService,
+                          PaymentService paymentService, PaymentOrderRepository paymentOrderRepository
+                            , S3Service s3Service) {
+        this.s3Service = s3Service;
         this.userService = userService;
         this.packageVipService = packageVipService;
         this.paymentService = paymentService;
@@ -77,8 +84,10 @@ public class UserController {
     }
 
     //update user
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody User user) {
+    @PutMapping("/{id}/update")
+    public ResponseEntity<?> updateUser(@PathVariable String id,
+                                        @RequestPart("user") User user,
+                                        @RequestParam(value = "file", required = false) MultipartFile file) throws IOException {
         if (user.getUserName() == null) {
             return ResponseEntity.badRequest().body("Thông tin người dùng không hợp lệ");
         }
@@ -87,7 +96,11 @@ public class UserController {
         if (existingUser == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy người dùng với ID: " + id);
         }
-
+        // Nếu có ảnh thì upload và set avatarUrl
+        if (file != null && !file.isEmpty()) {
+            String avatarUrl = s3Service.uploadAvatarUrl(file);
+            existingUser.setAvatarUrl(avatarUrl);
+        }
         // Cập nhật thông tin người dùng
         existingUser.setUserName(user.getUserName());
         existingUser.setEmail(user.getEmail());

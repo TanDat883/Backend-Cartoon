@@ -22,7 +22,9 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/movies/create").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/delete").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/movies/*/increment-view").permitAll()
+
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/episodes/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
