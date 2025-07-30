@@ -13,10 +13,8 @@ public class Movie {
     private String description;
     private String thumbnailUrl;
     private String createdAt;
-    private String userId;
     private List<String> genres;
-    private Long viewCount = 0L; // Default view count is 0
-    private String rating;
+    private Long viewCount = 0L;
     private VipLevel accessVipLevel;
 
     @DynamoDbPartitionKey
@@ -41,10 +39,6 @@ public class Movie {
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 
-    @DynamoDbAttribute("userId")
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-
     @DynamoDbAttribute("genres")
     public List<String> getGenres() { return genres; }
     public void setGenres(List<String> genres) { this.genres = genres;}
@@ -52,10 +46,6 @@ public class Movie {
     @DynamoDbAttribute("viewCount")
     public Long getViewCount() { return viewCount; }
     public void setViewCount(Long viewCount) { this.viewCount = viewCount;}
-
-    @DynamoDbAttribute("rating")
-    public String getRating() { return rating; }
-    public void setRating(String rating) { this.rating = rating;}
 
     @DynamoDbAttribute("accessVipLevel")
     public VipLevel getAccessVipLevel() { return accessVipLevel; }

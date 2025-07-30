@@ -3,7 +3,7 @@ package flim.backendcartoon.controllers;
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
 import flim.backendcartoon.services.PaymentService;
-import flim.backendcartoon.services.PackageVipService;
+import flim.backendcartoon.services.SubscriptionPackageService;
 import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,17 +23,17 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
-    private final PackageVipService packageVipService;
+    private final SubscriptionPackageService subscriptionPackageService;
     private final PaymentService paymentService;
     private final S3Service s3Service;
 
     @Autowired
-    public UserController(UserService userService, PackageVipService packageVipService,
+    public UserController(UserService userService, SubscriptionPackageService subscriptionPackageService,
                           PaymentService paymentService, PaymentOrderRepository paymentOrderRepository
                             , S3Service s3Service) {
         this.s3Service = s3Service;
         this.userService = userService;
-        this.packageVipService = packageVipService;
+        this.subscriptionPackageService = subscriptionPackageService;
         this.paymentService = paymentService;
     }
 

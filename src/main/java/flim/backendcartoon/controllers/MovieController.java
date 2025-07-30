@@ -38,7 +38,6 @@ public class MovieController {
     public ResponseEntity<?> uploadMovie(
             @RequestParam("title") String title,
             @RequestParam(value = "description", required = false) String description,
-            @RequestParam("userId") String userId,
             @RequestParam(value = "role", required = true) String role,
             @RequestParam(value = "genres", required = false) List<String> genres,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail
@@ -55,7 +54,6 @@ public class MovieController {
             movie.setMovieId(UUID.randomUUID().toString());
             movie.setTitle(title);
             movie.setDescription(description);
-            movie.setUserId(userId);
             movie.setGenres(genres);
             movie.setCreatedAt(Instant.now().toString());
             movie.setThumbnailUrl(thumbnailUrl);

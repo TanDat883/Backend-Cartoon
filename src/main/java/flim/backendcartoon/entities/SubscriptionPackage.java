@@ -19,12 +19,13 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 @DynamoDbBean
-public class PackageVip {
+public class SubscriptionPackage {
 
     private String packageId;
     private Double amount;
     private VipLevel applicableVipLevel;
     private Integer durationInDays;
+    private String description;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("packageId")
@@ -62,6 +63,14 @@ public class PackageVip {
 
     public void setDurationInDays(Integer durationInDays) {
         this.durationInDays = durationInDays;
+    }
+
+    @DynamoDbAttribute("description")
+    public String getDescription() {
+        return description;
+    }
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
 

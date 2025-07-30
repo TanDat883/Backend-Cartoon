@@ -6,7 +6,7 @@
 
 package flim.backendcartoon.repositories;
 
-import flim.backendcartoon.entities.PackageVip;
+import flim.backendcartoon.entities.SubscriptionPackage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -20,20 +20,20 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
  * @created: 13-July-2025 1:29 PM
  */
 @Repository
-public class PackageVipRepository {
-    private final DynamoDbTable<PackageVip> table;
+public class SubscriptionPackageRepository {
+    private final DynamoDbTable<SubscriptionPackage> table;
 
     @Autowired
-    public PackageVipRepository(DynamoDbEnhancedClient enhancedClient) {
-        this.table = enhancedClient.table("PackageVip", TableSchema.fromBean(PackageVip.class));
+    public SubscriptionPackageRepository(DynamoDbEnhancedClient enhancedClient) {
+        this.table = enhancedClient.table("SubscriptionPackage", TableSchema.fromBean(SubscriptionPackage.class));
     }
 
-    public void save(PackageVip packageVip) {
-        System.out.println("Saving packageVip to DynamoDB: " + packageVip);
-        table.putItem(packageVip);
+    public void save(SubscriptionPackage subscriptionPackage) {
+        System.out.println("Saving subscriptionPackage to DynamoDB: " + subscriptionPackage);
+        table.putItem(subscriptionPackage);
     }
 
-    public PackageVip findById(String packageId) {
+    public SubscriptionPackage findById(String packageId) {
         return table.getItem(r -> r.key(k -> k.partitionValue(packageId)));
     }
 }
