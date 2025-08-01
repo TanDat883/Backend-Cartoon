@@ -13,22 +13,18 @@ package flim.backendcartoon.controllers;
  * @created: 09-July-2025 12:33 PM
  */
 
+import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
-import flim.backendcartoon.entities.SubscriptionPackage;
-import flim.backendcartoon.entities.PaymentOrder;
-import flim.backendcartoon.entities.User;
-import flim.backendcartoon.entities.VipLevel;
-import flim.backendcartoon.services.PaymentOrderService;
-import flim.backendcartoon.services.PaymentService;
-import flim.backendcartoon.services.SubscriptionPackageService;
-import flim.backendcartoon.services.UserService;
+import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.payos.type.CheckoutResponseData;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/payment")
@@ -39,6 +35,8 @@ public class PaymentController {
     private final PaymentOrderService paymentOrderService;
     private final SubscriptionPackageService subscriptionPackageService;
     private final UserService userService;
+    private final OrderService orderService;
+    private final VipSubscriptionService vipSubscriptionService;
 
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody CreatePaymentRequest req) throws Exception {
@@ -52,6 +50,9 @@ public class PaymentController {
             return ResponseEntity.badRequest().body("Không tìm thấy gói VIP");
         }
 
+        // Tạo đơn hàng Order trước
+        Order order = orderService.createOrder(req.getUserId(), req.getPackageId());
+
         // Tạo dữ liệu đơn hàng từ subscriptionPackage
         VipLevel vip = subscriptionPackage.getApplicableVipLevel();
         String productName = "Gói VIP " + vip.name();
@@ -64,16 +65,14 @@ public class PaymentController {
                 req.getReturnUrl(), req.getCancelUrl()
         );
 
-        // 💾 Lưu thông tin đơn hàng PENDING để chờ webhook xử lý
-        PaymentOrder order = new PaymentOrder();
-        order.setOrderCode(data.getOrderCode());
-//        order.setUserId(req.getUserId());
-//        order.setPackageId(req.getPackageId());
-        order.setStatus("PENDING");
-        order.setAmount((double) amount);
-//        order.setCreatedAt(LocalDate.now());
-
-        paymentOrderService.savePaymentOrder(order);
+        // Lưu thông tin PaymentOrder
+        PaymentOrder paymentOrder = new PaymentOrder();
+        paymentOrder.setOrderCode(data.getOrderCode());
+        paymentOrder.setOrderId(order.getOrderId());
+        paymentOrder.setAmount((double) amount);
+        paymentOrder.setStatus("PENDING");
+        paymentOrder.setCreatedAt(LocalDateTime.now());
+        paymentOrderService.savePaymentOrder(paymentOrder);
 
         return ResponseEntity.ok(data);
     }
@@ -90,40 +89,62 @@ public class PaymentController {
 
     @PostMapping("/webhook")
     public ResponseEntity<?> webhook(@RequestBody Map<String, Object> payload) {
-        String status = (String) payload.get("status");
-        Long orderCode = ((Number) payload.get("orderCode")).longValue();
+        try {
+            String status = (String) payload.get("status");
+            Long orderCode = ((Number) payload.get("orderCode")).longValue();
 
-//        if ("PAID".equalsIgnoreCase(status)) {
-//            PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
-//            if (order == null) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng");
-//
-//            SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
-//            User user = userService.findUserById(order.getUserId());
-//
-//            // Update VIP
-//            VipLevel vip = subscriptionPackage.getApplicableVipLevel();
-//            LocalDate now = LocalDate.now();
-//            user.setVipLevel(vip);
-//            user.setVipStartDate(now);
-//            user.setVipEndDate(now.plusDays(subscriptionPackage.getDurationInDays()));
-//            userService.updateUser(user);
-//
-//            // Update order
-//            order.setStatus("PAID");
-//            paymentOrderService.updatePaymentOrder(order);
-//
-//        } else if ("CANCELED".equalsIgnoreCase(status)) {
-//            PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
-//            if (order == null) return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng");
-//
-//            // Update order status
-//            order.setStatus("CANCELED");
-//            paymentOrderService.updatePaymentOrder(order);
-//        } else {
-//            return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
-//        }
+            PaymentOrder paymentOrder = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
+            if (paymentOrder == null) {
+                return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng thanh toán");
+            }
 
-        return ResponseEntity.ok("Webhook processed");
+            // Tìm Order gốc
+            Order order = orderService.findOrderById(paymentOrder.getOrderId());
+            if (order == null) {
+                return ResponseEntity.badRequest().body("Không tìm thấy Order liên kết");
+            }
+
+            if ("PAID".equalsIgnoreCase(status)) {
+                // Đánh dấu đơn hàng là PENDING chờ xác nhận chính thức sau 24h
+                paymentOrder.setStatus("PENDING");
+                paymentOrderService.updatePaymentOrder(paymentOrder);
+
+                orderService.updateOrderStatus(order.getOrderId(), "PENDING");
+
+                // Cập nhật thông tin VIP tạm thời
+                User user = userService.findUserById(order.getUserId());
+                SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
+
+                if (user == null || subscriptionPackage == null) {
+                    return ResponseEntity.badRequest().body("Không tìm thấy user hoặc gói VIP");
+                }
+
+                VipLevel vip = subscriptionPackage.getApplicableVipLevel();
+                LocalDate now = LocalDate.now();
+
+                VipSubscription vipSub = new VipSubscription();
+                vipSub.setVipId(paymentOrder.getOrderId());
+                vipSub.setUserId(user.getUserId());
+                vipSub.setPackageId(subscriptionPackage.getPackageId());
+                vipSub.setVipLevel(vip);
+                vipSub.setStatus("TEMPORARY");
+                vipSub.setStartDate(now.toString());
+                vipSub.setEndDate(now.plusDays(subscriptionPackage.getDurationInDays()).toString());
+
+                vipSubscriptionService.saveVipSubscription(vipSub);
+
+            } else if ("CANCELED".equalsIgnoreCase(status)) {
+                paymentOrder.setStatus("CANCELED");
+                paymentOrderService.updatePaymentOrder(paymentOrder);
+                orderService.updateOrderStatus(order.getOrderId(), "CANCELED");
+            } else {
+                return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
+            }
+
+            return ResponseEntity.ok("Webhook processed");
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi xử lý webhook: " + e.getMessage());
+        }
     }
-
 }

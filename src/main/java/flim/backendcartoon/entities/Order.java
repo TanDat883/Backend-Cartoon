@@ -24,7 +24,7 @@ public class Order {
     private String orderId;
     private String userId;
     private String packageId;
-    private String status;
+    private String status; // PENDING, COMPLETED, CANCELED, EXPIRED
     private LocalDateTime orderDate;
 
     @DynamoDbPartitionKey

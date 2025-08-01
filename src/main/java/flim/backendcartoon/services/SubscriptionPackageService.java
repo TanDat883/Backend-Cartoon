@@ -9,6 +9,8 @@ package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.SubscriptionPackage;
 
+import java.util.List;
+
 /*
  * @description
  * @author: Tran Tan Dat
@@ -18,6 +20,7 @@ import flim.backendcartoon.entities.SubscriptionPackage;
 public interface SubscriptionPackageService {
     void saveSubscriptionPackage(SubscriptionPackage subscriptionPackage);
     SubscriptionPackage findSubscriptionPackageById(String packageId);
+    List<SubscriptionPackage> findAllSubscriptionPackages();
 }
 
     

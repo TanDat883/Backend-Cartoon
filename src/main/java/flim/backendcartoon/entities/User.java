@@ -18,9 +18,6 @@ public class User {
     private Role role;
     private String email;
     private String avatarUrl;
-    private VipLevel vipLevel;
-    private LocalDate vipStartDate;
-    private LocalDate vipEndDate;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("userId")
@@ -81,28 +78,5 @@ public class User {
     public String getAvatarUrl() {return avatarUrl;}
 
     public void setAvatarUrl(String avatarUrl) {this.avatarUrl = avatarUrl;}
-
-    @DynamoDbAttribute("vipLevel")
-    public VipLevel getVipLevel() {return vipLevel; }
-
-    public void setVipLevel(VipLevel vipLevel) { this.vipLevel = vipLevel;}
-
-    @DynamoDbAttribute("vipStartDate")
-    public LocalDate getVipStartDate() {
-        return vipStartDate;
-    }
-
-    public void setVipStartDate(LocalDate vipStartDate) {
-        this.vipStartDate = vipStartDate;
-    }
-
-    @DynamoDbAttribute("vipEndDate")
-    public LocalDate getVipEndDate() {
-        return vipEndDate;
-    }
-
-    public void setVipEndDate(LocalDate vipEndDate) {
-        this.vipEndDate = vipEndDate;
-    }
 
 }

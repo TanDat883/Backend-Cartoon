@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 public class PaymentOrder {
     private Long orderCode;
     private String orderId;
-    private String status;
+    private String status; // PENDING, PAID, FAILED, REFUNDED
     private Double amount;
     private LocalDateTime createdAt;
 

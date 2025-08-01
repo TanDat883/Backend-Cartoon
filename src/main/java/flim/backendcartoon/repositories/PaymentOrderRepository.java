@@ -40,4 +40,8 @@ public class PaymentOrderRepository {
     public PaymentOrder findByOrderCode(Long code) {
         return table.getItem(r -> r.key(k -> k.partitionValue(code)));
     }
+
+    public PaymentOrder findByOrderId(String orderId) {
+        return table.getItem(r -> r.key(k -> k.partitionValue(orderId)));
+    }
 }

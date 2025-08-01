@@ -19,6 +19,8 @@ public interface PaymentOrderService {
     void savePaymentOrder(PaymentOrder paymentOrder);
     void updatePaymentOrder(PaymentOrder paymentOrder);
     PaymentOrder findPaymentOrderByOrderCode(Long orderCode);
+    String getStatusByOrderId(String orderId);
+    void updatePaymentOrderStatus(String orderId, String status);
 }
 
     

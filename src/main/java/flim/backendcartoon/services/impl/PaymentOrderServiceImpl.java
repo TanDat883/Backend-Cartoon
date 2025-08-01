@@ -46,4 +46,26 @@ public class PaymentOrderServiceImpl implements PaymentOrderService {
     public PaymentOrder findPaymentOrderByOrderCode(Long orderCode) {
         return paymentOrderRepository.findByOrderCode(orderCode);
     }
+
+    @Override
+    public String getStatusByOrderId(String orderId) {
+        PaymentOrder paymentOrder = paymentOrderRepository.findByOrderId(orderId);
+        if (paymentOrder != null) {
+            return paymentOrder.getStatus();
+        } else {
+            throw new RuntimeException("Payment order not found for order ID: " + orderId);
+        }
+    }
+
+    @Override
+    public void updatePaymentOrderStatus(String orderId, String status) {
+        PaymentOrder paymentOrder = paymentOrderRepository.findByOrderId(orderId);
+        if (paymentOrder != null) {
+            paymentOrder.setStatus(status);
+            paymentOrderRepository.update(paymentOrder);
+            System.out.println("Updated payment order status for order ID: " + orderId + " to status: " + status);
+        } else {
+            throw new RuntimeException("Payment order not found for order ID: " + orderId);
+        }
+    }
 }

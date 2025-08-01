@@ -119,9 +119,9 @@ public class MovieServiceImpl implements MovieService {
         }
 
         // Nếu không yêu cầu VIP hoặc người dùng có đủ cấp độ
-        if (movie.getAccessVipLevel() == null || user.getVipLevel().ordinal() >= movie.getAccessVipLevel().ordinal()) {
-            return movie;
-        }
+//        if (movie.getAccessVipLevel() == null || user.getVipLevel().ordinal() >= movie.getAccessVipLevel().ordinal()) {
+//            return movie;
+//        }
         throw new BaseException("Bạn không có quyền truy cập vào phim này. Vui lòng nâng cấp VIP để xem.");
     }
 

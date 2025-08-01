@@ -19,14 +19,24 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 
 @DynamoDbBean
 public class VipSubscription {
+    private String vipId;
     private String userId;
     private String packageId;
-    private String status;
+    private String status; // PENDING, ACTIVE, EXPIRED, REFUNDED
     private VipLevel vipLevel;
     private String startDate;
     private String endDate;
+    private String createdAt;
 
     @DynamoDbPartitionKey
+    @DynamoDbAttribute("vipId")
+    public String getVipId() {
+        return vipId;
+    }
+    public void setVipId(String vipId) {
+        this.vipId = vipId;
+    }
+
     @DynamoDbAttribute("userId")
     public String getUserId() {
         return userId;
@@ -73,6 +83,14 @@ public class VipSubscription {
     }
     public void setEndDate(String endDate) {
         this.endDate = endDate;
+    }
+
+    @DynamoDbAttribute("createdAt")
+    public String getCreatedAt() {
+        return createdAt;
+    }
+    public void setCreatedAt(String createdAt) {
+        this.createdAt = createdAt;
     }
 
 }
