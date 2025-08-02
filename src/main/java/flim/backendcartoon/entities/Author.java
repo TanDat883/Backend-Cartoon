@@ -10,6 +10,8 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttri
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
+import java.util.List;
+
 /*
  * @description
  * @author: Tran Tan Dat
@@ -19,11 +21,9 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 @DynamoDbBean
 public class Author {
     private String authorId;
-    private String movieId;
+    private List<String> movieId;
     private String name;
-    private String gender;
-    private String dateOfBirth;
-    private String avatarUrl;
+    private AuthorRole authorRole;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("authorId")
@@ -36,12 +36,8 @@ public class Author {
     }
 
     @DynamoDbAttribute("movieId")
-    public String getMovieId() {
-        return movieId;
-    }
-    public void setMovieId(String movieId) {
-        this.movieId = movieId;
-    }
+    public List<String> getMovieId() {return movieId;}
+    public void setMovieId(List<String> movieId) {this.movieId = movieId;}
 
     @DynamoDbAttribute("name")
     public String getName() {
@@ -51,30 +47,11 @@ public class Author {
         this.name = name;
     }
 
-    @DynamoDbAttribute("gender")
-    public String getGender() {
-        return gender;
+    @DynamoDbAttribute("authorRole")
+    public AuthorRole getAuthorRole() {
+        return authorRole;
     }
-
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
-
-    @DynamoDbAttribute("dateOfBirth")
-    public String getDateOfBirth() {
-        return dateOfBirth;
-    }
-
-    public void setDateOfBirth(String dateOfBirth) {
-        this.dateOfBirth = dateOfBirth;
-    }
-
-    @DynamoDbAttribute("avatarUrl")
-    public String getAvatarUrl() {
-        return avatarUrl;
-    }
-
-    public void setAvatarUrl(String avatarUrl) {
-        this.avatarUrl = avatarUrl;
+    public void setAuthorRole(AuthorRole authorRole) {
+        this.authorRole = authorRole;
     }
 }

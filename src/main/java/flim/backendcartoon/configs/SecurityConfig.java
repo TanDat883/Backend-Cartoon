@@ -26,6 +26,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/movies/*/increment-view").permitAll()
 
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/authors/**").permitAll()
+                        .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/episodes/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers

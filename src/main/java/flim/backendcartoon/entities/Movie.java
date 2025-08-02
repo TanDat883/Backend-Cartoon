@@ -16,6 +16,10 @@ public class Movie {
     private List<String> genres;
     private Long viewCount = 0L;
     private VipLevel accessVipLevel;
+    private String duration;
+    private String country;
+    private String topic;
+    private MovieType movieType;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("movieId")
@@ -50,5 +54,21 @@ public class Movie {
     @DynamoDbAttribute("accessVipLevel")
     public VipLevel getAccessVipLevel() { return accessVipLevel; }
     public void setAccessVipLevel(VipLevel accessVipLevel) { this.accessVipLevel = accessVipLevel;}
+
+    @DynamoDbAttribute("duration")
+    public String getDuration() { return duration; }
+    public void setDuration(String duration) { this.duration = duration; }
+
+    @DynamoDbAttribute("country")
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+
+    @DynamoDbAttribute("topic")
+    public String getTopic() { return topic; }
+    public void setTopic(String topic) { this.topic = topic; }
+
+    @DynamoDbAttribute("movieType")
+    public MovieType getMovieType() { return movieType; }
+    public void setMovieType(MovieType movieType) { this.movieType = movieType;}
 
 }

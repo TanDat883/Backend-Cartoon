@@ -1,9 +1,7 @@
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.MovieDetailDTO;
-import flim.backendcartoon.entities.Episode;
-import flim.backendcartoon.entities.Movie;
-import flim.backendcartoon.entities.User;
 import flim.backendcartoon.services.EpisodeService;
 import flim.backendcartoon.services.MovieService;
 import flim.backendcartoon.services.S3Service;
@@ -40,7 +38,13 @@ public class MovieController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "role", required = true) String role,
             @RequestParam(value = "genres", required = false) List<String> genres,
-            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "accessVipLevel", required = true) String accessVipLevel,
+            @RequestParam("duration") String duration,
+            @RequestParam("country") String country,
+            @RequestParam("topic") String topic,
+            @RequestParam("movieType") String movieType
+
     ) {
         try {
             //kiểm tra quyền  admin được phép upload video
@@ -57,6 +61,11 @@ public class MovieController {
             movie.setGenres(genres);
             movie.setCreatedAt(Instant.now().toString());
             movie.setThumbnailUrl(thumbnailUrl);
+            movie.setAccessVipLevel(VipLevel.valueOf(accessVipLevel));
+            movie.setDuration(duration);
+            movie.setCountry(country);
+            movie.setTopic(topic);
+            movie.setMovieType(MovieType.valueOf(movieType));
 
 
             movieService.saveMovie(movie);
