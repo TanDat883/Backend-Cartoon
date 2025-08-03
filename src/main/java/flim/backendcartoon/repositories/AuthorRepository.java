@@ -7,6 +7,9 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Repository
 public class AuthorRepository {
     private final DynamoDbTable<Author> table;
@@ -21,10 +24,10 @@ public class AuthorRepository {
         table.putItem(author);
     }
     //find all author
-    public Iterable<Author> findAll() {
-        System.out.println("Finding all authors in DynamoDB");
-        return table.scan().items();
+    public List<Author> findAll() {
+        return table.scan().items().stream().collect(Collectors.toList());
     }
+
 
     public Author findById(String authorId) {
         System.out.println("Finding author by ID: " + authorId);

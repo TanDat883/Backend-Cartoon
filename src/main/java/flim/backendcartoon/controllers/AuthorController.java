@@ -41,10 +41,10 @@ public class AuthorController {
     // 3. Thêm Movie vào Author (nếu Author đã tồn tại)
     @PostMapping("/add-movie")
     public ResponseEntity<String> addMovieToAuthor(
-            @RequestParam String authorId,
+            @RequestParam List<String> authorIds,
             @RequestParam String movieId) {
         try {
-            authorService.addMovieToAuthor(authorId, movieId);
+            authorService.addMovieToAuthor(authorIds, movieId);
             return ResponseEntity.ok("✅ Movie added to author successfully!");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

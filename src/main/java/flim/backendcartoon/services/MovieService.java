@@ -30,4 +30,6 @@ public interface MovieService {
 
     Movie getMovieIfAccessible(String movieId, User userId);
 
+    //find movie by country
+    List<Movie> findMoviesByCountry(String country);
 }

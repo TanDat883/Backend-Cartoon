@@ -41,21 +41,22 @@ public class AuthorServiceImpl implements AuthorService {
     @Override
     public List<Author> findAllAuthors() {
         // Gọi repository để lấy danh sách tất cả tác giả
-        return (List<Author>) authorRepository. findAll();
+        return (List<Author>) authorRepository.findAll();
     }
 
     @Override
-    public void addMovieToAuthor(String authorId, String movieId) {
-        Author author = authorRepository.findById(authorId);
-        if (author == null) throw new RuntimeException("Author not found");
+    public void addMovieToAuthor(List<String> authorIds, String movieId) {
+        for (String authorId : authorIds) {
+            Author author = authorRepository.findById(authorId);
+            if (author == null) continue; // bỏ qua nếu không tồn tại
 
-        List<String> movieIds = author.getMovieId();
-        if (!movieIds.contains(movieId)) {
-            movieIds.add(movieId);
-            author.setMovieId(movieIds);
-            authorRepository.save(author);
+            List<String> movieIds = author.getMovieId();
+            if (!movieIds.contains(movieId)) {
+                movieIds.add(movieId);
+                author.setMovieId(movieIds);
+                authorRepository.save(author);
+            }
         }
     }
-
 
 }

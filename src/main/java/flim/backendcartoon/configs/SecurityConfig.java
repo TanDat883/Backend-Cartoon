@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/episodes/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("https://www.apicountries.com/countries/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers
                         .anyRequest().permitAll()
                 )

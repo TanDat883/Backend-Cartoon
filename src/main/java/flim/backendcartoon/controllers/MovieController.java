@@ -250,4 +250,17 @@ public class MovieController {
         return ResponseEntity.ok("🎬 Bạn được phép xem: " + movie.getTitle());
     }
 
+
+    //tìm phim theo quốc gia
+    @GetMapping("/country/{country}")
+    public ResponseEntity<List<Movie>> getMoviesByCountry(
+            @PathVariable String country) {
+        try {
+            List<Movie> movies = movieService.findMoviesByCountry(country);
+            return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
 }

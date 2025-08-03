@@ -125,4 +125,12 @@ public class MovieServiceImpl implements MovieService {
         throw new BaseException("Bạn không có quyền truy cập vào phim này. Vui lòng nâng cấp VIP để xem.");
     }
 
+    @Override
+    public List<Movie> findMoviesByCountry(String country) {
+        return movieRepository.findAllMovies()
+                .stream()
+                .filter(movie -> movie.getCountry() != null && movie.getCountry().equalsIgnoreCase(country))
+                .collect(Collectors.toList());
+    }
+
 }

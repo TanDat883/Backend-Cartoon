@@ -11,5 +11,5 @@ public interface AuthorService {
     List<Author> findAllAuthors();
 
     //trường hợp đã có authorId thì sẽ update
-    void addMovieToAuthor(String authorId, String movieId);
+    void addMovieToAuthor(List<String> authorIds, String movieId);
 }
