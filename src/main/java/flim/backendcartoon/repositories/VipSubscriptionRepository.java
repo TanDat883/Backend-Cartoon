@@ -73,5 +73,12 @@ public class VipSubscriptionRepository {
                         vip.getStatus() != null && vip.getStatus().equalsIgnoreCase(status))
                 .collect(Collectors.toList());
     }
+
+    public List<VipSubscription> findAllByStatus(String status) {
+        return StreamSupport.stream(
+                table.scan().items().spliterator(), false)
+                .filter(vip -> vip.getStatus() != null && vip.getStatus().equalsIgnoreCase(status))
+                .collect(Collectors.toList());
+    }
 }
 

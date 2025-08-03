@@ -17,6 +17,7 @@ import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.payos.type.CheckoutResponseData;
@@ -77,10 +78,15 @@ public class PaymentController {
         return ResponseEntity.ok(data);
     }
 
-    @GetMapping("/{orderId}")
-    public ResponseEntity<?> get(@PathVariable long orderId) throws Exception {
-        return ResponseEntity.ok(paymentService.getOrder(orderId));
+    @GetMapping("/payment/status")
+    public ResponseEntity<?> getPaymentStatus(@RequestParam Long orderCode) {
+        PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
+        if (order == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy đơn hàng");
+        }
+        return ResponseEntity.ok(Map.of("status", order.getStatus()));
     }
+
 
     @PutMapping("/{orderId}")
     public ResponseEntity<?> cancel(@PathVariable long orderId) throws Exception {
@@ -106,10 +112,10 @@ public class PaymentController {
 
             if ("PAID".equalsIgnoreCase(status)) {
                 // Đánh dấu đơn hàng là PENDING chờ xác nhận chính thức sau 24h
-                paymentOrder.setStatus("PENDING");
+                paymentOrder.setStatus("PAID");
                 paymentOrderService.updatePaymentOrder(paymentOrder);
 
-                orderService.updateOrderStatus(order.getOrderId(), "PENDING");
+                orderService.updateOrderStatus(order.getOrderId(), "SUCCESS");
 
                 // Cập nhật thông tin VIP tạm thời
                 User user = userService.findUserById(order.getUserId());
@@ -120,23 +126,32 @@ public class PaymentController {
                 }
 
                 VipLevel vip = subscriptionPackage.getApplicableVipLevel();
-                LocalDate now = LocalDate.now();
+
+                LocalDate startDate = LocalDate.now();
+
+                VipSubscription currentVip = vipSubscriptionService.findActiveVipByUserId(user.getUserId());
+                if (currentVip != null) {
+                    LocalDate currentEnd = LocalDate.parse(currentVip.getEndDate());
+                    if (!currentEnd.isBefore(startDate)) {
+                        startDate = currentEnd;
+                    }
+                }
 
                 VipSubscription vipSub = new VipSubscription();
                 vipSub.setVipId(paymentOrder.getOrderId());
                 vipSub.setUserId(user.getUserId());
                 vipSub.setPackageId(subscriptionPackage.getPackageId());
                 vipSub.setVipLevel(vip);
-                vipSub.setStatus("TEMPORARY");
-                vipSub.setStartDate(now.toString());
-                vipSub.setEndDate(now.plusDays(subscriptionPackage.getDurationInDays()).toString());
+                vipSub.setStatus("ACTIVE");
+                vipSub.setStartDate(startDate.toString());
+                vipSub.setEndDate(startDate.plusDays(subscriptionPackage.getDurationInDays()).toString());
 
                 vipSubscriptionService.saveVipSubscription(vipSub);
 
             } else if ("CANCELED".equalsIgnoreCase(status)) {
                 paymentOrder.setStatus("CANCELED");
                 paymentOrderService.updatePaymentOrder(paymentOrder);
-                orderService.updateOrderStatus(order.getOrderId(), "CANCELED");
+                orderService.updateOrderStatus(order.getOrderId(), "FAILED");
             } else {
                 return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
             }
