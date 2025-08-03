@@ -17,6 +17,7 @@ import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.payos.type.CheckoutResponseData;
@@ -77,10 +78,15 @@ public class PaymentController {
         return ResponseEntity.ok(data);
     }
 
-    @GetMapping("/{orderId}")
-    public ResponseEntity<?> get(@PathVariable long orderId) throws Exception {
-        return ResponseEntity.ok(paymentService.getOrder(orderId));
+    @GetMapping("/payment/status")
+    public ResponseEntity<?> getPaymentStatus(@RequestParam Long orderCode) {
+        PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
+        if (order == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy đơn hàng");
+        }
+        return ResponseEntity.ok(Map.of("status", order.getStatus()));
     }
+
 
     @PutMapping("/{orderId}")
     public ResponseEntity<?> cancel(@PathVariable long orderId) throws Exception {
