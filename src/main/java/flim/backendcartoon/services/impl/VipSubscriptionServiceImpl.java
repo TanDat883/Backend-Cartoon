@@ -19,6 +19,7 @@ import flim.backendcartoon.services.VipSubscriptionService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -51,7 +52,7 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
         List<VipSubscription> vips = repository.findByUserIdAndStatus(userId, "ACTIVE");
 
         return vips.stream()
-                .filter(vip -> LocalDate.parse(vip.getEndDate()).isAfter(LocalDate.now()))
+                .filter(vip -> !LocalDate.parse(vip.getEndDate()).isBefore(LocalDate.now()))
                 .findFirst()
                 .orElse(null);
     }
@@ -66,6 +67,20 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
             repository.save(existingVip);
         } else {
             throw new RuntimeException("VIP subscription not found for ID: " + vip.getVipId());
+        }
+    }
+
+    @Override
+    public void expireOutdatedVipSubscriptions() {
+        List<VipSubscription> allVips = repository.findAllByStatus("ACTIVE");
+        LocalDate today = LocalDate.now();
+
+        for (VipSubscription vip : allVips) {
+            LocalDate endDate = LocalDate.parse(vip.getEndDate());
+            if (endDate.isBefore(today)) {
+                vip.setStatus("EXPIRED");
+                repository.updateVipStatus(vip.getVipId(), "EXPIRED");
+            }
         }
     }
 }

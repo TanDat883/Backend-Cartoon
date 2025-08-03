@@ -106,10 +106,10 @@ public class PaymentController {
 
             if ("PAID".equalsIgnoreCase(status)) {
                 // Đánh dấu đơn hàng là PENDING chờ xác nhận chính thức sau 24h
-                paymentOrder.setStatus("PENDING");
+                paymentOrder.setStatus("PAID");
                 paymentOrderService.updatePaymentOrder(paymentOrder);
 
-                orderService.updateOrderStatus(order.getOrderId(), "PENDING");
+                orderService.updateOrderStatus(order.getOrderId(), "SUCCESS");
 
                 // Cập nhật thông tin VIP tạm thời
                 User user = userService.findUserById(order.getUserId());
@@ -120,23 +120,32 @@ public class PaymentController {
                 }
 
                 VipLevel vip = subscriptionPackage.getApplicableVipLevel();
-                LocalDate now = LocalDate.now();
+
+                LocalDate startDate = LocalDate.now();
+
+                VipSubscription currentVip = vipSubscriptionService.findActiveVipByUserId(user.getUserId());
+                if (currentVip != null) {
+                    LocalDate currentEnd = LocalDate.parse(currentVip.getEndDate());
+                    if (!currentEnd.isBefore(startDate)) {
+                        startDate = currentEnd;
+                    }
+                }
 
                 VipSubscription vipSub = new VipSubscription();
                 vipSub.setVipId(paymentOrder.getOrderId());
                 vipSub.setUserId(user.getUserId());
                 vipSub.setPackageId(subscriptionPackage.getPackageId());
                 vipSub.setVipLevel(vip);
-                vipSub.setStatus("TEMPORARY");
-                vipSub.setStartDate(now.toString());
-                vipSub.setEndDate(now.plusDays(subscriptionPackage.getDurationInDays()).toString());
+                vipSub.setStatus("ACTIVE");
+                vipSub.setStartDate(startDate.toString());
+                vipSub.setEndDate(startDate.plusDays(subscriptionPackage.getDurationInDays()).toString());
 
                 vipSubscriptionService.saveVipSubscription(vipSub);
 
             } else if ("CANCELED".equalsIgnoreCase(status)) {
                 paymentOrder.setStatus("CANCELED");
                 paymentOrderService.updatePaymentOrder(paymentOrder);
-                orderService.updateOrderStatus(order.getOrderId(), "CANCELED");
+                orderService.updateOrderStatus(order.getOrderId(), "FAILED");
             } else {
                 return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
             }
