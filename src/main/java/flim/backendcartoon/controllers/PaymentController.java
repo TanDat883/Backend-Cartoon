@@ -57,7 +57,7 @@ public class PaymentController {
         // Tạo dữ liệu đơn hàng từ subscriptionPackage
         VipLevel vip = subscriptionPackage.getApplicableVipLevel();
         String productName = "Gói VIP " + vip.name();
-        String description = "Gói " + vip.name() + " thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
+        String description = "g" + vip.name() + " thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
         int amount = subscriptionPackage.getAmount().intValue();
 
         // Gọi PayOS để tạo link thanh toán
@@ -91,6 +91,15 @@ public class PaymentController {
     @PutMapping("/{orderId}")
     public ResponseEntity<?> cancel(@PathVariable long orderId) throws Exception {
         return ResponseEntity.ok(paymentService.cancelOrder(orderId));
+    }
+
+    @GetMapping("/{orderCode}")
+    public ResponseEntity<?> getOrder(@PathVariable Long orderCode) {
+        try {
+            return ResponseEntity.ok(paymentService.getOrder(orderCode));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi lấy thông tin đơn hàng: " + e.getMessage());
+        }
     }
 
     @PostMapping("/webhook")
