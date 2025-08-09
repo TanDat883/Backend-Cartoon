@@ -2,10 +2,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.MovieDetailDTO;
-import flim.backendcartoon.services.EpisodeService;
-import flim.backendcartoon.services.MovieService;
-import flim.backendcartoon.services.S3Service;
-import flim.backendcartoon.services.UserService;
+import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +28,8 @@ public class MovieController {
     private EpisodeService episodeService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private MovieRatingService movieRatingService;
 
     @PostMapping(value = "/create", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadMovie(
@@ -48,7 +47,7 @@ public class MovieController {
     ) {
         try {
             //kiểm tra quyền  admin được phép upload video
-            if( role == null || !role.equals("ADMIN")) {
+            if (role == null || !role.equals("ADMIN")) {
                 return ResponseEntity.status(403).body("Chỉ admin mới có quyền upload video");
             }
 
@@ -146,7 +145,6 @@ public class MovieController {
             }
 
 
-
             movieService.updateMovie(existingMovie);
 
             return ResponseEntity.ok(existingMovie);
@@ -207,24 +205,24 @@ public class MovieController {
     public ResponseEntity<List<Movie>> searchMoviesByYear(
             @RequestParam(required = false, defaultValue = "0") int month,
             @RequestParam(required = false, defaultValue = "0") int year) {
-            try{
-                int thang = Integer.parseInt(String.valueOf(month));
-                int nam = Integer.parseInt(String.valueOf(year));
-                List<Movie> movies = movieService.findMoviesByMonthAndYear(thang,nam );
-                if(movies.isEmpty()) {
-                    return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
-                }
-                return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
-            }catch (Exception e) {
-                e.printStackTrace();
-                return ResponseEntity.internalServerError().body(null);
+        try {
+            int thang = Integer.parseInt(String.valueOf(month));
+            int nam = Integer.parseInt(String.valueOf(year));
+            List<Movie> movies = movieService.findMoviesByMonthAndYear(thang, nam);
+            if (movies.isEmpty()) {
+                return ResponseEntity.noContent().build(); // HTTP 204 nếu không có phim nào
             }
+            return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
     }
 
 
     //top 10 phim theo view count
     @GetMapping("/popular")
-    public  ResponseEntity<List<Movie>> popularMovies() {
+    public ResponseEntity<List<Movie>> popularMovies() {
         try {
             List<Movie> movies = movieService.findTop10MoviesByViewCount();
             if (movies.isEmpty()) {
@@ -236,7 +234,6 @@ public class MovieController {
             return ResponseEntity.internalServerError().body(null);
         }
     }
-
 
 
     @GetMapping("/{id}/watch")
@@ -261,6 +258,47 @@ public class MovieController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(null);
+        }
+    }
+
+    //user rating movie
+    @PostMapping("/{movieId}/rate")
+    public ResponseEntity<?> rateMovie(
+            @PathVariable String movieId,
+            @RequestHeader("userId") String userId,
+            @RequestParam int rating) {
+        try {
+            User user = userService.findUserById(userId);
+            if (user == null) {
+                return ResponseEntity.status(404).body("Người dùng chưa login hoặc không tồn tại");
+            }
+            // Extract rating from request body 1-5
+
+            if (rating < 1 || rating > 5) {
+                return ResponseEntity.status(400).body("Rating phải từ 1 đến 5");
+            }
+            movieRatingService.rateMovie(movieId, userId, rating);
+            return ResponseEntity.ok("Đánh giá phim thành công");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Failed to rate movie (lỗi add rating): " + e.getMessage());
+        }
+    }
+
+    //get all ratings of a movie
+    @GetMapping("/{movieId}/ratings")
+    public ResponseEntity<?> getRatingsByMovieId(
+            @PathVariable String movieId) {
+        try {
+            List<MovieRating> ratings = movieRatingService.getRatingsByMovieId(movieId);
+            if (ratings.isEmpty()) {
+                return ResponseEntity.noContent().build(); // HTTP 204 nếu không có đánh giá nào
+            }
+            return ResponseEntity.ok(ratings);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Failed to retrieve ratings: " + e.getMessage());
         }
     }
 }

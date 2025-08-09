@@ -1,8 +1,13 @@
 package flim.backendcartoon.exception;
 
+import lombok.*;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
+@Getter
+@Setter
 public class BaseException extends RuntimeException{
 
-    public BaseException(String message) {
-        super(message);
-    }
+    private String message;
 }

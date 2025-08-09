@@ -1,6 +1,7 @@
 package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Author;
+import flim.backendcartoon.exception.AuthorException;
 
 import java.util.List;
 
@@ -12,4 +13,7 @@ public interface AuthorService {
 
     //trường hợp đã có authorId thì sẽ update
     void addMovieToAuthor(List<String> authorIds, String movieId);
+
+    //tìm author trong bộ phim
+    List<Author> findAuthorsByMovieId(String movieId) throws AuthorException;
 }

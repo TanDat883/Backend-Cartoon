@@ -21,12 +21,23 @@ import java.time.LocalDateTime;
 
 @DynamoDbBean
 public class MovieRating {
+
+    private String movieRatingId; // Unique ID for each rating
+
     private String movieId;
     private String userId;
     private int rating;
     private LocalDateTime createdAt;
 
     @DynamoDbPartitionKey
+    @DynamoDbAttribute("movieRatingId")
+    public String getMovieRatingId() {
+        return movieRatingId;
+    }
+    public void setMovieRatingId(String movieRatingId) {
+        this.movieRatingId = movieRatingId;
+    }
+
     @DynamoDbAttribute("movieId")
     public String getMovieId() {
         return movieId;

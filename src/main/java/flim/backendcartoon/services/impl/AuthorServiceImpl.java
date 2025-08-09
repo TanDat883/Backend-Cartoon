@@ -1,6 +1,8 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Author;
+import flim.backendcartoon.exception.AuthorException;
+import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.AuthorRepository;
 import flim.backendcartoon.services.AuthorService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthorServiceImpl implements AuthorService {
@@ -57,6 +60,19 @@ public class AuthorServiceImpl implements AuthorService {
                 authorRepository.save(author);
             }
         }
+    }
+
+    @Override
+    public List<Author> findAuthorsByMovieId(String movieId) throws AuthorException {
+        if (movieId == null || movieId.trim().isEmpty()) {
+            throw new AuthorException("Movie ID is required");
+        }
+        // Lấy tất cả tác giả
+        List<Author> authors = (List<Author>) authorRepository.findAll();
+        // Lọc các tác giả có movieId trong danh sách movieId của họ
+        return authors.stream()
+                .filter(author -> author.getMovieId() != null && author.getMovieId().contains(movieId))
+                .collect(Collectors.toList());
     }
 
 }

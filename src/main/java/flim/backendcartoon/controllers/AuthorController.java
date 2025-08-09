@@ -1,6 +1,7 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.Author;
+import flim.backendcartoon.exception.AuthorException;
 import flim.backendcartoon.services.AuthorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -51,4 +52,17 @@ public class AuthorController {
                     .body("❌ Failed to add movie to author: " + e.getMessage());
         }
     }
+    //4. tìm các author có trong một movie
+    @GetMapping("/movie/{movieId}")
+    public ResponseEntity<List<Author>> getAuthorsByMovieId(@PathVariable String movieId) throws AuthorException {
+        try{
+            List<Author> authors = authorService.findAuthorsByMovieId(movieId);
+            return ResponseEntity.ok(authors);
+
+        }catch (Exception e){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(null);
+        }
+    }
+
 }

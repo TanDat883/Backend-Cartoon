@@ -32,7 +32,6 @@ public class SecurityConfig {
                         .requestMatchers("/episodes/**").permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("https://www.apicountries.com/countries/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers
                         .anyRequest().permitAll()
                 )
@@ -50,8 +49,17 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of("http://localhost:3000")); // FE URL
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "userId",              // ✅ quan trọng
+                "X-Requested-With",
+                "Accept",
+                "Origin"
+        ));
+        configuration.setExposedHeaders(List.of("*"));   // optional
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
