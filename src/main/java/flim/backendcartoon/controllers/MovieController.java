@@ -277,8 +277,9 @@ public class MovieController {
             if (rating < 1 || rating > 5) {
                 return ResponseEntity.status(400).body("Rating phải từ 1 đến 5");
             }
+
             movieRatingService.rateMovie(movieId, userId, rating);
-            return ResponseEntity.ok("Đánh giá phim thành công");
+            return ResponseEntity.ok("Đánh giá/Cập nhật đánh giá thành công");
 
         } catch (Exception e) {
             e.printStackTrace();
