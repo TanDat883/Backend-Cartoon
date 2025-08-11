@@ -12,8 +12,10 @@ import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.List;
+import java.util.Map;
 
 /*
  * @description
@@ -42,4 +44,5 @@ public class SubscriptionPackageRepository {
     public List<SubscriptionPackage> findAll() {
         return table.scan().items().stream().toList();
     }
+
 }

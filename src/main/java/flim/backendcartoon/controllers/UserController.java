@@ -1,11 +1,9 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.User;
+import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
-import flim.backendcartoon.services.PaymentService;
-import flim.backendcartoon.services.SubscriptionPackageService;
-import flim.backendcartoon.services.S3Service;
-import flim.backendcartoon.services.UserService;
+import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,17 +21,17 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
-    private final SubscriptionPackageService subscriptionPackageService;
+    private final VipSubscriptionService vipSubscriptionService;
     private final PaymentService paymentService;
     private final S3Service s3Service;
 
     @Autowired
-    public UserController(UserService userService, SubscriptionPackageService subscriptionPackageService,
+    public UserController(UserService userService, VipSubscriptionService vipSubscriptionService,
                           PaymentService paymentService, PaymentOrderRepository paymentOrderRepository
                             , S3Service s3Service) {
         this.s3Service = s3Service;
         this.userService = userService;
-        this.subscriptionPackageService = subscriptionPackageService;
+        this.vipSubscriptionService = vipSubscriptionService;
         this.paymentService = paymentService;
     }
 
@@ -110,4 +108,12 @@ public class UserController {
         return ResponseEntity.ok("User updated successfully!");
     }
 
+    @GetMapping("/{userId}/subscription-packages")
+    public ResponseEntity<?> getUserSubscriptionPackages(@PathVariable String userId) {
+        List<VipSubscription> packages = vipSubscriptionService.UserVipSubscriptions(userId);
+        if (packages.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Người dùng chưa mua gói đăng ký nào");
+        }
+        return ResponseEntity.ok(packages);
+    }
 }
