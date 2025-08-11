@@ -88,9 +88,36 @@ public class PaymentController {
     }
 
 
-    @PutMapping("/{orderId}")
-    public ResponseEntity<?> cancel(@PathVariable long orderId) throws Exception {
-        return ResponseEntity.ok(paymentService.cancelOrder(orderId));
+    @PutMapping("/cancel/{orderCode}")
+    public ResponseEntity<?> cancel(@PathVariable long orderCode) throws Exception {
+        PaymentOrder paymentOrder = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
+        if (paymentOrder == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy đơn hàng thanh toán");
+        }
+
+        // Kiểm tra trạng thái đơn hàng
+        if (!"PENDING".equalsIgnoreCase(paymentOrder.getStatus())) {
+            return ResponseEntity.badRequest().body("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
+        }
+
+        // Gọi PayOS để hủy đơn hàng
+        try {
+            paymentService.cancelOrder(paymentOrder.getOrderCode());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi hủy đơn hàng: " + e.getMessage());
+        }
+
+        // Cập nhật trạng thái đơn hàng
+        paymentOrder.setStatus("CANCELED");
+        paymentOrderService.updatePaymentOrder(paymentOrder);
+
+        // Cập nhật trạng thái Order liên kết
+        Order order = orderService.findOrderById(paymentOrder.getOrderId());
+        if (order != null) {
+            orderService.updateOrderStatus(order.getOrderId(), "FAILED");
+        }
+
+        return ResponseEntity.ok("Đơn hàng đã được hủy thành công");
     }
 
     @GetMapping("/{orderCode}")
@@ -120,13 +147,13 @@ public class PaymentController {
             }
 
             if ("PAID".equalsIgnoreCase(status)) {
-                // Đánh dấu đơn hàng là PENDING chờ xác nhận chính thức sau 24h
+                // Đánh dấu đơn hàng đã thanh toán
                 paymentOrder.setStatus("PAID");
                 paymentOrderService.updatePaymentOrder(paymentOrder);
 
                 orderService.updateOrderStatus(order.getOrderId(), "SUCCESS");
 
-                // Cập nhật thông tin VIP tạm thời
+                // Cập nhật thông tin VIP
                 User user = userService.findUserById(order.getUserId());
                 SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
 
@@ -136,16 +163,24 @@ public class PaymentController {
 
                 VipLevel vip = subscriptionPackage.getApplicableVipLevel();
 
+                // Lấy thời gian bắt đầu mặc định là hiện tại
                 LocalDate startDate = LocalDate.now();
 
+                // Kiểm tra xem user đã có gói VIP active chưa
                 VipSubscription currentVip = vipSubscriptionService.findActiveVipByUserId(user.getUserId());
                 if (currentVip != null) {
-                    LocalDate currentEnd = LocalDate.parse(currentVip.getEndDate());
-                    if (!currentEnd.isBefore(startDate)) {
-                        startDate = currentEnd;
+                    // Nếu đã có gói VIP, lấy ngày kết thúc của gói hiện tại làm ngày bắt đầu của gói mới
+                    LocalDate currentEndDate = LocalDate.parse(currentVip.getEndDate());
+                    // Chỉ sử dụng ngày kết thúc nếu nó là trong tương lai
+                    if (currentEndDate.isAfter(startDate)) {
+                        startDate = currentEndDate;
                     }
                 }
 
+                // Tính ngày kết thúc dựa vào ngày bắt đầu + thời hạn gói
+                LocalDate endDate = startDate.plusDays(subscriptionPackage.getDurationInDays());
+
+                // Tạo đối tượng VipSubscription mới
                 VipSubscription vipSub = new VipSubscription();
                 vipSub.setVipId(paymentOrder.getOrderId());
                 vipSub.setUserId(user.getUserId());
@@ -153,7 +188,7 @@ public class PaymentController {
                 vipSub.setVipLevel(vip);
                 vipSub.setStatus("ACTIVE");
                 vipSub.setStartDate(startDate.toString());
-                vipSub.setEndDate(startDate.plusDays(subscriptionPackage.getDurationInDays()).toString());
+                vipSub.setEndDate(endDate.toString());
 
                 vipSubscriptionService.saveVipSubscription(vipSub);
 

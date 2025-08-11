@@ -25,6 +25,7 @@ public interface VipSubscriptionService {
     VipSubscription findActiveVipByUserId(String userId);
     void updateVipSubscription(VipSubscription vip);
     void expireOutdatedVipSubscriptions();
+    List<VipSubscription> UserVipSubscriptions(String userId);
 }
 
     

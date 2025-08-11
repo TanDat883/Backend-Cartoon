@@ -14,6 +14,7 @@ package flim.backendcartoon.services.impl;
  */
 
 import flim.backendcartoon.entities.VipSubscription;
+import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.VipSubscriptionRepository;
 import flim.backendcartoon.services.VipSubscriptionService;
 import org.springframework.stereotype.Service;
@@ -82,6 +83,15 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
                 repository.updateVipStatus(vip.getVipId(), "EXPIRED");
             }
         }
+    }
+
+    @Override
+    public List<VipSubscription> UserVipSubscriptions(String userId) {
+        List<VipSubscription> vips = repository.findUserVipSubscriptions(userId);
+        if (vips.isEmpty()) {
+            throw new BaseException("Không tìm thấy gói VIP nào cho người dùng với ID: " + userId);
+        }
+        return vips;
     }
 }
 

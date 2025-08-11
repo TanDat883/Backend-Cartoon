@@ -45,4 +45,5 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     public List<SubscriptionPackage> findAllSubscriptionPackages() {
         return this.subscriptionPackageRepository.findAll();
     }
+
 }
