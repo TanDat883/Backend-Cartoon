@@ -18,13 +18,14 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
-import java.util.List;
-
 @DynamoDbBean
 public class Wishlist {
 
     private String userId;
     private String movieId;
+
+    public Wishlist() {
+    }
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("userId")
