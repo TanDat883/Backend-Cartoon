@@ -28,6 +28,7 @@ public class SubscriptionPackage {
     private VipLevel applicableVipLevel;
     private Integer durationInDays;
     private List<String> features;
+    private String namePackage;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("packageId")
@@ -73,6 +74,14 @@ public class SubscriptionPackage {
     }
     public void setFeatures(List<String> features) {
         this.features = features;
+    }
+
+    @DynamoDbAttribute("namePackage")
+    public String getNamePackage() {
+        return namePackage;
+    }
+    public void setNamePackage(String namePackage) {
+        this.namePackage = namePackage;
     }
 
 }

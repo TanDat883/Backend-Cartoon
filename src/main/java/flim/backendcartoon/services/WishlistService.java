@@ -23,6 +23,7 @@ public interface WishlistService {
     void addToWishlist(WishlistRequest request);
     void removeFromWishlist(String userId, String movieId);
     List<WishlistResponse> getWishlistByUserId(String userId);
+    boolean isMovieInWishlist(String userId, String movieId);
 }
 
     

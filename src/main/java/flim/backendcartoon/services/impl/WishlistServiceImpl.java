@@ -43,6 +43,13 @@ public class WishlistServiceImpl implements WishlistService {
         String userId = request.getUserId();
         String movieId = request.getMovieId();
 
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new BaseException("User ID must not be null or empty");
+        }
+        if (movieId == null || movieId.trim().isEmpty()) {
+            throw new BaseException("Movie ID must not be null or empty");
+        }
+
         if (wishlistRepository.exists(userId, movieId)) {
             throw new BaseException("Item already exists in wishlist for user: " + userId + " and movie: " + movieId);
         }
@@ -79,6 +86,17 @@ public class WishlistServiceImpl implements WishlistService {
                     );
                 })
                 .toList();
+    }
+
+    @Override
+    public boolean isMovieInWishlist(String userId, String movieId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new BaseException("User ID must not be null or empty");
+        }
+        if (movieId == null || movieId.trim().isEmpty()) {
+            throw new BaseException("Movie ID must not be null or empty");
+        }
+        return wishlistRepository.exists(userId, movieId);
     }
 
 }

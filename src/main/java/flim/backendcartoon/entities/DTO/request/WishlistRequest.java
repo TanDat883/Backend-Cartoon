@@ -6,6 +6,7 @@
 
 package flim.backendcartoon.entities.DTO.request;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /*
@@ -16,6 +17,9 @@ import lombok.Data;
  */
 @Data
 public class WishlistRequest {
+    // USER NOT NULL
+    @NotBlank(message = "User ID cannot be blank")
     private String userId;
+    @NotBlank(message = "Movie ID cannot be blank")
     private String movieId;
 }

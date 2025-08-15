@@ -45,6 +45,12 @@ public class WishlistController {
         return ResponseEntity.ok("Item removed from wishlist successfully");
     }
 
+    @GetMapping("/exists")
+    public ResponseEntity<Boolean> isMovieInWishlist(@RequestParam String userId, @RequestParam String movieId) {
+        boolean exists = wishlistService.isMovieInWishlist(userId, movieId);
+        return ResponseEntity.ok(exists);
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<WishlistResponse>> getWishlistByUserId(@PathVariable String userId) {
         return ResponseEntity.ok(wishlistService.getWishlistByUserId(userId));

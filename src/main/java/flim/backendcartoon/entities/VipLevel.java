@@ -15,8 +15,10 @@ package flim.backendcartoon.entities;
  */
 public enum VipLevel {
     FREE("Free", 0),
-    SILVER("Silver", 1),
-    GOLD("Gold", 2);
+    NO_ADS("NoAds", 1),
+    PREMIUM("Premium", 2),
+    K_PLUS("KPlus", 3),
+    COMBO_PREMIUM_K_PLUS("ComboPremiumKPlus", 4);
 
     private final String levelName;
     private final int levelValue;
