@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -27,6 +29,8 @@ public class MovieController {
     @Autowired
     private EpisodeService episodeService;
     @Autowired
+    private SeasonService seasonService;
+    @Autowired
     private UserService userService;
     @Autowired
     private MovieRatingService movieRatingService;
@@ -34,15 +38,23 @@ public class MovieController {
     @PostMapping(value = "/create", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadMovie(
             @RequestParam("title") String title,
+            @RequestParam(value = "originalTitle", required = false) String originalTitle,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "role", required = true) String role,
             @RequestParam(value = "genres", required = false) List<String> genres,
+            @RequestParam(value = "releaseYear", required = false) Integer releaseYear,
+            @RequestParam(value = "minVipLevel", required = true) String minVipLevel,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "country", required = false)  String country,
+            @RequestParam(value = "topic", required = false) String topic,
+            @RequestParam("movieType") String movieType,
+            @RequestParam(value = "duration",required = false) String duration,
+            @RequestParam(value = "slug", required = false) String slug, // slug sẽ tự động sinh từ title
+            // MEDIA (ảnh/video)
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
-            @RequestParam(value = "accessVipLevel", required = true) String accessVipLevel,
-            @RequestParam("duration") String duration,
-            @RequestParam("country") String country,
-            @RequestParam("topic") String topic,
-            @RequestParam("movieType") String movieType
+            @RequestPart(value = "banner", required = false) MultipartFile banner,
+            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo
+
 
     ) {
         try {
@@ -51,20 +63,42 @@ public class MovieController {
                 return ResponseEntity.status(403).body("Chỉ admin mới có quyền upload video");
             }
 
-            String thumbnailUrl = s3Service.uploadThumbnail(thumbnail);
+            String thumbnailUrl = null;
+            if (thumbnail != null && !thumbnail.isEmpty()) {
+                thumbnailUrl = s3Service.uploadThumbnail(thumbnail);
+            }
+            String bannerUrl = null;
+            if (banner != null && !banner.isEmpty()) {
+                bannerUrl = s3Service.uploadBannerUrl(banner);
+            }
+            String trailerUrl = null;
+            if (trailerVideo != null && !trailerVideo.isEmpty()) {
+                trailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
+            }
+            // ===== Slug =====
+            String finalSlug = (slug != null && !slug.isBlank())
+                    ? normalizeSlug(slug)
+                    : generateSlug(title);
 
             Movie movie = new Movie();
             movie.setMovieId(UUID.randomUUID().toString());
             movie.setTitle(title);
             movie.setDescription(description);
             movie.setGenres(genres);
-            movie.setCreatedAt(Instant.now().toString());
-            movie.setThumbnailUrl(thumbnailUrl);
-            movie.setAccessVipLevel(VipLevel.valueOf(accessVipLevel));
-            movie.setDuration(duration);
+            movie.setCreatedAt(Instant.now());
+            movie.setMinVipLevel(VipLevel.valueOf(minVipLevel));
             movie.setCountry(country);
             movie.setTopic(topic);
+            movie.setSlug(finalSlug);
+            movie.setOriginalTitle(originalTitle != null ? originalTitle : title);
+            movie.setDuration(duration != null ? duration : "60p"); // default
             movie.setMovieType(MovieType.valueOf(movieType));
+
+            movie.setThumbnailUrl(thumbnailUrl);
+            movie.setBannerUrl(bannerUrl);
+            movie.setTrailerUrl(trailerUrl);
+            movie.setReleaseYear(releaseYear);
+            movie.setStatus(status != null ? MovieStatus.valueOf(status) : MovieStatus.UPCOMING);
 
 
             movieService.saveMovie(movie);
@@ -103,6 +137,41 @@ public class MovieController {
         }
     }
 
+    // ===== Movie Detail (kèm seasons + mỗi season có số tập) =====
+    @GetMapping("/{movieId}/detail")
+    public ResponseEntity<?> getMovieDetail(@PathVariable String movieId) {
+        try {
+            Movie movie = movieService.findMovieById(movieId);
+            if (movie == null) return ResponseEntity.status(404).body("Movie not found");
+
+            var seasons = seasonService.findByMovieId(movieId);
+            // gắn thêm count episode cho từng season:
+            var payload = new ArrayList<>();
+            for (var s : seasons) {
+                int count = episodeService.countBySeasonId(s.getSeasonId());
+                payload.add(Map.of(
+                        "seasonId", s.getSeasonId(),
+                        "seasonNumber", s.getSeasonNumber(),
+                        "title", s.getTitle(),
+                        "posterUrl", s.getPosterUrl(),
+                        "releaseYear", s.getReleaseYear(),
+                        "episodesCount", count
+                ));
+            }
+
+            Map<String, Object> dto = Map.of(
+                    "movie", movie,
+                    "seasons", payload
+            );
+            return ResponseEntity.ok(dto);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Failed to retrieve movie: " + e.getMessage());
+        }
+    }
+
+
     //find movie by id
     @GetMapping("/{movieId}")
     public ResponseEntity<?> getMovieById(
@@ -112,9 +181,9 @@ public class MovieController {
             if (movie == null) {
                 return ResponseEntity.status(404).body("Movie not found with ID: " + movieId);
             }
-            List<Episode> episodes = episodeService.findEpisodesByMovieId(movieId); // bạn cần inject episodeService
-            MovieDetailDTO movieDetail = new MovieDetailDTO(movie, episodes);
-            return ResponseEntity.ok(movieDetail);
+            //List<Episode> episodes = episodeService.findEpisodesBySeasonId(movieId); // bạn cần inject episodeService
+            //MovieDetailDTO movieDetail = new MovieDetailDTO(movie, episodes);
+            return ResponseEntity.ok(movie);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to retrieve movie: " + e.getMessage());
@@ -125,29 +194,33 @@ public class MovieController {
     @PutMapping(value = "/{movieId}/update", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateMovie(
             @PathVariable String movieId,
-            @ModelAttribute Movie updatedMovie,
-            @RequestParam(value = "thumbnail", required = false) MultipartFile thumbnail) {
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "genres", required = false) List<String> genres,
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "minVipLevel", required = false) String minVipLevel,
+            @RequestParam(value = "country", required = false) String country,
+            @RequestParam(value = "topic", required = false) String topic,
+            @RequestParam(value = "status", required = false) String status) {
         try {
-            Movie existingMovie = movieService.findMovieById(movieId);
-            if (existingMovie == null) {
-                return ResponseEntity.status(404).body("Movie not found with ID: " + movieId);
-            }
+            Movie m = movieService.findMovieById(movieId);
+            if (m == null) return ResponseEntity.status(404).body("Movie not found");
 
-            // Update fields
-            existingMovie.setTitle(updatedMovie.getTitle());
-            existingMovie.setDescription(updatedMovie.getDescription());
-            existingMovie.setGenres(updatedMovie.getGenres());
+            if (title != null) m.setTitle(title);
+            if (description != null) m.setDescription(description);
+            if (genres != null) m.setGenres(genres);
+            if (minVipLevel != null) m.setMinVipLevel(VipLevel.valueOf(minVipLevel));
+            if (country != null) m.setCountry(country);
+            if (topic != null) m.setTopic(topic);
+            if (status != null) m.setStatus(MovieStatus.valueOf(status));
 
-            // Xử lý lưu file và cập nhật thumbnailUrl nếu có file mới
             if (thumbnail != null && !thumbnail.isEmpty()) {
-                String thumbnailUrl = s3Service.uploadThumbnail(thumbnail); // bạn cần tự xử lý lưu file này
-                existingMovie.setThumbnailUrl(thumbnailUrl);
+                String url = s3Service.uploadThumbnail(thumbnail);
+                m.setThumbnailUrl(url);
             }
 
-
-            movieService.updateMovie(existingMovie);
-
-            return ResponseEntity.ok(existingMovie);
+            movieService.updateMovie(m);
+            return ResponseEntity.ok(m);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to update movie: " + e.getMessage());
@@ -301,5 +374,26 @@ public class MovieController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to retrieve ratings: " + e.getMessage());
         }
+    }
+
+
+
+    // ===== Helpers (đặt trong MovieController, hoặc tách ra util class) =====
+    private String generateSlug(String title) {
+        String base = normalizeSlug(title);
+        // thêm hậu tố ngắn để tránh trùng (có thể đổi sang check DB nếu cần)
+        String suffix = UUID.randomUUID().toString().substring(0, 6);
+        return base + "-" + suffix;
+    }
+
+    private String normalizeSlug(String input) {
+        String s = java.text.Normalizer.normalize(input, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");               // bỏ dấu
+        s = s.toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "")        // bỏ ký tự đặc biệt
+                .trim()
+                .replaceAll("\\s+", "-")                // khoảng trắng -> -
+                .replaceAll("-{2,}", "-");              // gộp --
+        return s;
     }
 }

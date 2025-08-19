@@ -6,9 +6,13 @@ import java.util.List;
 
 public interface EpisodeService {
     void saveEpisode(Episode episode);
-    List<Episode> findEpisodesByMovieId(String movieId);
+    List<Episode> findEpisodesBySeasonId(String seasonId);
     //num of episodes in a movie
-    int countEpisodesByMovieId(String movieId);
+    int countBySeasonId(String seasonId);
     //find by episodeId
-    Episode findEpisodeById(String episodeId);
+    Episode findOne(String seasonId, int episodeNumber);
+
+    void update(Episode episode);
+    void delete(String seasonId, int episodeNumber);
+
 }

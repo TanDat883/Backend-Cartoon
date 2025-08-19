@@ -73,34 +73,46 @@ public class MovieRepository {
     }
 
     //tìm phim theo tháng và năm
+// Find movies by month and year using Instant
     public List<Movie> findPhimThangVaNam(int month, int year) {
-        DateTimeFormatter formatter = DateTimeFormatter.ISO_DATE_TIME;
-        int curentYear = LocalDateTime.now().getYear();
+        int currentYear = LocalDateTime.now().getYear();
         return table.scan().items().stream()
                 .filter(movie -> {
                     try {
-
-                        LocalDateTime time = LocalDateTime.parse(movie.getCreatedAt(), formatter);
+                        if (movie.getCreatedAt() == null) return false;
+                        LocalDateTime time = LocalDateTime.ofInstant(movie.getCreatedAt(), java.time.ZoneId.systemDefault());
                         if (month == 0 && year > 0) return time.getYear() == year;
                         else if (month > 0 && year == 0) {
-                            return time.getYear() == curentYear && time.getMonthValue() == month;
+                            return time.getYear() == currentYear && time.getMonthValue() == month;
                         } else if (month > 0 && year > 0) {
                             return time.getYear() == year && time.getMonthValue() == month;
                         } else {
                             return true;
                         }
-
                     } catch (Exception e) {
-                        return false; // Nếu có lỗi trong việc phân tích ngày, bỏ qua phim này
+                        return false;
                     }
                 }).collect(Collectors.toList());
     }
 
+    public List<Movie> findByTitleContains(String keyword) {
+        String kw = keyword == null ? "" : keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(m -> m.getTitle() != null && m.getTitle().toLowerCase().contains(kw))
+                .collect(Collectors.toList());
+    }
+
+    public List<Movie> findByCountry(String country) {
+        return table.scan().items().stream()
+                .filter(m -> m.getCountry() != null && m.getCountry().equalsIgnoreCase(country))
+                .collect(Collectors.toList());
+    }
+
     public List<Movie> top10MoviesByViewCount() {
         return table.scan().items().stream()
-                .sorted((m1, m2) -> Long.compare(m2.getViewCount() != null ? m2.getViewCount() : 0L,
-                        m1.getViewCount() != null ? m1.getViewCount() : 0L))
-                .limit(10)
-                .collect(Collectors.toList());
+                .sorted((a,b) -> Long.compare(
+                        b.getViewCount() == null ? 0L : b.getViewCount(),
+                        a.getViewCount() == null ? 0L : a.getViewCount()))
+                .limit(10).collect(Collectors.toList());
     }
 }

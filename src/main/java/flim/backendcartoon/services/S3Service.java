@@ -51,6 +51,13 @@ public class S3Service {
     public String uploadAvatarUrl(MultipartFile avatarUrl) throws IOException {
         return uploadFile(avatarUrl, "avatarUrls");
     }
+    public String uploadBannerUrl(MultipartFile bannerUrl) throws IOException {
+        return uploadFile(bannerUrl, "bannerUrls");
+    }
+    //trailer
+    public String uploadTrailerUrl(MultipartFile trailerUrl) throws IOException {
+        return uploadFile(trailerUrl, "trailerUrls");
+    }
 
     //áp dụng stream cho video phim - tín 18/7/2025
     public String convertAndUploadToHLS(MultipartFile videoFile) throws IOException, InterruptedException {

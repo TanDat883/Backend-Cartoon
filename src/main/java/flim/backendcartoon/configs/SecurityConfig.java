@@ -33,6 +33,7 @@ public class SecurityConfig {
                         .requestMatchers("/authors/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/episodes/**").permitAll()
+                                .requestMatchers("/seasons/**").permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers

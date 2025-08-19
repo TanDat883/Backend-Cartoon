@@ -22,22 +22,28 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     @Override
-    public List<Episode> findEpisodesByMovieId(String movieId) {
-        return episodeRepository.findByMovieId(movieId);
+    public List<Episode> findEpisodesBySeasonId(String seasonId) {
+        return episodeRepository.findBySeasonId(seasonId);
     }
 
     @Override
-    public int countEpisodesByMovieId(String movieId) {
-        List<Episode> episodes = episodeRepository.findByMovieId(movieId);
-        return episodes.size();
+    public int countBySeasonId(String seasonId) { return episodeRepository.countBySeasonId(seasonId); }
+
+
+    @Override
+    public Episode findOne(String seasonId, int episodeNumber) {
+        Episode ep = episodeRepository.findOne(seasonId, episodeNumber);
+        if (ep == null) throw new RuntimeException("Episode not found");
+        return ep;
     }
 
     @Override
-    public Episode findEpisodeById(String episodeId) {
-        Episode episode = episodeRepository.findById(episodeId);
-        if (episode == null) {
-            throw new RuntimeException("Episode not found with id: " + episodeId);
-        }
-        return episode;
+    public void update(Episode episode) {
+        episodeRepository.update(episode);
+    }
+
+    @Override
+    public void delete(String seasonId, int episodeNumber) {
+        episodeRepository.delete(seasonId, episodeNumber);
     }
 }

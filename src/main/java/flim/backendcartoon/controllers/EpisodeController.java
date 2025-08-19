@@ -26,6 +26,7 @@ public class EpisodeController {
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadEpisode(
+            @RequestParam("seasonId") String seasonId,
             @RequestParam("movieId") String movieId,
             @RequestParam("title") String title,
             @RequestParam("episodeNumber") Integer episodeNumber,
@@ -42,17 +43,19 @@ public class EpisodeController {
                     return ResponseEntity.badRequest().body("Video file or video link is required");
             }
 
-            Episode episode = new Episode();
-            episode.setEpisodeId(UUID.randomUUID().toString());
-            episode.setMovieId(movieId);
-            episode.setTitle(title);
-            episode.setEpisodeNumber(episodeNumber);
-            episode.setVideoUrl(videoUrl);
-            episode.setCreatedAt(Instant.now().toString());
+            Episode ep = new Episode();
+            ep.setEpisodeId(UUID.randomUUID().toString());
+            ep.setSeasonId(seasonId);
+            ep.setMovieId(movieId);
+            ep.setTitle(title);
+            ep.setEpisodeNumber(episodeNumber);
+            ep.setVideoUrl(videoUrl);
+            ep.setCreatedAt(Instant.now());
+            ep.setUpdatedAt(Instant.now());
 
-            episodeService.saveEpisode(episode);
+            episodeService.saveEpisode(ep);
 
-            return ResponseEntity.ok(episode);
+            return ResponseEntity.ok(ep);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to upload episode: " + e.getMessage());
@@ -60,24 +63,28 @@ public class EpisodeController {
     }
 
     //find by episodeId
-    @GetMapping("/movie/{movieId}")
-    public ResponseEntity<?> getEpisodesByMovie(@PathVariable String movieId) {
-        List<Episode> episodes = episodeService.findEpisodesByMovieId(movieId);
+    @GetMapping("/season/{seasonId}")
+    public ResponseEntity<?> getEpisodesBySeason(@PathVariable String seasonId) {
+        List<Episode> episodes = episodeService.findEpisodesBySeasonId(seasonId);
         return ResponseEntity.ok(episodes);
     }
 
-    //countEpisodesByMovieId
-    @GetMapping("/count/{movieId}")
-    public ResponseEntity<?> countEpisodesByMovieId(@PathVariable String movieId) {
-        int count = episodeService.countEpisodesByMovieId(movieId);
-        return ResponseEntity.ok(Map.of("count", count)); // ✅ bọc trong object JSON
+    // Đếm tập theo season
+    @GetMapping("/season/{seasonId}/count")
+    public ResponseEntity<?> countBySeason(@PathVariable String seasonId) {
+        int count = episodeService.countBySeasonId(seasonId);
+        return ResponseEntity.ok(Map.of("count", count));
     }
 
-    @GetMapping("/episodes/{episodeId}")
-    public ResponseEntity<Episode> getEpisodeById(@PathVariable String episodeId) {
-        Episode ep = episodeService.findEpisodeById(episodeId);
-
+    // Lấy 1 tập theo composite key
+    @GetMapping("/season/{seasonId}/ep/{episodeNumber}")
+    public ResponseEntity<?> getEpisode(
+            @PathVariable String seasonId,
+            @PathVariable int episodeNumber) {
+        Episode ep = episodeService.findOne(seasonId, episodeNumber);
         return ResponseEntity.ok(ep);
     }
+
+
 
 }
