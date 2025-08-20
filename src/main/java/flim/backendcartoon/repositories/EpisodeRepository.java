@@ -10,6 +10,7 @@ import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,16 +28,14 @@ public class EpisodeRepository {
         table.putItem(episode);
     }
 
-    // ==== Query tập theo season, tự sắp xếp theo SK = episodeNumber ====
     public List<Episode> findBySeasonId(String seasonId) {
-        List<Episode> result = new ArrayList<>();
-        Key key = Key.builder().partitionValue(seasonId).build();
-        QueryEnhancedRequest req = QueryEnhancedRequest.builder()
-                .queryConditional(QueryConditional.keyEqualTo(key))
-                .scanIndexForward(true) // tăng dần theo episodeNumber
-                .build();
-        table.query(req).items().forEach(result::add);
-        return result;
+        List<Episode> out = new ArrayList<>();
+        table.scan().items().forEach(ep -> {
+            if (seasonId.equals(ep.getSeasonId())) out.add(ep);
+        });
+        // sắp xếp theo episodeNumber tăng dần
+        out.sort(Comparator.comparing(Episode::getEpisodeNumber));
+        return out;
     }
 
     public int countBySeasonId(String seasonId) {

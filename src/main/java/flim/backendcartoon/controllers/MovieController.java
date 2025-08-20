@@ -138,6 +138,7 @@ public class MovieController {
     }
 
     // ===== Movie Detail (kèm seasons + mỗi season có số tập) =====
+    // Java
     @GetMapping("/{movieId}/detail")
     public ResponseEntity<?> getMovieDetail(@PathVariable String movieId) {
         try {
@@ -145,24 +146,23 @@ public class MovieController {
             if (movie == null) return ResponseEntity.status(404).body("Movie not found");
 
             var seasons = seasonService.findByMovieId(movieId);
-            // gắn thêm count episode cho từng season:
-            var payload = new ArrayList<>();
+            var payload = new ArrayList<Map<String, Object>>();
             for (var s : seasons) {
                 int count = episodeService.countBySeasonId(s.getSeasonId());
-                payload.add(Map.of(
-                        "seasonId", s.getSeasonId(),
-                        "seasonNumber", s.getSeasonNumber(),
-                        "title", s.getTitle(),
-                        "posterUrl", s.getPosterUrl(),
-                        "releaseYear", s.getReleaseYear(),
-                        "episodesCount", count
-                ));
+                Map<String, Object> seasonMap = new java.util.HashMap<>();
+                seasonMap.put("seasonId", s.getSeasonId());
+                seasonMap.put("seasonNumber", s.getSeasonNumber());
+                seasonMap.put("title", s.getTitle());
+                seasonMap.put("posterUrl", s.getPosterUrl());
+                seasonMap.put("releaseYear", s.getReleaseYear());
+                seasonMap.put("episodesCount", count);
+                payload.add(seasonMap);
             }
 
-            Map<String, Object> dto = Map.of(
-                    "movie", movie,
-                    "seasons", payload
-            );
+            Map<String, Object> dto = new java.util.HashMap<>();
+            dto.put("movie", movie);
+            dto.put("seasons", payload);
+
             return ResponseEntity.ok(dto);
 
         } catch (Exception e) {
