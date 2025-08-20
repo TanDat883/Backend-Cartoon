@@ -1,0 +1,25 @@
+/*
+ * @(#) $(NAME).java    1.0     8/17/2025
+ *
+ * Copyright (c) 2025 IUH. All rights reserved.
+ */
+
+package flim.backendcartoon.services;
+
+
+import flim.backendcartoon.entities.DTO.request.CreatePromotionPackageRequest;
+import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
+import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
+
+/*
+ * @description
+ * @author: Tran Tan Dat
+ * @version: 1.0
+ * @created: 17-August-2025 6:36 PM
+ */
+public interface PromotionService {
+    void createPromotionVoucher(CreatePromotionVoucherRequest voucherRequest);
+    void createPromotionPackage(CreatePromotionPackageRequest packageRequestRequest);
+}
+
+    

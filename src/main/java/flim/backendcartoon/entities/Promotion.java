@@ -18,18 +18,16 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
 
 @DynamoDbBean
-public class Promotion {
-    private String promotionId;
-    private String name;
-    private String description;
-    private int discountPercent;
-    private List<String> applicablePackageIds;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+public abstract class Promotion {
+    protected String promotionId;
+    protected String promotionName;
+    protected String description;
+    protected PromotionType promotionType; // "VOUCHER" | "PACKAGE"
+    protected LocalDate startDate; // epoch millis
+    protected LocalDate endDate;
+    protected String status; // "ACTIVE" | "INACTIVE"
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("promotionId")
@@ -41,13 +39,12 @@ public class Promotion {
         this.promotionId = promotionId;
     }
 
-    @DynamoDbAttribute("name")
-    public String getName() {
-        return name;
+    @DynamoDbAttribute("promotionName")
+    public String getPromotionName() {
+        return promotionName;
     }
-
-    public void setName(String name) {
-        this.name = name;
+    public void setPromotionName(String promotionName) {
+        this.promotionName = promotionName;
     }
 
     @DynamoDbAttribute("description")
@@ -59,37 +56,37 @@ public class Promotion {
         this.description = description;
     }
 
-    @DynamoDbAttribute("discountPercent")
-    public int getDiscountPercent() {
-        return discountPercent;
+    @DynamoDbAttribute("promotionType")
+    public PromotionType getPromotionType() {
+        return promotionType;
     }
-
-    public void setDiscountPercent(int discountPercent) {
-        this.discountPercent = discountPercent;
-    }
-
-    @DynamoDbAttribute("applicablePackageIds")
-    public List<String> getApplicablePackageIds() {
-        return applicablePackageIds;
-    }
-
-    public void setApplicablePackageIds(List<String> applicablePackageIds) {
-        this.applicablePackageIds = applicablePackageIds;
+    public void setPromotionType(PromotionType promotionType) {
+        this.promotionType = promotionType;
     }
 
     @DynamoDbAttribute("startDate")
-    public LocalDateTime getStartDate() {
+    public LocalDate getStartDate() {
         return startDate;
     }
-    public void setStartDate(LocalDateTime startDate) {
+
+    public void setStartDate(LocalDate startDate) {
         this.startDate = startDate;
     }
 
     @DynamoDbAttribute("endDate")
-    public LocalDateTime getEndDate() {
+    public LocalDate getEndDate() {
         return endDate;
     }
-    public void setEndDate(LocalDateTime endDate) {
+
+    public void setEndDate(LocalDate endDate) {
         this.endDate = endDate;
+    }
+
+    @DynamoDbAttribute("status")
+    public String getStatus() {
+        return status;
+    }
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
