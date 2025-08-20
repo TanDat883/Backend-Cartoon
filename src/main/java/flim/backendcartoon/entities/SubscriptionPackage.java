@@ -49,7 +49,6 @@ public class SubscriptionPackage {
         this.amount = amount;
     }
 
-    @DynamoDBTypeConvertedEnum
     @DynamoDbAttribute("applicableVipLevel")
     public VipLevel getApplicableVipLevel() {
         return applicableVipLevel;

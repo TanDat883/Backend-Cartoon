@@ -6,9 +6,11 @@
 
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.ILoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,15 +32,16 @@ public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
 
     @GetMapping("/all")
-    public ResponseEntity<?> getAllSubscriptionPackages() {
+    public ResponseEntity<List<SubscriptionPackageResponse>> getAllSubscriptionPackages() {
         try {
-            List<SubscriptionPackage> packages = subscriptionPackageService.findAllSubscriptionPackages();
-            if (packages.isEmpty()) {
-                return ResponseEntity.status(404).body("Không có gói đăng ký nào");
+            List<SubscriptionPackageResponse> subscriptionPackages = subscriptionPackageService.findAllSubscriptionPackages();
+            if (subscriptionPackages.isEmpty()) {
+                return ResponseEntity.status(404).body(List.of());
             }
-            return ResponseEntity.ok(packages);
+            return ResponseEntity.ok(subscriptionPackages);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(List.of());
         }
     }
 
