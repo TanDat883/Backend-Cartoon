@@ -53,7 +53,9 @@ public class MovieController {
             // MEDIA (ảnh/video)
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "banner", required = false) MultipartFile banner,
-            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo
+            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo,
+
+            @RequestParam(value="authorIds", required=false) List<String> authorIds
 
 
     ) {
@@ -99,6 +101,8 @@ public class MovieController {
             movie.setTrailerUrl(trailerUrl);
             movie.setReleaseYear(releaseYear);
             movie.setStatus(status != null ? MovieStatus.valueOf(status) : MovieStatus.UPCOMING);
+
+            movie.setAuthorIds(authorIds);
 
 
             movieService.saveMovie(movie);
@@ -147,13 +151,14 @@ public class MovieController {
 
             var seasons = seasonService.findByMovieId(movieId);
             var payload = new ArrayList<Map<String, Object>>();
+            int totalEpisodes = 0;
             for (var s : seasons) {
                 int count = episodeService.countBySeasonId(s.getSeasonId());
+                totalEpisodes += count;
                 Map<String, Object> seasonMap = new java.util.HashMap<>();
                 seasonMap.put("seasonId", s.getSeasonId());
                 seasonMap.put("seasonNumber", s.getSeasonNumber());
                 seasonMap.put("title", s.getTitle());
-                seasonMap.put("posterUrl", s.getPosterUrl());
                 seasonMap.put("releaseYear", s.getReleaseYear());
                 seasonMap.put("episodesCount", count);
                 payload.add(seasonMap);
@@ -162,6 +167,8 @@ public class MovieController {
             Map<String, Object> dto = new java.util.HashMap<>();
             dto.put("movie", movie);
             dto.put("seasons", payload);
+            dto.put("totalSeasons", seasons.size());
+            dto.put("totalEpisodes", totalEpisodes);
 
             return ResponseEntity.ok(dto);
 
@@ -201,7 +208,8 @@ public class MovieController {
             @RequestParam(value = "minVipLevel", required = false) String minVipLevel,
             @RequestParam(value = "country", required = false) String country,
             @RequestParam(value = "topic", required = false) String topic,
-            @RequestParam(value = "status", required = false) String status) {
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value="authorIds", required=false) List<String> authorIds) {
         try {
             Movie m = movieService.findMovieById(movieId);
             if (m == null) return ResponseEntity.status(404).body("Movie not found");
@@ -213,6 +221,7 @@ public class MovieController {
             if (country != null) m.setCountry(country);
             if (topic != null) m.setTopic(topic);
             if (status != null) m.setStatus(MovieStatus.valueOf(status));
+            if (authorIds != null) m.setAuthorIds(authorIds);
 
             if (thumbnail != null && !thumbnail.isEmpty()) {
                 String url = s3Service.uploadThumbnail(thumbnail);
@@ -232,7 +241,7 @@ public class MovieController {
     public ResponseEntity<?> deleteMoviesByIds(
             @RequestBody List<String> movieIds) {
         try {
-            movieService.deleteMoviesByIds(movieIds);
+            movieService.cascadeDeleteMovies(movieIds);
             return ResponseEntity.ok("Movies deleted successfully");
         } catch (Exception e) {
             e.printStackTrace();

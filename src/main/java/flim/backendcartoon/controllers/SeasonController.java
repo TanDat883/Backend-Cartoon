@@ -36,7 +36,6 @@ public class SeasonController {
             s.setTitle(title != null ? title : ("Phần " + seasonNumber));
             s.setDescription(description);
             s.setReleaseYear(releaseYear);
-            s.setPosterUrl(posterUrl);
             s.setCreatedAt(Instant.now());
             s.setLastUpdated(Instant.now());
 

@@ -53,11 +53,16 @@ public class EpisodeRepository {
 
     public void update(Episode ep) { table.updateItem(ep); }
 
-    public void delete(String seasonId, int episodeNumber) {
-        Episode key = new Episode();
-        key.setSeasonId(seasonId);
-        key.setEpisodeNumber(episodeNumber);
-        table.deleteItem(key);
+    public void delete(String seasonId, Integer episodeNumber) {
+        if (seasonId == null || episodeNumber == null) {
+            throw new IllegalArgumentException("seasonId/episodeNumber must not be null");
+        }
+        Key key = Key.builder()
+                .partitionValue(seasonId)        // PK: seasonId (String)
+                .sortValue(episodeNumber)        // SK: episodeNumber (Number)
+                .build();
+
+        table.deleteItem(r -> r.key(key));
     }
 
 

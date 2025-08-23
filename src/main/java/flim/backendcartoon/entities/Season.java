@@ -16,7 +16,6 @@ public class Season {
     private String title;           // "Phần 1", "Season 2"...
     private String description;
     private Integer releaseYear;
-    private String posterUrl;       // optional ảnh đại diện phần
     private Instant createdAt;      // thống nhất dùng Instant
     private Instant lastUpdated;
 
@@ -70,14 +69,6 @@ public class Season {
     }
     public void setReleaseYear(Integer releaseYear) {
         this.releaseYear = releaseYear;
-    }
-
-    @DynamoDbAttribute("posterUrl")
-    public String getPosterUrl() {
-        return posterUrl;
-    }
-    public void setPosterUrl(String posterUrl) {
-        this.posterUrl = posterUrl;
     }
     @DynamoDbAttribute("createdAt")
     public Instant getCreatedAt() {

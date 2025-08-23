@@ -31,7 +31,7 @@ public class EpisodeServiceImpl implements EpisodeService {
 
 
     @Override
-    public Episode findOne(String seasonId, int episodeNumber) {
+    public Episode findOne(String seasonId, Integer episodeNumber) {
         Episode ep = episodeRepository.findOne(seasonId, episodeNumber);
         if (ep == null) throw new RuntimeException("Episode not found");
         return ep;
@@ -43,7 +43,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     @Override
-    public void delete(String seasonId, int episodeNumber) {
+    public void delete(String seasonId, Integer episodeNumber) {
         episodeRepository.delete(seasonId, episodeNumber);
     }
 }

@@ -1,11 +1,16 @@
 package flim.backendcartoon.services.impl;
 
 import com.amazonaws.services.kms.model.NotFoundException;
+import flim.backendcartoon.entities.Episode;
 import flim.backendcartoon.entities.Movie;
+import flim.backendcartoon.entities.Season;
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.MovieRepository;
+import flim.backendcartoon.services.EpisodeService;
 import flim.backendcartoon.services.MovieService;
+import flim.backendcartoon.services.S3Service;
+import flim.backendcartoon.services.SeasonService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,9 +19,21 @@ import java.util.stream.Collectors;
 @Service
 public class MovieServiceImpl implements MovieService {
     private  final MovieRepository movieRepository;
+    private final SeasonService seasonService;
+    private final EpisodeService episodeService;
+    private final S3Service s3Service;
 
-    public MovieServiceImpl(MovieRepository movieRepository) {
+    public MovieServiceImpl(
+            MovieRepository movieRepository,
+            SeasonService seasonService,
+            EpisodeService episodeService,
+            S3Service s3Service) {
+
         this.movieRepository = movieRepository;
+        this.seasonService = seasonService;
+        this.episodeService = episodeService;
+        this.s3Service = s3Service;
+
     }
 
 
@@ -131,6 +148,33 @@ public class MovieServiceImpl implements MovieService {
                 .stream()
                 .filter(movie -> movie.getCountry() != null && movie.getCountry().equalsIgnoreCase(country))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void cascadeDeleteMovie(String movieId) {
+        Movie m = movieRepository.findById(movieId);
+        if (m == null) return;
+
+        // 1) Xoá asset S3 của Movie
+        s3Service.deleteByMediaUrl(m.getThumbnailUrl());
+        s3Service.deleteByMediaUrl(m.getBannerUrl());
+        s3Service.deleteByMediaUrl(m.getTrailerUrl());
+
+        // 2) Xoá toàn bộ Seasons + Episodes + HLS của tập
+        var seasons = seasonService.findByMovieId(movieId);
+        for (Season s : seasons) {
+            var eps = episodeService.findEpisodesBySeasonId(s.getSeasonId());
+            for (Episode ep : eps) {
+                s3Service.deleteByMediaUrl(ep.getVideoUrl()); // .m3u8 → xoá cả folder
+                episodeService.delete(ep.getSeasonId(), ep.getEpisodeNumber());
+            }
+            seasonService.delete(movieId, s.getSeasonNumber());
+        }
+
+        // (tuỳ chọn) Xoá các dữ liệu “phụ” khác: rating/feedback/wishlist/quan hệ tác giả...
+
+        // 3) Xoá Movie
+        movieRepository.deleteById(movieId);
     }
 
 }

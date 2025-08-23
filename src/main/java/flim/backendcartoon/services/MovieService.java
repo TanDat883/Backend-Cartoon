@@ -32,4 +32,12 @@ public interface MovieService {
 
     //find movie by country
     List<Movie> findMoviesByCountry(String country);
+
+
+    //xóa movie và cascade delete các season và episode liên quan
+    void cascadeDeleteMovie(String movieId);
+
+    default void cascadeDeleteMovies(List<String> ids) {
+        if (ids != null) ids.forEach(this::cascadeDeleteMovie);
+    }
 }

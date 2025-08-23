@@ -80,7 +80,7 @@ public class EpisodeController {
     @GetMapping("/season/{seasonId}/ep/{episodeNumber}")
     public ResponseEntity<?> getEpisode(
             @PathVariable String seasonId,
-            @PathVariable int episodeNumber) {
+            @PathVariable Integer episodeNumber) {
         Episode ep = episodeService.findOne(seasonId, episodeNumber);
         return ResponseEntity.ok(ep);
     }

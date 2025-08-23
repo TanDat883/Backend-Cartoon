@@ -10,9 +10,9 @@ public interface EpisodeService {
     //num of episodes in a movie
     int countBySeasonId(String seasonId);
     //find by episodeId
-    Episode findOne(String seasonId, int episodeNumber);
+    Episode findOne(String seasonId, Integer episodeNumber);
 
     void update(Episode episode);
-    void delete(String seasonId, int episodeNumber);
+    void delete(String seasonId, Integer episodeNumber);
 
 }

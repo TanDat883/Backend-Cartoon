@@ -6,6 +6,11 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Object;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
@@ -106,5 +111,75 @@ public class S3Service {
         return "https://" + bucketName + ".s3.amazonaws.com/" + hlsFolderKey + "/output.m3u8";
     }
 
+
+
+    /** Xoá 1 object đơn (thumbnail/banner/mp4...) dựa trên URL */
+    public void safeDeleteByUrl(String url) {
+        if (url == null || url.isBlank()) return;
+        urlToKey(url).ifPresent(key -> {
+            try {
+                s3Client.deleteObject(DeleteObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .build());
+            } catch (Exception ignore) {}
+        });
+    }
+
+    /** Xoá toàn bộ thư mục HLS dựa trên URL .m3u8 (playlist + các .ts) */
+    public void safeDeleteHlsFolderByM3u8(String m3u8Url) {
+        if (m3u8Url == null || m3u8Url.isBlank()) return;
+        urlToKey(m3u8Url).ifPresent(masterKey -> {
+            // VD: masterKey = "hls/416eee43-bd6f-4f88-a4b4-8da1b1fe80d4/output.m3u8"
+            String prefix = masterKey.contains("/") ?
+                    masterKey.substring(0, masterKey.lastIndexOf('/') + 1) :
+                    masterKey;  // "hls/<uuid>/"
+
+            try {
+                ListObjectsV2Request req = ListObjectsV2Request.builder()
+                        .bucket(bucketName)
+                        .prefix(prefix)
+                        .build();
+                ListObjectsV2Response res;
+                do {
+                    res = s3Client.listObjectsV2(req);
+                    if (res.hasContents()) {
+                        for (S3Object o : res.contents()) {
+                            try {
+                                s3Client.deleteObject(DeleteObjectRequest.builder()
+                                        .bucket(bucketName)
+                                        .key(o.key())
+                                        .build());
+                            } catch (Exception ignore) {}
+                        }
+                    }
+                    req = req.toBuilder().continuationToken(res.nextContinuationToken()).build();
+                } while (res.isTruncated());
+            } catch (Exception ignore) {}
+        });
+    }
+
+    /** Nhận URL media, tự chọn xoá file đơn hay cả folder HLS */
+    public void deleteByMediaUrl(String url) {
+        if (url == null || url.isBlank()) return;
+        // Dạng bạn đưa: hls/<uuid>/output.m3u8
+        if (url.contains("/hls/") && url.endsWith(".m3u8")) {
+            safeDeleteHlsFolderByM3u8(url);
+        } else {
+            safeDeleteByUrl(url);
+        }
+    }
+
+    /** Helper: chuyển URL S3/CloudFront → object key trong bucket */
+    private java.util.Optional<String> urlToKey(String url) {
+        try {
+            java.net.URI u = java.net.URI.create(url);
+            String path = u.getPath(); // "/hls/416e.../output.m3u8"
+            if (path == null || path.isBlank()) return java.util.Optional.empty();
+            return java.util.Optional.of(path.startsWith("/") ? path.substring(1) : path);
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
+    }
 
 }
