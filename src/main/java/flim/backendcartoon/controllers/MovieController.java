@@ -202,21 +202,34 @@ public class MovieController {
     public ResponseEntity<?> updateMovie(
             @PathVariable String movieId,
             @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "originalTitle", required = false) String originalTitle,
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "genres", required = false) List<String> genres,
-            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestParam(value = "releaseYear", required = false) Integer releaseYear,
+            @RequestParam(value = "duration", required = false) String duration,
+            @RequestParam(value = "movieType", required = false) String movieType, // SINGLE | SERIES
+            @RequestParam(value = "slug", required = false) String slug,
             @RequestParam(value = "minVipLevel", required = false) String minVipLevel,
             @RequestParam(value = "country", required = false) String country,
             @RequestParam(value = "topic", required = false) String topic,
             @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value="authorIds", required=false) List<String> authorIds) {
+            @RequestParam(value = "authorIds", required = false) List<String> authorIds,
+            @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
+            @RequestPart(value = "banner", required = false) MultipartFile banner,
+            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo) {
         try {
             Movie m = movieService.findMovieById(movieId);
             if (m == null) return ResponseEntity.status(404).body("Movie not found");
 
             if (title != null) m.setTitle(title);
+            if (originalTitle != null) m.setOriginalTitle(originalTitle);
             if (description != null) m.setDescription(description);
             if (genres != null) m.setGenres(genres);
+            if (releaseYear != null) m.setReleaseYear(releaseYear);
+            if (duration != null) m.setDuration(duration);
+            if (movieType != null) m.setMovieType(MovieType.valueOf(movieType));
+            if (slug != null && !slug.isBlank()) m.setSlug(normalizeSlug(slug));
+
             if (minVipLevel != null) m.setMinVipLevel(VipLevel.valueOf(minVipLevel));
             if (country != null) m.setCountry(country);
             if (topic != null) m.setTopic(topic);
@@ -224,8 +237,22 @@ public class MovieController {
             if (authorIds != null) m.setAuthorIds(authorIds);
 
             if (thumbnail != null && !thumbnail.isEmpty()) {
+                s3Service.deleteByMediaUrl(m.getThumbnailUrl());
                 String url = s3Service.uploadThumbnail(thumbnail);
                 m.setThumbnailUrl(url);
+            }
+
+            if (banner != null && !banner.isEmpty()) {
+                s3Service.deleteByMediaUrl(m.getBannerUrl());
+                String url = s3Service.uploadBannerUrl(banner);
+                m.setBannerUrl(url);
+            }
+
+            if (trailerVideo != null && !trailerVideo.isEmpty()) {
+                // thay trailer: xoá HLS cũ rồi up mới
+                s3Service.deleteByMediaUrl(m.getTrailerUrl());
+                String trailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
+                m.setTrailerUrl(trailerUrl);
             }
 
             movieService.updateMovie(m);
