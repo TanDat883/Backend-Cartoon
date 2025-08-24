@@ -26,5 +26,6 @@ public class SubscriptionPackageResponse {
     private Integer durationInDays;
     private List<String> features;
     private String namePackage;
-
+    private Integer appliedDiscountPercent;
+    private String appliedPromotionId;
 }

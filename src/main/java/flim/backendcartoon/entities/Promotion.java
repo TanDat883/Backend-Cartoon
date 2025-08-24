@@ -13,80 +13,91 @@ package flim.backendcartoon.entities;
  * @created: 18-July-2025 7:21 PM
  */
 
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 
 import java.time.LocalDate;
 
 @DynamoDbBean
-public abstract class Promotion {
-    protected String promotionId;
-    protected String promotionName;
-    protected String description;
-    protected PromotionType promotionType; // "VOUCHER" | "PACKAGE"
-    protected LocalDate startDate; // epoch millis
-    protected LocalDate endDate;
-    protected String status; // "ACTIVE" | "INACTIVE"
+public class Promotion {
+    private String pk;   // PROMO#<promotionId>
+    private String sk;   // PROMO#<promotionId>
 
-    @DynamoDbPartitionKey
+    private String promotionId;
+    private String promotionName;
+    private String description;
+    private PromotionType promotionType; // VOUCHER | PACKAGE
+    private String status;               // ACTIVE | INACTIVE
+    private LocalDate startDate;         // <-- LocalDate, không phải epoch millis
+    private LocalDate endDate;
+
+    // (tuỳ chọn) GSI liệt kê ACTIVE
+    private String gsi3pk; // STATUS#ACTIVE
+    private String gsi3sk; // 2025-08-31 (ISO) hoặc epoch-as-string
+
+    @DynamoDbPartitionKey @DynamoDbAttribute("PK")
+    public String getPk() { return pk; }
+    public void setPk(String pk) { this.pk = pk; }
+
+    @DynamoDbSortKey @DynamoDbAttribute("SK")
+    public String getSk() { return sk; }
+    public void setSk(String sk) { this.sk = sk; }
+
     @DynamoDbAttribute("promotionId")
-    public String getPromotionId() {
-        return promotionId;
-    }
-
-    public void setPromotionId(String promotionId) {
-        this.promotionId = promotionId;
-    }
+    public String getPromotionId() { return promotionId; }
+    public void setPromotionId(String promotionId) { this.promotionId = promotionId; }
 
     @DynamoDbAttribute("promotionName")
-    public String getPromotionName() {
-        return promotionName;
-    }
-    public void setPromotionName(String promotionName) {
-        this.promotionName = promotionName;
-    }
+    public String getPromotionName() { return promotionName; }
+    public void setPromotionName(String promotionName) { this.promotionName = promotionName; }
 
     @DynamoDbAttribute("description")
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
     @DynamoDbAttribute("promotionType")
-    public PromotionType getPromotionType() {
-        return promotionType;
-    }
-    public void setPromotionType(PromotionType promotionType) {
-        this.promotionType = promotionType;
-    }
-
-    @DynamoDbAttribute("startDate")
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    @DynamoDbAttribute("endDate")
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
+    public PromotionType getPromotionType() { return promotionType; }
+    public void setPromotionType(PromotionType promotionType) { this.promotionType = promotionType; }
 
     @DynamoDbAttribute("status")
-    public String getStatus() {
-        return status;
-    }
-    public void setStatus(String status) {
-        this.status = status;
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    @DynamoDbAttribute("startDate")
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+
+    @DynamoDbAttribute("endDate")
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+
+    @DynamoDbSecondaryPartitionKey(indexNames = {"GSI3"})
+    @DynamoDbAttribute("GSI3PK")
+    public String getGsi3pk() { return gsi3pk; }
+    public void setGsi3pk(String gsi3pk) { this.gsi3pk = gsi3pk; }
+
+    @DynamoDbSecondarySortKey(indexNames = {"GSI3"})
+    @DynamoDbAttribute("GSI3SK")
+    public String getGsi3sk() { return gsi3sk; }
+    public void setGsi3sk(String gsi3sk) { this.gsi3sk = gsi3sk; }
+
+    // helper
+    public static Promotion of(String promotionId, String name, String description, PromotionType type,
+                                   LocalDate start, LocalDate end, String status) {
+        Promotion it = new Promotion();
+        it.setPromotionId(promotionId);
+        it.setPromotionName(name);
+        it.setDescription(description);
+        it.setPromotionType(type);
+        it.setStartDate(start);
+        it.setEndDate(end);
+        it.setStatus(status);
+        it.setPk("PROMO#" + promotionId);
+        it.setSk("PROMO#" + promotionId);
+        if ("ACTIVE".equals(status)) {
+            it.setGsi3pk("STATUS#ACTIVE");
+            it.setGsi3sk(end.toString()); // YYYY-MM-DD
+        }
+        return it;
     }
 }
+

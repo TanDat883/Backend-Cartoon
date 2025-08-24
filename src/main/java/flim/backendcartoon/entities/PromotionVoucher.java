@@ -15,16 +15,27 @@ package flim.backendcartoon.entities;
 
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
 @DynamoDbBean
-public class PromotionVoucher extends Promotion {
+public class PromotionVoucher {
+    private String promotionId; // ID of the Promotion
     private String voucherCode;
     private String discountType;   // PERCENT | AMOUNT
     private int discountValue;
     private int maxUsage;
     private int usedCount;
     private int maxUsagePerUser;
+
+    @DynamoDbPartitionKey
+    @DynamoDbAttribute("promotionId")
+    public String getPromotionId() {
+        return promotionId;
+    }
+    public void setPromotionId(String promotionId) {
+        this.promotionId = promotionId;
+    }
 
     @DynamoDbSortKey
     @DynamoDbAttribute("voucherCode")
