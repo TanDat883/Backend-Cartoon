@@ -18,8 +18,8 @@ import java.util.List;
  * @created: 17-August-2025 7:00 PM
  */
 @Data
-public class CreatePromotionPackageRequest extends CreatePromotionRequest {
+public class CreatePromotionPackageRequest {
+    private String promotionId;
     private String packageId;
     private Integer discountPercent;
-    private String applicableVipLevels;
 }

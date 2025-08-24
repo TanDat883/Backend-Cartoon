@@ -19,12 +19,10 @@ import java.time.LocalDate;
  */
 @Data
 public class CreatePromotionRequest {
-    private String promotionId;
     private String promotionName;
     private PromotionType promotionType; // VOUCHER | DISCOUNT
     private String description;
     private LocalDate startDate;
     private LocalDate endDate;
-    private String status; // ACTIVE | INACTIVE
 
 }

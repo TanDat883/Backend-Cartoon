@@ -10,6 +10,11 @@ package flim.backendcartoon.services;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionPackageRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
+import flim.backendcartoon.entities.Promotion;
+import flim.backendcartoon.entities.PromotionType;
+
+import java.time.LocalDate;
+import java.util.List;
 
 /*
  * @description
@@ -18,8 +23,14 @@ import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
  * @created: 17-August-2025 6:36 PM
  */
 public interface PromotionService {
-    void createPromotionVoucher(CreatePromotionVoucherRequest voucherRequest);
-    void createPromotionPackage(CreatePromotionPackageRequest packageRequestRequest);
+    void createPromotion(CreatePromotionRequest request);
+    Promotion getPromotionById(String promotionId);
+    void updateStatus(String promotionId, String status);
+    void updateDates(String promotionId, LocalDate start, LocalDate end);
+    List<Promotion> listActive();
+    void delete(String promotionId);
+    List<Promotion> listByType(PromotionType type);
+    List<Promotion> listAll();
 }
 
     

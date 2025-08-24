@@ -14,65 +14,106 @@ package flim.backendcartoon.services.impl;
  */
 
 import flim.backendcartoon.entities.DTO.request.CreatePromotionPackageRequest;
+import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
+import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionPackage;
+import flim.backendcartoon.entities.PromotionType;
 import flim.backendcartoon.entities.PromotionVoucher;
 import flim.backendcartoon.exception.BaseException;
+import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class PromotionServiceImpl implements PromotionService {
     private final PromotionRepository promotionRepository;
 
     @Autowired
-    public PromotionServiceImpl(PromotionRepository promotionRepository) {
+    public PromotionServiceImpl(PromotionRepository promotionRepository, PromotionPackageRepository promotionPackageRepository) {
         this.promotionRepository = promotionRepository;
     }
 
 
     @Override
-    public void createPromotionVoucher(CreatePromotionVoucherRequest voucherRequest) {
-        if ("PERCENT".equalsIgnoreCase(voucherRequest.getDiscountType())
-                && (voucherRequest.getDiscountValue() < 1 || voucherRequest.getDiscountValue() > 100)) {
-            throw new BaseException("Invalid discount value. It must be between 1 and 100 for percentage discounts.");
-        }
-        PromotionVoucher promotionVoucher = new PromotionVoucher();
-        promotionVoucher.setPromotionId(voucherRequest.getPromotionId());
-        promotionVoucher.setPromotionName(voucherRequest.getPromotionName());
-        promotionVoucher.setDescription(voucherRequest.getDescription());
-        promotionVoucher.setStartDate(voucherRequest.getStartDate());
-        promotionVoucher.setEndDate(voucherRequest.getEndDate());
-        promotionVoucher.setStatus(voucherRequest.getStatus());
-        promotionVoucher.setVoucherCode(voucherRequest.getVoucherCode());
-        promotionVoucher.setDiscountType(voucherRequest.getDiscountType());
-        promotionVoucher.setDiscountValue(voucherRequest.getDiscountValue());
-        promotionVoucher.setMaxUsage(voucherRequest.getMaxUsage());
-        promotionVoucher.setUsedCount(0);
-        promotionVoucher.setMaxUsagePerUser(voucherRequest.getMaxUsagePerUser());
+    public void createPromotion(CreatePromotionRequest request) {
+        validateDates(request.getStartDate(), request.getEndDate());
+        String promotionId = "PROMO-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String promotionStatus = "ACTIVE";
 
-        // Save the PromotionVoucher to the repository
-        promotionRepository.savePromotion(promotionVoucher);
+        while (promotionRepository.findById(promotionId).isPresent()) {
+            promotionId = "PROMO-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+
+        Promotion promotion = Promotion.of(
+                promotionId,
+                request.getPromotionName(),
+                request.getDescription(),
+                request.getPromotionType(),
+                request.getStartDate(),
+                request.getEndDate(),
+                promotionStatus
+        );
+        promotionRepository.save(promotion);
     }
 
     @Override
-    public void createPromotionPackage(CreatePromotionPackageRequest packageRequestRequest) {
-        if (packageRequestRequest.getDiscountPercent() < 1 || packageRequestRequest.getDiscountPercent() > 100) {
-            throw new BaseException("Invalid discount percent. It must be between 1 and 100.");
-        }
-        PromotionPackage promotionPackage = new PromotionPackage();
-        promotionPackage.setPromotionId(packageRequestRequest.getPromotionId());
-        promotionPackage.setPromotionName(packageRequestRequest.getPromotionName());
-        promotionPackage.setDescription(packageRequestRequest.getDescription());
-        promotionPackage.setStartDate(packageRequestRequest.getStartDate());
-        promotionPackage.setEndDate(packageRequestRequest.getEndDate());
-        promotionPackage.setStatus(packageRequestRequest.getStatus());
-        promotionPackage.setPackageId(packageRequestRequest.getPackageId());
-        promotionPackage.setDiscountPercent(packageRequestRequest.getDiscountPercent());
-        promotionPackage.setApplicableVipLevel(packageRequestRequest.getApplicableVipLevels());
+    public Promotion getPromotionById(String promotionId) {
+        return promotionRepository.findById(promotionId)
+                .orElseThrow(() -> new BaseException("Promotion with id " + promotionId + " not found"));
+    }
 
-        promotionRepository.savePromotion(promotionPackage);
+    @Override
+    public void updateStatus(String promotionId, String status) {
+        Promotion promotion = getPromotionById(promotionId);
+        promotion.setStatus(status);
+        if ("ACTIVE".equals(status)) {
+            promotion.setGsi3pk("STATUS#ACTIVE");
+            promotion.setGsi3sk(promotion.getEndDate() != null ? promotion.getEndDate().toString() : "9999-12-31");
+        } else {
+            promotion.setGsi3pk(null);
+            promotion.setGsi3sk(null);
+        }
+        promotionRepository.save(promotion);
+    }
+
+    @Override
+    public void updateDates(String promotionId, LocalDate start, LocalDate end) {
+
+    }
+
+    @Override
+    public List<Promotion> listActive() {
+        return List.of();
+    }
+
+    @Override
+    public void delete(String promotionId) {
+
+    }
+
+    @Override
+    public List<Promotion> listByType(PromotionType type) {
+        return promotionRepository.findByType(type.toString());
+    }
+
+    @Override
+    public List<Promotion> listAll() {
+        return promotionRepository.findAll();
+    }
+
+    private void validateDates(LocalDate start, LocalDate end) {
+        if (start == null || end == null) {
+            throw new IllegalArgumentException("startDate/endDate is required");
+        }
+        if (end.isBefore(start)) {
+            throw new IllegalArgumentException("endDate must be >= startDate");
+        }
     }
 }

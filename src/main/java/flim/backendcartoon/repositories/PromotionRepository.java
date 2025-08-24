@@ -19,56 +19,39 @@ import flim.backendcartoon.entities.PromotionVoucher;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
 public class PromotionRepository {
-    private final DynamoDbTable<PromotionPackage> promotionPackageTable;
-    private final DynamoDbTable<PromotionVoucher> promotionVoucherTable;
     private final DynamoDbTable<Promotion> promotionTable;
 
-    public PromotionRepository(DynamoDbEnhancedClient client) {
-        this.promotionPackageTable = client.table("PromotionPackage", TableSchema.fromBean(PromotionPackage.class));
-        this.promotionVoucherTable = client.table("PromotionVoucher", TableSchema.fromBean(PromotionVoucher.class));
-        this.promotionTable = client.table("Promotion", TableSchema.fromBean(Promotion.class));
+    public PromotionRepository(DynamoDbEnhancedClient dynamoDbEnhancedClient) {
+        this.promotionTable = dynamoDbEnhancedClient.table("Promotion", TableSchema.fromBean(Promotion.class));
     }
 
-    public void savePromotion(Promotion promotion) {
+    public Optional<Promotion> findById(String promotionId) {
+        Key key = Key.builder().partitionValue("PROMO#" + promotionId)
+                .sortValue("PROMO#" + promotionId).build();
+        return Optional.ofNullable(promotionTable.getItem(r -> r.key(key)));
+    }
+
+    public void save(Promotion promotion) {
         promotionTable.putItem(promotion);
-        if (promotion instanceof PromotionPackage) {
-            promotionPackageTable.putItem((PromotionPackage) promotion);
-        } else if (promotion instanceof PromotionVoucher) {
-            promotionVoucherTable.putItem((PromotionVoucher) promotion);
-        } else {
-            throw new IllegalArgumentException("Unsupported promotion type: " + promotion.getClass().getName());
-        }
     }
 
-    public List<PromotionPackage> findPromotionsByPackageId(String packageId) {
-        return promotionPackageTable.scan().items().stream()
-                .filter(p -> p.getPackageId().equals(packageId))
+    public List<Promotion> findAll() {
+        return promotionTable.scan().items().stream().collect(Collectors.toList());
+    }
+
+    public List<Promotion> findByType(String type) {
+        return promotionTable.scan().items().stream()
+                .filter(it -> it.getPromotionType().toString().equals(type))
                 .collect(Collectors.toList());
     }
-
-    public PromotionPackage getPromotionPackage(String promotionId, String packageId) {
-        return promotionPackageTable.getItem(r -> r.key(k -> k.partitionValue(promotionId).sortValue(packageId)));
-    }
-
-    public PromotionVoucher getPromotionVoucher(String promotionId, String voucherCode) {
-        return promotionVoucherTable.getItem(r -> r.key(k -> k.partitionValue(promotionId).sortValue(voucherCode)));
-    }
-
-//    public void deletePromotion(Promotion promotion) {
-//        if (promotion instanceof PromotionPackage) {
-//            promotionPackageTable.deleteItem(r -> r.key(k -> k.partitionValue(promotion.getPromotionId()).sortValue(((PromotionPackage) promotion).getPackageId())));
-//        } else if (promotion instanceof PromotionVoucher) {
-//            promotionVoucherTable.deleteItem(r -> r.key(k -> k.partitionValue(promotion.getPromotionId()).sortValue(((PromotionVoucher) promotion).getVoucherCode())));
-//        } else {
-//            throw new IllegalArgumentException("Unsupported promotion type: " + promotion.getClass().getName());
-//        }
-//    }
 
 }
