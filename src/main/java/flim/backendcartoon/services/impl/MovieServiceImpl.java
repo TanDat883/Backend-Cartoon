@@ -151,6 +151,22 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
+    public List<Movie> findMoviesByMovieType(String movieType) {
+        return movieRepository.findAllMovies()
+                .stream()
+                .filter(movie -> movie.getMovieType() != null && movie.getMovieType().toString().equalsIgnoreCase(movieType))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Movie> findMoviesByTopic(String topic) {
+        return movieRepository.findAllMovies()
+                .stream()
+                .filter(movie -> movie.getTopic() != null && movie.getTopic().contains(topic))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public void cascadeDeleteMovie(String movieId) {
         Movie m = movieRepository.findById(movieId);
         if (m == null) return;

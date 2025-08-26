@@ -353,7 +353,7 @@ public class MovieController {
         }
         Movie movie = movieService.getMovieIfAccessible(id, user);
 
-        return ResponseEntity.ok("🎬 Bạn được phép xem: " + movie.getTitle());
+        return ResponseEntity.ok("Bạn được phép xem: " + movie.getTitle());
     }
 
 
@@ -363,6 +363,28 @@ public class MovieController {
             @PathVariable String country) {
         try {
             List<Movie> movies = movieService.findMoviesByCountry(country);
+            return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
+    //tìm phim theo movie type
+    @GetMapping("/type/{movieType}")
+    public ResponseEntity<List<Movie>> getMoviesByMovieType(@PathVariable String movieType){
+        try {
+            List<Movie> movies = movieService.findMoviesByMovieType(movieType);
+            return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(null);
+        }
+    }
+    //tìm phim theo topic
+    @GetMapping("/topic/{topic}")
+    public ResponseEntity<List<Movie>> getMoviesByTopic(@PathVariable String topic){
+        try {
+            List<Movie> movies = movieService.findMoviesByTopic(topic);
             return ResponseEntity.ok(movies); // HTTP 200 và trả về danh sách phim
         } catch (Exception e) {
             e.printStackTrace();

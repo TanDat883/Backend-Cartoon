@@ -32,8 +32,10 @@ public interface MovieService {
 
     //find movie by country
     List<Movie> findMoviesByCountry(String country);
-
-
+    //find movie by movie type
+    List<Movie> findMoviesByMovieType(String movieType);
+    //find movie by topic
+    List<Movie> findMoviesByTopic(String topic);
     //xóa movie và cascade delete các season và episode liên quan
     void cascadeDeleteMovie(String movieId);
 
