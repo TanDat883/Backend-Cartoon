@@ -43,4 +43,11 @@ public class SeasonRepository {
         Season s = findOne(movieId, seasonNumber);
         if (s != null) table.deleteItem(s);
     }
+
+    public Season findBySeasonId(String seasonId) {
+        return table.scan().items().stream()
+                .filter(season -> season.getSeasonId().equals(seasonId))
+                .findFirst()
+                .orElse(null);
+    }
 }

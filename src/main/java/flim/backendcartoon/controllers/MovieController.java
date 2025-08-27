@@ -6,9 +6,11 @@ import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -410,7 +412,13 @@ public class MovieController {
             }
 
             movieRatingService.rateMovie(movieId, userId, rating);
-            return ResponseEntity.ok("Đánh giá/Cập nhật đánh giá thành công");
+            Movie m = movieService.findMovieById(movieId);
+            var resp = Map.of(
+                    "message", "Đánh giá/Cập nhật đánh giá thành công",
+                    "avgRating", m.getAvgRating(),
+                    "ratingCount", m.getRatingCount()
+            );
+            return ResponseEntity.ok(resp);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -454,4 +462,85 @@ public class MovieController {
                 .replaceAll("-{2,}", "-");              // gộp --
         return s;
     }
+
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping(value="/{movieId}/publish", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> publish(
+            @PathVariable String movieId,
+            @RequestParam MovieStatus target,                 // UPCOMING | COMPLETED
+            @RequestPart(value="trailerVideo",  required=false) MultipartFile trailerVideo,
+            @RequestPart(value="episode1Video", required=false) MultipartFile episode1Video
+    ) throws IOException, InterruptedException {
+        Movie m = movieService.findMovieById(movieId);
+        if (m == null) return ResponseEntity.status(404).body("Movie not found");
+
+        switch (target) {
+            case UPCOMING -> {
+                // không cho hạ từ COMPLETED -> UPCOMING (tuỳ policy, có thể bỏ check này nếu muốn)
+                if (m.getStatus() == MovieStatus.COMPLETED) {
+                    return ResponseEntity.badRequest().body("Không thể chuyển từ COMPLETED về UPCOMING");
+                }
+                // yêu cầu có trailer (nếu chưa có sẵn trong DB thì phải up file lần này)
+                if ((m.getTrailerUrl() == null || m.getTrailerUrl().isBlank())) {
+                    if (trailerVideo == null || trailerVideo.isEmpty()) {
+                        return ResponseEntity.badRequest().body("UPCOMING yêu cầu trailerVideo (file)");
+                    }
+                }
+                if (trailerVideo != null && !trailerVideo.isEmpty()) {
+                    if (m.getTrailerUrl() != null) s3Service.deleteByMediaUrl(m.getTrailerUrl());
+                    String url = s3Service.convertAndUploadToHLS(trailerVideo);
+                    m.setTrailerUrl(url);
+                }
+                m.setStatus(MovieStatus.UPCOMING);
+            }
+            case COMPLETED -> {
+                // đảm bảo có ít nhất 1 tập; nếu chưa có tập nào thì bắt buộc up tập 1
+                var seasons = seasonService.findByMovieId(movieId);
+                int totalEps = 0;
+                for (var s : seasons) totalEps += episodeService.countBySeasonId(s.getSeasonId());
+
+                if (totalEps == 0) {
+                    if (episode1Video == null || episode1Video.isEmpty()) {
+                        return ResponseEntity.badRequest().body("COMPLETED yêu cầu upload episode1Video khi chưa có tập nào");
+                    }
+                    // bảo đảm có Season 1
+                    var season1 = seasons.stream()
+                            .filter(s -> s.getSeasonNumber() == 1)
+                            .findFirst()
+                            .orElseGet(() -> {
+                                var s = new Season();
+                                s.setMovieId(movieId);
+                                s.setSeasonNumber(1);
+                                s.setSeasonId(UUID.randomUUID().toString());
+                                s.setTitle("Phần 1");
+                                s.setCreatedAt(Instant.now());
+                                s.setLastUpdated(Instant.now());
+                                seasonService.save(s);
+                                return s;
+                            });
+
+                    // upload ep1
+                    String epUrl = s3Service.convertAndUploadToHLS(episode1Video);
+                    var ep1 = new Episode();
+                    ep1.setEpisodeId(UUID.randomUUID().toString());
+                    ep1.setMovieId(movieId);
+                    ep1.setSeasonId(season1.getSeasonId());
+                    ep1.setEpisodeNumber(1);
+                    ep1.setTitle(m.getTitle() + " - Tập 1");
+                    ep1.setVideoUrl(epUrl);
+                    ep1.setCreatedAt(Instant.now());
+                    ep1.setUpdatedAt(Instant.now());
+                    episodeService.saveEpisode(ep1);
+                }
+                m.setStatus(MovieStatus.COMPLETED);
+            }
+            default -> { return ResponseEntity.badRequest().body("Trạng thái không hợp lệ"); }
+        }
+
+        movieService.updateMovie(m);
+        return ResponseEntity.ok(m);
+    }
+
+
 }

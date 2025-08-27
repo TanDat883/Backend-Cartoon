@@ -1,7 +1,9 @@
 package flim.backendcartoon.services.impl;
 
+import flim.backendcartoon.entities.Movie;
 import flim.backendcartoon.entities.MovieRating;
 import flim.backendcartoon.repositories.MovieRatingRepository;
+import flim.backendcartoon.repositories.MovieRepository;
 import flim.backendcartoon.services.MovieRatingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,23 +18,45 @@ import java.util.UUID;
 public class MovieRatingImpl implements MovieRatingService {
 
     private final MovieRatingRepository movieRatingRepository;
+    private final MovieRepository movieRepository;
 
-    public MovieRatingImpl(MovieRatingRepository movieRatingRepository) {
+    public MovieRatingImpl(MovieRatingRepository movieRatingRepository,
+                           MovieRepository movieRepository) {
         this.movieRatingRepository = movieRatingRepository;
+        this.movieRepository = movieRepository;
     }
 
     @Override
     public void rateMovie(String movieId, String userId, int rating) {
-        // Check xem user đã rate movie này chưa
+
+        Movie movie = movieRepository.findById(movieId);
+        if (movie == null) {
+            throw new RuntimeException("Movie not found");
+        }
+        // upsert rating
         MovieRating existing = movieRatingRepository.findOneByMovieIdAndUserId(movieId, userId);
         if (existing != null) {
+            int old = existing.getRating();
             existing.setRating(rating);
-            existing.setCreatedAt(LocalDateTime.now()); // hoặc dùng updatedAt nếu bạn thêm field
+            existing.setCreatedAt(LocalDateTime.now());
             movieRatingRepository.update(existing);
+
+            //cập nhật avg giữ nguyên count
+            long count = nullSafe(movie.getRatingCount());
+            double avg  = nullSafe(movie.getAvgRating());
+            if (count <= 0) {
+                // Trường hợp hiếm khi dữ liệu lệch (đã có rating nhưng count=0)
+                count = 1;
+                avg = rating;
+            } else {
+                double newAvg = (avg * count - old + rating) / count;
+                movie.setAvgRating(round1(newAvg));
+            }
+            movieRepository.update(movie);
             return;
         }
 
-        // Chưa có thì tạo mới
+        // Chưa có → tạo mới
         MovieRating mr = new MovieRating();
         mr.setMovieRatingId(UUID.randomUUID().toString());
         mr.setMovieId(movieId);
@@ -40,6 +64,16 @@ public class MovieRatingImpl implements MovieRatingService {
         mr.setRating(rating);
         mr.setCreatedAt(LocalDateTime.now());
         movieRatingRepository.save(mr);
+
+        // tăng count và cập nhật avg
+        long count = nullSafe(movie.getRatingCount());
+        double avg  = nullSafe(movie.getAvgRating());
+        long newCount = count + 1;
+        double newAvg = (avg * count + rating) / newCount;
+
+        movie.setRatingCount(newCount);
+        movie.setAvgRating(round1(newAvg));
+        movieRepository.update(movie);
     }
 
     @Override
@@ -70,4 +104,12 @@ public class MovieRatingImpl implements MovieRatingService {
         }
         return movieRating;
     }
+
+
+
+    // ===== helpers =====
+    private long nullSafe(Long v) { return v == null ? 0L : v; }
+    private double nullSafe(Double v) { return v == null ? 0.0 : v; }
+    private double round1(double v) { return Math.round(v * 10.0) / 10.0; } // tuỳ bạn muốn giữ mấy chữ số
+
 }
