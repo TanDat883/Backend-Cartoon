@@ -23,7 +23,7 @@ public class VipSubscription {
     private String userId;
     private String packageId;
     private String status; // PENDING, ACTIVE, EXPIRED, REFUNDED
-    private VipLevel vipLevel;
+    private PackageType packageType;
     private String startDate;
     private String endDate;
     private String createdAt;
@@ -61,12 +61,12 @@ public class VipSubscription {
         this.status = status;
     }
 
-    @DynamoDbAttribute("vipLevel")
-    public VipLevel getVipLevel() {
-        return vipLevel;
+    @DynamoDbAttribute("packageType")
+    public PackageType getVipLevel() {
+        return packageType;
     }
-    public void setVipLevel(VipLevel vipLevel) {
-        this.vipLevel = vipLevel;
+    public void setVipLevel(PackageType packageType) {
+        this.packageType = packageType;
     }
 
     @DynamoDbAttribute("startDate")

@@ -7,6 +7,7 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.PromotionPackage;
+import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.services.PromotionPackageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,17 +30,17 @@ public class PromotionPackageServiceImpl implements PromotionPackageService {
     }
 
     @Override
-    public void createPromotionPackage(String promotionId, String packageId, int discountPercent) {
+    public void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent) {
         validatePercent(discountPercent);
         promotionPackageRepository.get(promotionId, packageId).ifPresent(x -> {
-            throw new IllegalArgumentException("Promotion package already exists");
+            throw new BaseException("Promotion package already exists");
         });
         PromotionPackage promotionPackage = PromotionPackage.of(promotionId, packageId, discountPercent);
         promotionPackageRepository.save(promotionPackage);
     }
 
     @Override
-    public PromotionPackage getPromotionPackageById(String promotionId, String packageId) {
+    public PromotionPackage getPromotionPackageById(String promotionId, List<String> packageId) {
         return promotionPackageRepository.get(promotionId, packageId)
                 .orElseThrow(() -> new IllegalArgumentException("Promotion package not found"));
     }
@@ -49,17 +50,17 @@ public class PromotionPackageServiceImpl implements PromotionPackageService {
         return promotionPackageRepository.listByPromotion(promotionId);
     }
 
-    @Override
-    public void updatePercent(String promotionId, String packageId, int newPercent) {
-        validatePercent(newPercent);
-        PromotionPackage promotionPackage = getPromotionPackageById(promotionId, packageId);
-        promotionPackage.setDiscountPercent(newPercent);
-        promotionPackageRepository.save(promotionPackage);
-    }
+//    @Override
+//    public void updatePercent(String promotionId, String packageId, int newPercent) {
+//        validatePercent(newPercent);
+//        PromotionPackage promotionPackage = getPromotionPackageById(promotionId, packageId);
+//        promotionPackage.setDiscountPercent(newPercent);
+//        promotionPackageRepository.save(promotionPackage);
+//    }
 
     private void validatePercent(int percent) {
         if (percent < 1 || percent > 100) {
-            throw new IllegalArgumentException("discountPercent must be 1..100");
+            throw new BaseException("discountPercent must be 1..100");
         }
     }
 }

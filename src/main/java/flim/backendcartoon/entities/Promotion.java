@@ -30,10 +30,6 @@ public class Promotion {
     private LocalDate startDate;         // <-- LocalDate, không phải epoch millis
     private LocalDate endDate;
 
-    // (tuỳ chọn) GSI liệt kê ACTIVE
-    private String gsi3pk; // STATUS#ACTIVE
-    private String gsi3sk; // 2025-08-31 (ISO) hoặc epoch-as-string
-
     @DynamoDbPartitionKey @DynamoDbAttribute("PK")
     public String getPk() { return pk; }
     public void setPk(String pk) { this.pk = pk; }
@@ -70,16 +66,6 @@ public class Promotion {
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
-    @DynamoDbSecondaryPartitionKey(indexNames = {"GSI3"})
-    @DynamoDbAttribute("GSI3PK")
-    public String getGsi3pk() { return gsi3pk; }
-    public void setGsi3pk(String gsi3pk) { this.gsi3pk = gsi3pk; }
-
-    @DynamoDbSecondarySortKey(indexNames = {"GSI3"})
-    @DynamoDbAttribute("GSI3SK")
-    public String getGsi3sk() { return gsi3sk; }
-    public void setGsi3sk(String gsi3sk) { this.gsi3sk = gsi3sk; }
-
     // helper
     public static Promotion of(String promotionId, String name, String description, PromotionType type,
                                    LocalDate start, LocalDate end, String status) {
@@ -93,10 +79,6 @@ public class Promotion {
         it.setStatus(status);
         it.setPk("PROMO#" + promotionId);
         it.setSk("PROMO#" + promotionId);
-        if ("ACTIVE".equals(status)) {
-            it.setGsi3pk("STATUS#ACTIVE");
-            it.setGsi3sk(end.toString()); // YYYY-MM-DD
-        }
         return it;
     }
 }

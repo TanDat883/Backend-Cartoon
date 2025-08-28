@@ -20,7 +20,7 @@ import java.util.List;
  */
 public interface SubscriptionPackageService {
     void saveSubscriptionPackage(SubscriptionPackage subscriptionPackage);
-    SubscriptionPackage findSubscriptionPackageById(String packageId);
+    SubscriptionPackageResponse findSubscriptionPackageById(String packageId);
     List<SubscriptionPackageResponse> findAllSubscriptionPackages();
 }
 

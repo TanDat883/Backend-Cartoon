@@ -16,12 +16,16 @@ package flim.backendcartoon.entities.DTO.request;
 import lombok.Data;
 
 @Data
-public class CreatePromotionVoucherRequest extends CreatePromotionRequest {
+public class CreatePromotionVoucherRequest {
+    private String promotionId;
     private String voucherCode;
     private String discountType;   // PERCENT | AMOUNT
     private int discountValue;
+    private int maxDiscountAmount;
     private int maxUsage;
-    private int usedCount;         // Số lần đã sử dụng
     private int maxUsagePerUser;
+    private int minOrderAmount;
+    private int minPackagePrice;
+
 
 }

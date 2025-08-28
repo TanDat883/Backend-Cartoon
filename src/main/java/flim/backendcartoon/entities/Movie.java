@@ -27,7 +27,7 @@ public class Movie {
     private MovieType movieType;       // SINGLE | SERIES
 
     // ================== ACCESS / VISIBILITY ==================
-    private VipLevel minVipLevel;      // yêu cầu tối thiểu (thay cho accessVipLevel)     // gắn banner nổi bật
+    private PackageType minPackageType;      // yêu cầu tối thiểu (thay cho accessVipLevel)     // gắn banner nổi bật
     private MovieStatus status;        // ONGOING | COMPLETED | UPCOMING
 
     // ================== COUNTERS / DENORMALIZED ==================
@@ -106,9 +106,9 @@ public class Movie {
     public void setMovieType(MovieType movieType) { this.movieType = movieType; }
 
     // ================== ACCESS / VISIBILITY ==================
-    @DynamoDbAttribute("minVipLevel")
-    public VipLevel getMinVipLevel() { return minVipLevel; }
-    public void setMinVipLevel(VipLevel minVipLevel) { this.minVipLevel = minVipLevel; }
+    @DynamoDbAttribute("minPackageType")
+    public PackageType getMinVipLevel() { return minPackageType; }
+    public void setMinVipLevel(PackageType minPackageType) { this.minPackageType = minPackageType; }
 
     @DynamoDbAttribute("status")
     public MovieStatus getStatus() { return status; }

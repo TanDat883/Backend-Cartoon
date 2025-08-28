@@ -13,17 +13,17 @@ package flim.backendcartoon.entities;
  * @version: 1.0
  * @created: 11-July-2025 7:22 PM
  */
-public enum VipLevel {
+public enum PackageType {
     FREE("Free", 0),
     NO_ADS("NoAds", 1),
     PREMIUM("Premium", 2),
-    K_PLUS("KPlus", 3),
-    COMBO_PREMIUM_K_PLUS("ComboPremiumKPlus", 4);
+    MEGA_PLUS("MegaPlus", 3),
+    COMBO_PREMIUM_MEGA_PLUS("ComboPremiumMegaPlus", 4);
 
     private final String levelName;
     private final int levelValue;
 
-    VipLevel(String levelName, int levelValue) {
+    PackageType(String levelName, int levelValue) {
         this.levelName = levelName;
         this.levelValue = levelValue;
     }

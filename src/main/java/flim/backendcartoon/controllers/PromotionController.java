@@ -18,8 +18,10 @@ import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionPackage;
+import flim.backendcartoon.entities.PromotionVoucher;
 import flim.backendcartoon.services.PromotionPackageService;
 import flim.backendcartoon.services.PromotionService;
+import flim.backendcartoon.services.PromotionVoucherService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -32,11 +34,13 @@ import java.util.List;
 public class PromotionController {
     private final PromotionService promotionService;
     private final PromotionPackageService promotionPackageService;
+    private final PromotionVoucherService promotionVoucherService;
 
     @Autowired
-    public PromotionController(PromotionService promotionService, PromotionPackageService promotionPackageService) {
+    public PromotionController(PromotionService promotionService, PromotionPackageService promotionPackageService, PromotionVoucherService promotionVoucherService) {
         this.promotionService = promotionService;
         this.promotionPackageService = promotionPackageService;
+        this.promotionVoucherService = promotionVoucherService;
     }
 
     @PostMapping
@@ -71,6 +75,12 @@ public class PromotionController {
     public ResponseEntity<List<PromotionPackage>> getAllPromotionPackages(@RequestParam("promotionId") String promotionId) {
         List<PromotionPackage> promotions = promotionPackageService.getAllPromotionPackages(promotionId);
         return ResponseEntity.ok(promotions);
+    }
+
+    @PostMapping("/vouchers")
+    public ResponseEntity<String> createPromotionVoucher(@Valid @RequestBody CreatePromotionVoucherRequest request) {
+        promotionVoucherService.createPromotionVoucher(request);
+        return ResponseEntity.ok("Promotion voucher created successfully");
     }
 
 }

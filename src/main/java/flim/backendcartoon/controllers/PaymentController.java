@@ -15,6 +15,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
+import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,7 +26,6 @@ import vn.payos.type.CheckoutResponseData;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/payment")
@@ -46,7 +46,7 @@ public class PaymentController {
             return ResponseEntity.badRequest().body("Không tìm thấy người dùng");
         }
 
-        SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(req.getPackageId());
+        SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(req.getPackageId());
         if (subscriptionPackage == null) {
             return ResponseEntity.badRequest().body("Không tìm thấy gói VIP");
         }
@@ -55,10 +55,10 @@ public class PaymentController {
         Order order = orderService.createOrder(req.getUserId(), req.getPackageId());
 
         // Tạo dữ liệu đơn hàng từ subscriptionPackage
-        VipLevel vip = subscriptionPackage.getApplicableVipLevel();
+        PackageType vip = subscriptionPackage.getApplicablePackageType();
         String productName = "Gói VIP " + vip.name();
         String description = "g" + vip.name() + " thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
-        int amount = subscriptionPackage.getAmount().intValue();
+        int amount = subscriptionPackage.getDiscountedAmount().intValue();
 
         // Gọi PayOS để tạo link thanh toán
         CheckoutResponseData data = paymentService.createPaymentLink(
@@ -155,13 +155,13 @@ public class PaymentController {
 
                 // Cập nhật thông tin VIP
                 User user = userService.findUserById(order.getUserId());
-                SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
+                SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
 
                 if (user == null || subscriptionPackage == null) {
                     return ResponseEntity.badRequest().body("Không tìm thấy user hoặc gói VIP");
                 }
 
-                VipLevel vip = subscriptionPackage.getApplicableVipLevel();
+                PackageType vip = subscriptionPackage.getApplicablePackageType();
 
                 // Lấy thời gian bắt đầu mặc định là hiện tại
                 LocalDate startDate = LocalDate.now();

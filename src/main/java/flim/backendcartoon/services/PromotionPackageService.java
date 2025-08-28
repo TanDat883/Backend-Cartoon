@@ -18,10 +18,10 @@ import java.util.List;
  * @created: 23-August-2025 4:33 PM
  */
 public interface PromotionPackageService {
-    void createPromotionPackage(String promotionId, String packageId, int discountPercent);
-    PromotionPackage getPromotionPackageById(String promotionId, String packageId);
+    void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent);
+    PromotionPackage getPromotionPackageById(String promotionId, List<String> packageId);
     List<PromotionPackage> getAllPromotionPackages(String promotionId);
-    void updatePercent(String promotionId, String packageId, int newPercent);
+//    void updatePercent(String promotionId, String packageId, int newPercent);
 }
 
     

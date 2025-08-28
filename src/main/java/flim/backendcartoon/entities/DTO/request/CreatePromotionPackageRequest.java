@@ -6,7 +6,6 @@
 
 package flim.backendcartoon.entities.DTO.request;
 
-import flim.backendcartoon.entities.VipLevel;
 import lombok.Data;
 
 import java.util.List;
@@ -20,6 +19,6 @@ import java.util.List;
 @Data
 public class CreatePromotionPackageRequest {
     private String promotionId;
-    private String packageId;
+    private List<String> packageId;
     private Integer discountPercent;
 }

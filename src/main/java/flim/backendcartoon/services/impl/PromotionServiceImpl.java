@@ -13,13 +13,9 @@ package flim.backendcartoon.services.impl;
  * @created: 17-August-2025 6:41 PM
  */
 
-import flim.backendcartoon.entities.DTO.request.CreatePromotionPackageRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
-import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
 import flim.backendcartoon.entities.Promotion;
-import flim.backendcartoon.entities.PromotionPackage;
 import flim.backendcartoon.entities.PromotionType;
-import flim.backendcartoon.entities.PromotionVoucher;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
@@ -73,13 +69,6 @@ public class PromotionServiceImpl implements PromotionService {
     public void updateStatus(String promotionId, String status) {
         Promotion promotion = getPromotionById(promotionId);
         promotion.setStatus(status);
-        if ("ACTIVE".equals(status)) {
-            promotion.setGsi3pk("STATUS#ACTIVE");
-            promotion.setGsi3sk(promotion.getEndDate() != null ? promotion.getEndDate().toString() : "9999-12-31");
-        } else {
-            promotion.setGsi3pk(null);
-            promotion.setGsi3sk(null);
-        }
         promotionRepository.save(promotion);
     }
 

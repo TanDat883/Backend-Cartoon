@@ -6,7 +6,7 @@
 
 package flim.backendcartoon.entities.DTO.response;
 
-import flim.backendcartoon.entities.VipLevel;
+import flim.backendcartoon.entities.PackageType;
 import lombok.Data;
 
 import java.util.List;
@@ -22,7 +22,7 @@ public class SubscriptionPackageResponse {
     private String packageId;
     private Double amount;
     private Double discountedAmount;
-    private VipLevel applicableVipLevel;
+    private PackageType applicablePackageType;
     private Integer durationInDays;
     private List<String> features;
     private String namePackage;
