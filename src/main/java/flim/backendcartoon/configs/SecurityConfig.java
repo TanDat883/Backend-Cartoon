@@ -40,6 +40,7 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers
+
                         .anyRequest().permitAll()
                 )
                 // Sử dụng xác thực JWT từ Cognito

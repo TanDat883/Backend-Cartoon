@@ -85,6 +85,55 @@ public class EpisodeController {
         return ResponseEntity.ok(ep);
     }
 
+    // UPDATE title / video (tuỳ chọn)
+    @PutMapping(value = "/season/{seasonId}/ep/{episodeNumber}", consumes = "multipart/form-data")
+    public ResponseEntity<?> updateEpisode(
+            @PathVariable String seasonId,
+            @PathVariable Integer episodeNumber,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestPart(value = "video", required = false) MultipartFile video
+    ) {
+        try {
+            Episode existing = episodeService.findOne(seasonId, episodeNumber);
+
+            if (title != null) existing.setTitle(title);
+
+            if (video != null && !video.isEmpty()) {
+                // nếu bạn muốn giữ lại file cũ thì bỏ dòng xoá này
+                s3Service.deleteByMediaUrl(existing.getVideoUrl());
+                String newUrl = s3Service.convertAndUploadToHLS(video);
+                existing.setVideoUrl(newUrl);
+            }
+            existing.setUpdatedAt(Instant.now());
+            episodeService.update(existing);
+            return ResponseEntity.ok(existing);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError()
+                    .body("Failed to update episode: " + e.getMessage());
+        }
+    }
+
+    // DELETE
+    @DeleteMapping("/season/{seasonId}/ep/{episodeNumber}")
+    public ResponseEntity<?> deleteEpisode(
+            @PathVariable String seasonId,
+            @PathVariable Integer episodeNumber
+    ) {
+        try {
+            Episode existing = episodeService.findOne(seasonId, episodeNumber);
+            if (existing != null) {
+                // Xoá HLS/folder nếu cần
+                s3Service.deleteByMediaUrl(existing.getVideoUrl());
+            }
+            episodeService.delete(seasonId, episodeNumber);
+            return ResponseEntity.ok(Map.of("message", "Deleted"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError()
+                    .body("Failed to delete episode: " + e.getMessage());
+        }
+    }
 
 
 }
