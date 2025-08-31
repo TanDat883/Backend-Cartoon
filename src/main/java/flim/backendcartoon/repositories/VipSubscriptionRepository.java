@@ -6,6 +6,7 @@
 
 package flim.backendcartoon.repositories;
 
+import flim.backendcartoon.entities.PackageType;
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.entities.VipSubscription;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,11 +67,12 @@ public class VipSubscriptionRepository {
         }
     }
 
-   public List<VipSubscription> findByUserIdAndStatus(String userId, String status) {
+   public List<VipSubscription> findByUserIdAndStatusAndPackageType(String userId, String status, PackageType packageType) {
         return StreamSupport.stream(
                 table.scan().items().spliterator(), false)
-                .filter(vip -> vip.getUserId() != null && vip.getUserId().equals(userId) &&
-                        vip.getStatus() != null && vip.getStatus().equalsIgnoreCase(status))
+                .filter(vip -> vip.getUserId() != null && vip.getUserId().equals(userId))
+                .filter(vip -> vip.getStatus() != null && vip.getStatus().equalsIgnoreCase(status))
+                .filter(vip -> vip.getPackageType() != null && vip.getPackageType() == packageType)
                 .collect(Collectors.toList());
     }
 

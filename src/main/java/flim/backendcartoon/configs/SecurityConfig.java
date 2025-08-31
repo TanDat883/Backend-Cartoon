@@ -23,7 +23,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/movies/create").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/delete").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
-                        .requestMatchers("/payment/**").permitAll()
+                        .requestMatchers("/payment/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
                         .requestMatchers(HttpMethod.POST, "/wishlist/add").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/wishlist/remove").authenticated()

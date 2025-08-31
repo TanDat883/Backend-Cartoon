@@ -62,10 +62,10 @@ public class VipSubscription {
     }
 
     @DynamoDbAttribute("packageType")
-    public PackageType getVipLevel() {
+    public PackageType getPackageType() {
         return packageType;
     }
-    public void setVipLevel(PackageType packageType) {
+    public void setPackageType(PackageType packageType) {
         this.packageType = packageType;
     }
 

@@ -25,14 +25,13 @@ public class PromotionVoucher {
 
     private String promotionId; // ID of the Promotion
     private String voucherCode;
-    private String discountType;   // PERCENT | AMOUNT
+    private DiscountType discountType;   // PERCENT | AMOUNT
     private Integer discountValue;
     private Integer maxDiscountAmount;
     private Integer maxUsage;
     private Integer usedCount;
     private Integer maxUsagePerUser;
     private Integer minOrderAmount;
-    private Integer minPackagePrice;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("PK")
@@ -65,10 +64,10 @@ public class PromotionVoucher {
         this.voucherCode = voucherCode;
     }
     @DynamoDbAttribute("DiscountType")
-    public String getDiscountType() {
+    public DiscountType getDiscountType() {
         return discountType;
     }
-    public void setDiscountType(String discountType) {
+    public void setDiscountType(DiscountType discountType) {
         this.discountType = discountType;
     }
     @DynamoDbAttribute("DiscountValue")
@@ -113,16 +112,9 @@ public class PromotionVoucher {
     public void setMinOrderAmount(Integer minOrderAmount) {
         this.minOrderAmount = minOrderAmount;
     }
-    @DynamoDbAttribute("MinPackagePrice")
-    public Integer getMinPackagePrice() {
-        return minPackagePrice;
-    }
-    public void setMinPackagePrice(Integer minPackagePrice) {
-        this.minPackagePrice = minPackagePrice;
-    }
 
     // helper
-    public static PromotionVoucher of(String promotionId, String voucherCode, String discountType, int discountValue, int maxUsage, int maxUsagePerUser, Integer maxDiscountAmount, Integer minOrderAmount, Integer minPackagePrice) {
+    public static PromotionVoucher of(String promotionId, String voucherCode, DiscountType discountType, int discountValue, int maxUsage, int maxUsagePerUser, Integer maxDiscountAmount, Integer minOrderAmount) {
         PromotionVoucher it = new PromotionVoucher();
         it.setPromotionId(promotionId);
         it.setVoucherCode(voucherCode);
@@ -133,7 +125,6 @@ public class PromotionVoucher {
         it.setMaxUsagePerUser(maxUsagePerUser);
         it.setMaxDiscountAmount(maxDiscountAmount);
         it.setMinOrderAmount(minOrderAmount);
-        it.setMinPackagePrice(minPackagePrice);
         it.setPk("PROMO#" + promotionId);
         it.setSk("VOUCHER#" + voucherCode);
         return it;

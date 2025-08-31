@@ -7,7 +7,12 @@
 package flim.backendcartoon.services;
 
 
+import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
+import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
+import flim.backendcartoon.entities.PromotionVoucher;
+
+import java.util.List;
 
 /*
  * @description
@@ -17,6 +22,8 @@ import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
  */
 public interface PromotionVoucherService {
     void createPromotionVoucher(CreatePromotionVoucherRequest request);
+    ApplyVoucherResponse applyVoucher(ApplyVoucherRequest request);
+    PromotionVoucher findByVoucherCode(String voucherCode);
+    void confirmVoucherUsage(String promotionId, String voucherCode);
+    List<PromotionVoucher> getAllPromotionVoucher(String promotionId);
 }
-
-    

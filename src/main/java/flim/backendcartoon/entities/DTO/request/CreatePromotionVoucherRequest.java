@@ -13,19 +13,18 @@ package flim.backendcartoon.entities.DTO.request;
  * @created: 17-August-2025 6:58 PM
  */
 
+import flim.backendcartoon.entities.DiscountType;
 import lombok.Data;
 
 @Data
 public class CreatePromotionVoucherRequest {
     private String promotionId;
     private String voucherCode;
-    private String discountType;   // PERCENT | AMOUNT
+    private DiscountType discountType;   // PERCENT | AMOUNT
     private int discountValue;
     private int maxDiscountAmount;
     private int maxUsage;
     private int maxUsagePerUser;
     private int minOrderAmount;
     private int minPackagePrice;
-
-
 }

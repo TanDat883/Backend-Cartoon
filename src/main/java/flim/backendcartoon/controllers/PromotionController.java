@@ -13,6 +13,7 @@ package flim.backendcartoon.controllers;
  * @created: 17-August-2025 7:13 PM
  */
 
+import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionPackageRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
@@ -81,6 +82,25 @@ public class PromotionController {
     public ResponseEntity<String> createPromotionVoucher(@Valid @RequestBody CreatePromotionVoucherRequest request) {
         promotionVoucherService.createPromotionVoucher(request);
         return ResponseEntity.ok("Promotion voucher created successfully");
+    }
+
+    @GetMapping("/voucher")
+    public ResponseEntity<PromotionVoucher> getPromotionVoucher(
+            @RequestParam("voucherCode") String voucherCode) {
+        PromotionVoucher promotionVoucher = promotionVoucherService.findByVoucherCode(voucherCode);
+        return ResponseEntity.ok(promotionVoucher);
+    }
+
+    @GetMapping("/vouchers")
+    public ResponseEntity<List<PromotionVoucher>> getAllPromotionVoucher(
+            @RequestParam("promotionId") String promotionId) {
+        List<PromotionVoucher> vouchers = promotionVoucherService.getAllPromotionVoucher(promotionId);
+        return ResponseEntity.ok(vouchers);
+    }
+
+    @PostMapping("/vouchers/apply")
+    public ResponseEntity<?> applyVoucher(@Valid @RequestBody ApplyVoucherRequest request) {
+        return ResponseEntity.ok(promotionVoucherService.applyVoucher(request));
     }
 
 }

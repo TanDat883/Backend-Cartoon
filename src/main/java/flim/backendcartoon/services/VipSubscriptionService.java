@@ -7,6 +7,7 @@
 package flim.backendcartoon.services;
 
 
+import flim.backendcartoon.entities.PackageType;
 import flim.backendcartoon.entities.VipSubscription;
 
 import java.util.List;
@@ -21,9 +22,7 @@ public interface VipSubscriptionService {
     void saveVipSubscription(VipSubscription vip);
     VipSubscription findByVipId(String vipId);
     List<VipSubscription> findTemporaryVips();
-    void updateVipStatus(String vipId, String status);
-    VipSubscription findActiveVipByUserId(String userId);
-    void updateVipSubscription(VipSubscription vip);
+    VipSubscription findActiveVipByUserIdAndPackageType(String userId, PackageType packageType);
     void expireOutdatedVipSubscriptions();
     List<VipSubscription> UserVipSubscriptions(String userId);
 }

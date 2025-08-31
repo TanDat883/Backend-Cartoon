@@ -54,4 +54,8 @@ public class PromotionRepository {
                 .collect(Collectors.toList());
     }
 
+    public boolean isPromotionActive(String promotionId) {
+        Optional<Promotion> promotionOpt = findById(promotionId);
+        return promotionOpt.map(promotion -> promotion.getStatus().equals("ACTIVE")).orElse(false);
+    }
 }
