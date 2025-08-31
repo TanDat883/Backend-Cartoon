@@ -48,7 +48,7 @@ public class SubscriptionPackageController {
     @GetMapping("/{packageId}")
     public ResponseEntity<?> getSubscriptionPackageById(@PathVariable String packageId) {
         try{
-            SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(packageId);
+            SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(packageId);
             if (subscriptionPackage == null) {
                 return ResponseEntity.status(404).body("Gói đăng ký không tồn tại");
             }

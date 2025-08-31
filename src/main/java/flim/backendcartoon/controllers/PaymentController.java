@@ -14,7 +14,10 @@ package flim.backendcartoon.controllers;
  */
 
 import flim.backendcartoon.entities.*;
+import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
+import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
+import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,7 +28,6 @@ import vn.payos.type.CheckoutResponseData;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/payment")
@@ -38,6 +40,7 @@ public class PaymentController {
     private final UserService userService;
     private final OrderService orderService;
     private final VipSubscriptionService vipSubscriptionService;
+    private final PromotionVoucherService promotionVoucherService;
 
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody CreatePaymentRequest req) throws Exception {
@@ -46,23 +49,45 @@ public class PaymentController {
             return ResponseEntity.badRequest().body("Không tìm thấy người dùng");
         }
 
-        SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(req.getPackageId());
+        SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(req.getPackageId());
         if (subscriptionPackage == null) {
-            return ResponseEntity.badRequest().body("Không tìm thấy gói VIP");
+            return ResponseEntity.badRequest().body("Không tìm thấy gói");
         }
 
         // Tạo đơn hàng Order trước
         Order order = orderService.createOrder(req.getUserId(), req.getPackageId());
 
         // Tạo dữ liệu đơn hàng từ subscriptionPackage
-        VipLevel vip = subscriptionPackage.getApplicableVipLevel();
-        String productName = "Gói VIP " + vip.name();
-        String description = "g" + vip.name() + " thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
-        int amount = subscriptionPackage.getAmount().intValue();
+        PackageType vip = subscriptionPackage.getApplicablePackageType();
+        String productName = "Gói  " + vip.name();
+        String description = "thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
+
+        // 2) Tính tiền: giá gốc và giá sau giảm của gói
+        int originalAmount = subscriptionPackage.getAmount().intValue();
+        int discountAmount = subscriptionPackage.getDiscountedAmount().intValue();
+        int finalAmount = discountAmount;
+
+        // 3) Preview voucher nếu có
+        String appliedVoucher = null;
+        String promotionId = null;
+
+        if (req.getVoucherCode() != null && !req.getVoucherCode().isBlank()) {
+            ApplyVoucherRequest voucherRequest = new ApplyVoucherRequest();
+            voucherRequest.setVoucherCode(req.getVoucherCode());
+            voucherRequest.setUserId(req.getUserId());
+            voucherRequest.setPackageId(req.getPackageId());
+            voucherRequest.setOrderAmount((double) finalAmount);
+            promotionVoucherService.applyVoucher(voucherRequest);
+
+            ApplyVoucherResponse voucherResponse = promotionVoucherService.applyVoucher(voucherRequest);
+            appliedVoucher = voucherResponse.getVoucherCode();
+            promotionId = voucherResponse.getPromotionId();
+            finalAmount -= voucherResponse.getDiscountAmount();
+        }
 
         // Gọi PayOS để tạo link thanh toán
         CheckoutResponseData data = paymentService.createPaymentLink(
-                productName, description, amount,
+                productName, description, finalAmount,
                 req.getReturnUrl(), req.getCancelUrl()
         );
 
@@ -70,9 +95,13 @@ public class PaymentController {
         PaymentOrder paymentOrder = new PaymentOrder();
         paymentOrder.setOrderCode(data.getOrderCode());
         paymentOrder.setOrderId(order.getOrderId());
-        paymentOrder.setAmount((double) amount);
+        paymentOrder.setOriginalAmount((double) originalAmount);
+        paymentOrder.setDiscountAmount((double) discountAmount);
+        paymentOrder.setFinalAmount((double) finalAmount);
+        paymentOrder.setPromotionId(promotionId);
+        paymentOrder.setVoucherCode(appliedVoucher);
         paymentOrder.setStatus("PENDING");
-        paymentOrder.setCreatedAt(LocalDateTime.now());
+        paymentOrder.setCreatedAt(LocalDate.now());
         paymentOrderService.savePaymentOrder(paymentOrder);
 
         return ResponseEntity.ok(data);
@@ -153,24 +182,25 @@ public class PaymentController {
 
                 orderService.updateOrderStatus(order.getOrderId(), "SUCCESS");
 
-                // Cập nhật thông tin VIP
-                User user = userService.findUserById(order.getUserId());
-                SubscriptionPackage subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
-
-                if (user == null || subscriptionPackage == null) {
-                    return ResponseEntity.badRequest().body("Không tìm thấy user hoặc gói VIP");
+                if (paymentOrder.getVoucherCode() != null) {
+                    String promotionId = paymentOrder.getPromotionId();
+                    if (promotionId != null) {
+                        promotionVoucherService.confirmVoucherUsage(promotionId, paymentOrder.getVoucherCode());
+                    }
                 }
 
-                VipLevel vip = subscriptionPackage.getApplicableVipLevel();
-
-                // Lấy thời gian bắt đầu mặc định là hiện tại
+                // Cập nhật thông tin VIP
+                User user = userService.findUserById(order.getUserId());
+                SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
+                PackageType packageType = subscriptionPackage.getApplicablePackageType();
                 LocalDate startDate = LocalDate.now();
 
-                // Kiểm tra xem user đã có gói VIP active chưa
-                VipSubscription currentVip = vipSubscriptionService.findActiveVipByUserId(user.getUserId());
-                if (currentVip != null) {
+                // Kiểm tra xem user đã có gói đó active chưa
+                VipSubscription vipSubscription = vipSubscriptionService.findActiveVipByUserIdAndPackageType(user.getUserId(), packageType);
+
+                if (vipSubscription != null) {
                     // Nếu đã có gói VIP, lấy ngày kết thúc của gói hiện tại làm ngày bắt đầu của gói mới
-                    LocalDate currentEndDate = LocalDate.parse(currentVip.getEndDate());
+                    LocalDate currentEndDate = LocalDate.parse(vipSubscription.getEndDate());
                     // Chỉ sử dụng ngày kết thúc nếu nó là trong tương lai
                     if (currentEndDate.isAfter(startDate)) {
                         startDate = currentEndDate;
@@ -185,7 +215,7 @@ public class PaymentController {
                 vipSub.setVipId(paymentOrder.getOrderId());
                 vipSub.setUserId(user.getUserId());
                 vipSub.setPackageId(subscriptionPackage.getPackageId());
-                vipSub.setVipLevel(vip);
+                vipSub.setPackageType(packageType);
                 vipSub.setStatus("ACTIVE");
                 vipSub.setStartDate(startDate.toString());
                 vipSub.setEndDate(endDate.toString());

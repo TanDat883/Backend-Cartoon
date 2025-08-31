@@ -14,8 +14,12 @@ import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+
+import static flim.backendcartoon.services.impl.SubscriptionPackageServiceImpl.normalizeIdsFromString;
 
 /*
  * @description
@@ -34,7 +38,7 @@ public class PromotionPackageRepository {
         promotionPackageDynamoDbTable.putItem(promotionPackage);
     }
 
-    public Optional<PromotionPackage> get(String promotionId, String packageId) {
+    public Optional<PromotionPackage> get(String promotionId, List<String> packageId) {
         Key key = Key.builder().partitionValue("PROMO#" + promotionId)
                 .sortValue("PACKAGE#" + packageId).build();
         return Optional.ofNullable(promotionPackageDynamoDbTable.getItem(r -> r.key(key)));
@@ -49,10 +53,22 @@ public class PromotionPackageRepository {
                 .toList();
     }
 
-    public List<PromotionPackage> findPromotionsByPackageId(String packageId) {
+    public List<PromotionPackage> findPromotionsByPackageId(List<String> packageIds) {
+        if (packageIds == null || packageIds.isEmpty()) return List.of();
+        List<String> wanted = packageIds.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .map(x -> x.startsWith("PACKAGE#") ? x.substring("PACKAGE#".length()) : x)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
         return promotionPackageDynamoDbTable.scan().items().stream()
-                .filter(it -> it.getPackageId().equals(packageId))
+                .filter(it -> {
+                    List<String> itemIds = normalizeIdsFromString(it.getSk());
+                    return !Collections.disjoint(itemIds, wanted); // có giao nhau thì match
+                })
                 .toList();
     }
+
 
 }

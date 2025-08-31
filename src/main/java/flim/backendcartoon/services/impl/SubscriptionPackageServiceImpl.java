@@ -20,16 +20,12 @@ import flim.backendcartoon.entities.SubscriptionPackage;
 import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.repositories.SubscriptionPackageRepository;
-import flim.backendcartoon.services.PromotionService;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class SubscriptionPackageServiceImpl implements SubscriptionPackageService {
@@ -52,8 +48,11 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     }
 
     @Override
-    public SubscriptionPackage findSubscriptionPackageById(String packageId) {
-        return this.subscriptionPackageRepository.findById(packageId);
+    public SubscriptionPackageResponse findSubscriptionPackageById(String packageId) {
+        return findAllSubscriptionPackages().stream()
+                .filter(pkg -> packageId.equals(pkg.getPackageId()))
+                .findFirst()
+                .orElse(null);
     }
 
     @Override
@@ -62,10 +61,12 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
 
         return packages.stream()
                 .map(pkg -> {
+                    List<String> ids = normalizeIdsFromString(pkg.getPackageId());
+
                     // lấy toàn bộ promotions áp dụng cho package này
-                    List<PromotionPackage> promos = Optional
-                            .ofNullable(promotionPackageRepository.findPromotionsByPackageId(pkg.getPackageId()))
-                            .orElse(List.of());
+                    List<PromotionPackage> promos =
+                            Optional.ofNullable(promotionPackageRepository.findPromotionsByPackageId(ids))
+                                    .orElse(List.of());
 
                     // chọn promo hợp lệ có % giảm lớn nhất
                     PromotionPackage best = pickBestPromotion(promos);
@@ -79,7 +80,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     dto.setNamePackage(pkg.getNamePackage());
                     dto.setAmount(base);
                     dto.setDiscountedAmount(effective);               // giá sau giảm
-                    dto.setApplicableVipLevel(pkg.getApplicableVipLevel());
+                    dto.setApplicablePackageType(pkg.getApplicableVipLevel());
                     dto.setDurationInDays(pkg.getDurationInDays());
                     dto.setFeatures(pkg.getFeatures());
                     dto.setAppliedDiscountPercent(percent);           // % giảm áp dụng
@@ -124,5 +125,26 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     private double defaultDouble(Double v) {
         return v == null ? 0.0 : v;
     }
+
+    public static List<String> normalizeIdsFromString(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        String s = raw.trim();
+
+        // Nếu có prefix "PACKAGE#["..."]"
+        if (s.startsWith("PACKAGE#[")) {
+            s = s.substring("PACKAGE#".length()); // còn "[a, b]"
+        }
+        // Bỏ ngoặc vuông nếu có
+        if (s.startsWith("[") && s.endsWith("]")) {
+            s = s.substring(1, s.length() - 1);
+        }
+
+        return Arrays.stream(s.split(","))
+                .map(String::trim)
+                .map(x -> x.startsWith("PACKAGE#") ? x.substring("PACKAGE#".length()) : x)
+                .filter(str -> !str.isEmpty())
+                .toList();
+    }
+
 
 }

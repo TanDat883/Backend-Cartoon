@@ -1,7 +1,6 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.*;
-import flim.backendcartoon.entities.DTO.MovieDetailDTO;
 import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -90,7 +89,7 @@ public class MovieController {
             movie.setDescription(description);
             movie.setGenres(genres);
             movie.setCreatedAt(Instant.now());
-            movie.setMinVipLevel(VipLevel.valueOf(minVipLevel));
+            movie.setMinVipLevel(PackageType.valueOf(minVipLevel));
             movie.setCountry(country);
             movie.setTopic(topic);
             movie.setSlug(finalSlug);
@@ -232,7 +231,7 @@ public class MovieController {
             if (movieType != null) m.setMovieType(MovieType.valueOf(movieType));
             if (slug != null && !slug.isBlank()) m.setSlug(normalizeSlug(slug));
 
-            if (minVipLevel != null) m.setMinVipLevel(VipLevel.valueOf(minVipLevel));
+            if (minVipLevel != null) m.setMinVipLevel(PackageType.valueOf(minVipLevel));
             if (country != null) m.setCountry(country);
             if (topic != null) m.setTopic(topic);
             if (status != null) m.setStatus(MovieStatus.valueOf(status));

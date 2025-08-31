@@ -1,5 +1,5 @@
 /*
- * @(#) $(NAME).java    1.0     8/17/2025
+ * @(#) $(NAME).java    1.0     8/28/2025
  *
  * Copyright (c) 2025 IUH. All rights reserved.
  */
@@ -8,17 +8,17 @@ package flim.backendcartoon.entities.DTO.request;
 
 import lombok.Data;
 
-import java.util.List;
-
 /*
  * @description
  * @author: Tran Tan Dat
  * @version: 1.0
- * @created: 17-August-2025 7:00 PM
+ * @created: 28-August-2025 8:45 AM
  */
 @Data
-public class CreatePromotionPackageRequest {
+public class ApplyVoucherRequest {
     private String promotionId;
-    private List<String> packageId;
-    private Integer discountPercent;
+    private String voucherCode;
+    private String userId;
+    private String packageId;
+    private Double orderAmount;
 }

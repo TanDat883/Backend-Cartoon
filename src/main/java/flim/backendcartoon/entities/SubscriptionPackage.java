@@ -13,7 +13,6 @@ package flim.backendcartoon.entities;
  * @created: 11-July-2025 7:13 PM
  */
 
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTypeConvertedEnum;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
@@ -25,7 +24,7 @@ public class SubscriptionPackage {
 
     private String packageId;
     private Double amount;
-    private VipLevel applicableVipLevel;
+    private PackageType applicablePackageType;
     private Integer durationInDays;
     private List<String> features;
     private String namePackage;
@@ -49,13 +48,13 @@ public class SubscriptionPackage {
         this.amount = amount;
     }
 
-    @DynamoDbAttribute("applicableVipLevel")
-    public VipLevel getApplicableVipLevel() {
-        return applicableVipLevel;
+    @DynamoDbAttribute("applicablePackageType")
+    public PackageType getApplicableVipLevel() {
+        return applicablePackageType;
     }
 
-    public void setApplicableVipLevel(VipLevel applicableVipLevel) {
-        this.applicableVipLevel = applicableVipLevel;
+    public void setApplicableVipLevel(PackageType applicablePackageType) {
+        this.applicablePackageType = applicablePackageType;
     }
 
     @DynamoDbAttribute("durationInDays")

@@ -20,75 +20,113 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
 
 @DynamoDbBean
 public class PromotionVoucher {
+    private String pk;         // PROMO#<promotionId>
+    private String sk;
+
     private String promotionId; // ID of the Promotion
     private String voucherCode;
-    private String discountType;   // PERCENT | AMOUNT
-    private int discountValue;
-    private int maxUsage;
-    private int usedCount;
-    private int maxUsagePerUser;
+    private DiscountType discountType;   // PERCENT | AMOUNT
+    private Integer discountValue;
+    private Integer maxDiscountAmount;
+    private Integer maxUsage;
+    private Integer usedCount;
+    private Integer maxUsagePerUser;
+    private Integer minOrderAmount;
 
     @DynamoDbPartitionKey
-    @DynamoDbAttribute("promotionId")
+    @DynamoDbAttribute("PK")
+    public String getPk() {
+        return pk;
+    }
+    public void setPk(String pk) {
+        this.pk = pk;
+    }
+    @DynamoDbSortKey
+    @DynamoDbAttribute("SK")
+    public String getSk() {
+        return sk;
+    }
+    public void setSk(String sk) {
+        this.sk = sk;
+    }
+    @DynamoDbAttribute("PromotionId")
     public String getPromotionId() {
         return promotionId;
     }
     public void setPromotionId(String promotionId) {
         this.promotionId = promotionId;
     }
-
-    @DynamoDbSortKey
-    @DynamoDbAttribute("voucherCode")
+    @DynamoDbAttribute("VoucherCode")
     public String getVoucherCode() {
         return voucherCode;
     }
-
     public void setVoucherCode(String voucherCode) {
         this.voucherCode = voucherCode;
     }
-
-    @DynamoDbAttribute("discountType")
-    public String getDiscountType() {
+    @DynamoDbAttribute("DiscountType")
+    public DiscountType getDiscountType() {
         return discountType;
     }
-
-    public void setDiscountType(String discountType) {
+    public void setDiscountType(DiscountType discountType) {
         this.discountType = discountType;
     }
-
-    @DynamoDbAttribute("discountValue")
-    public int getDiscountValue() {
+    @DynamoDbAttribute("DiscountValue")
+    public Integer getDiscountValue() {
         return discountValue;
     }
-
-    public void setDiscountValue(int discountValue) {
+    public void setDiscountValue(Integer discountValue) {
         this.discountValue = discountValue;
     }
-
-    @DynamoDbAttribute("maxUsage")
-    public int getMaxUsage() {
+    @DynamoDbAttribute("MaxDiscountAmount")
+    public Integer getMaxDiscountAmount() {
+        return maxDiscountAmount;
+    }
+    public void setMaxDiscountAmount(Integer maxDiscountAmount) {
+        this.maxDiscountAmount = maxDiscountAmount;
+    }
+    @DynamoDbAttribute("MaxUsage")
+    public Integer getMaxUsage() {
         return maxUsage;
     }
-
-    public void setMaxUsage(int maxUsage) {
+    public void setMaxUsage(Integer maxUsage) {
         this.maxUsage = maxUsage;
     }
-
-    @DynamoDbAttribute("usedCount")
-    public int getUsedCount() {
+    @DynamoDbAttribute("UsedCount")
+    public Integer getUsedCount() {
         return usedCount;
     }
-
-    public void setUsedCount(int usedCount) {
+    public void setUsedCount(Integer usedCount) {
         this.usedCount = usedCount;
     }
-
-    @DynamoDbAttribute("maxUsagePerUser")
-    public int getMaxUsagePerUser() {
+    @DynamoDbAttribute("MaxUsagePerUser")
+    public Integer getMaxUsagePerUser() {
         return maxUsagePerUser;
     }
-
-    public void setMaxUsagePerUser(int maxUsagePerUser) {
+    public void setMaxUsagePerUser(Integer maxUsagePerUser) {
         this.maxUsagePerUser = maxUsagePerUser;
+    }
+    @DynamoDbAttribute("MinOrderAmount")
+    public Integer getMinOrderAmount() {
+        return minOrderAmount;
+    }
+    public void setMinOrderAmount(Integer minOrderAmount) {
+        this.minOrderAmount = minOrderAmount;
+    }
+
+    // helper
+    public static PromotionVoucher of(String promotionId, String voucherCode, DiscountType discountType, int discountValue, int maxUsage, int maxUsagePerUser, Integer maxDiscountAmount, Integer minOrderAmount) {
+        PromotionVoucher it = new PromotionVoucher();
+        it.setPromotionId(promotionId);
+        it.setVoucherCode(voucherCode);
+        it.setDiscountType(discountType);
+        it.setDiscountValue(discountValue);
+        it.setMaxUsage(maxUsage);
+        it.setUsedCount(0);
+        it.setMaxUsagePerUser(maxUsagePerUser);
+        it.setMaxDiscountAmount(maxDiscountAmount);
+        it.setMinOrderAmount(minOrderAmount);
+        it.setPk("PROMO#" + promotionId);
+        it.setSk("VOUCHER#" + voucherCode);
+        return it;
     }
 }

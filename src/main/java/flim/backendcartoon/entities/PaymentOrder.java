@@ -17,6 +17,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttri
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @DynamoDbBean
@@ -24,8 +25,12 @@ public class PaymentOrder {
     private Long orderCode;
     private String orderId;
     private String status; // PENDING, PAID, FAILED, REFUNDED
-    private Double amount;
-    private LocalDateTime createdAt;
+    private Double originalAmount;  // giá trước giảm
+    private Double discountAmount;  // số tiền giảm
+    private Double finalAmount;
+    private LocalDate createdAt;
+    private String promotionId;
+    private String voucherCode;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("orderCode")
@@ -55,21 +60,57 @@ public class PaymentOrder {
         this.status = status;
     }
 
-    @DynamoDbAttribute("amount")
-    public Double getAmount() {
-        return amount;
+    @DynamoDbAttribute("originalAmount")
+    public Double getOriginalAmount() {
+        return originalAmount;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    public void setOriginalAmount(Double originalAmount) {
+        this.originalAmount = originalAmount;
+    }
+
+    @DynamoDbAttribute("discountAmount")
+    public Double getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(Double discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    @DynamoDbAttribute("finalAmount")
+    public Double getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(Double finalAmount) {
+        this.finalAmount = finalAmount;
     }
 
     @DynamoDbAttribute("createdAt")
-    public LocalDateTime getCreatedAt() {
+    public LocalDate getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(LocalDate createdAt) {
         this.createdAt = createdAt;
     }
+
+    @DynamoDbAttribute("promotionId")
+    public String getPromotionId() {
+        return promotionId;
+    }
+    public void setPromotionId(String promotionId) {
+        this.promotionId = promotionId;
+    }
+
+    @DynamoDbAttribute("voucherCode")
+    public String getVoucherCode() {
+        return voucherCode;
+    }
+
+    public void setVoucherCode(String voucherCode) {
+        this.voucherCode = voucherCode;
+    }
+
 }

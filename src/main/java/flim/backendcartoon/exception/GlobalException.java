@@ -26,7 +26,17 @@ public class GlobalException extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
-
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorDetail> handleResourceNotFoundException(ResourceNotFoundException ex, HttpServletRequest request) {
+        ErrorDetail error = ErrorDetail.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorDetail> handleAll(Exception ex, HttpServletRequest request) {

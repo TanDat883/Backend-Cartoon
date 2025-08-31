@@ -19,6 +19,7 @@ import lombok.Data;
 public class CreatePaymentRequest {
     private String userId;
     private String packageId;
+    private String voucherCode;
     private String returnUrl;
     private String cancelUrl;
 }

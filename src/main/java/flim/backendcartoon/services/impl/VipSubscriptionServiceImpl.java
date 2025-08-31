@@ -13,6 +13,7 @@ package flim.backendcartoon.services.impl;
  * @created: 31-July-2025 9:05 PM
  */
 
+import flim.backendcartoon.entities.PackageType;
 import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.VipSubscriptionRepository;
@@ -21,7 +22,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class VipSubscriptionServiceImpl implements VipSubscriptionService {
@@ -49,27 +52,20 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
     }
 
     @Override
-    public VipSubscription findActiveVipByUserId(String userId) {
-        List<VipSubscription> vips = repository.findByUserIdAndStatus(userId, "ACTIVE");
+    public VipSubscription findActiveVipByUserIdAndPackageType(String userId, PackageType packageType) {
+        List<VipSubscription> vips = repository.findByUserIdAndStatusAndPackageType(userId, "ACTIVE", packageType);
+        LocalDate today = LocalDate.now();
 
         return vips.stream()
-                .filter(vip -> !LocalDate.parse(vip.getEndDate()).isBefore(LocalDate.now()))
-                .findFirst()
+                .filter(Objects::nonNull)
+                .filter(v -> {
+                    try { return !LocalDate.parse(v.getEndDate()).isBefore(today); }
+                    catch (Exception e) { return false; }
+                })
+                .max(Comparator.comparing(v -> LocalDate.parse(v.getEndDate())))
                 .orElse(null);
     }
 
-    @Override
-    public void updateVipSubscription(VipSubscription vip) {
-        VipSubscription existingVip = repository.findByVipId(vip.getVipId());
-        if (existingVip != null) {
-            existingVip.setStatus(vip.getStatus());
-            existingVip.setStartDate(vip.getStartDate());
-            existingVip.setEndDate(vip.getEndDate());
-            repository.save(existingVip);
-        } else {
-            throw new RuntimeException("VIP subscription not found for ID: " + vip.getVipId());
-        }
-    }
 
     @Override
     public void expireOutdatedVipSubscriptions() {
