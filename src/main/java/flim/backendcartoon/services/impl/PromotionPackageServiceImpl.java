@@ -50,13 +50,19 @@ public class PromotionPackageServiceImpl implements PromotionPackageService {
         return promotionPackageRepository.listByPromotion(promotionId);
     }
 
-//    @Override
-//    public void updatePercent(String promotionId, String packageId, int newPercent) {
-//        validatePercent(newPercent);
-//        PromotionPackage promotionPackage = getPromotionPackageById(promotionId, packageId);
-//        promotionPackage.setDiscountPercent(newPercent);
-//        promotionPackageRepository.save(promotionPackage);
-//    }
+    @Override
+    public boolean deletePromotionPackage(String promotionId, List<String> packageId) {
+        promotionPackageRepository.delete(promotionId, packageId);
+        return true;
+    }
+
+    @Override
+    public void updatePercent(String promotionId, List<String> packageId, int newPercent) {
+        validatePercent(newPercent);
+        PromotionPackage promotionPackage = getPromotionPackageById(promotionId, packageId);
+        promotionPackage.setDiscountPercent(newPercent);
+        promotionPackageRepository.save(promotionPackage);
+    }
 
     private void validatePercent(int percent) {
         if (percent < 1 || percent > 100) {

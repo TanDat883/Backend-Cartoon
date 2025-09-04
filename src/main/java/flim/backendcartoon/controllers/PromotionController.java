@@ -78,6 +78,27 @@ public class PromotionController {
         return ResponseEntity.ok(promotions);
     }
 
+    @PutMapping("/packages")
+    public ResponseEntity<String> updatePromotionPackagePercent(
+            @RequestParam("promotionId") String promotionId,
+            @RequestParam("packageId") List<String> packageId,
+            @RequestParam("newPercent") int newPercent) {
+        promotionPackageService.updatePercent(promotionId, packageId, newPercent);
+        return ResponseEntity.ok("Promotion package percent updated successfully");
+    }
+
+    @DeleteMapping("/packages")
+    public ResponseEntity<String> deletePromotionPackage(
+            @RequestParam("promotionId") String promotionId,
+            @RequestParam("packageId") List<String> packageId) {
+        boolean deleted = promotionPackageService.deletePromotionPackage(promotionId, packageId);
+        if (deleted) {
+            return ResponseEntity.ok("Promotion package deleted successfully");
+        } else {
+            return ResponseEntity.status(404).body("Promotion package not found");
+        }
+    }
+
     @PostMapping("/vouchers")
     public ResponseEntity<String> createPromotionVoucher(@Valid @RequestBody CreatePromotionVoucherRequest request) {
         promotionVoucherService.createPromotionVoucher(request);
@@ -103,4 +124,20 @@ public class PromotionController {
         return ResponseEntity.ok(promotionVoucherService.applyVoucher(request));
     }
 
+    @PutMapping("/vouchers")
+    public ResponseEntity<String> updatePromotionVoucher(
+            @RequestParam("promotionId") String promotionId,
+            @RequestParam("voucherCode") String voucherCode,
+            @Valid @RequestBody CreatePromotionVoucherRequest request) {
+        promotionVoucherService.updatePromotionVoucher(promotionId, voucherCode, request);
+        return ResponseEntity.ok("Promotion voucher updated successfully");
+    }
+
+    @DeleteMapping("/vouchers")
+    public ResponseEntity<String> deletePromotionVoucher(
+            @RequestParam("promotionId") String promotionId,
+            @RequestParam("voucherCode") String voucherCode) {
+        promotionVoucherService.deletePromotionVoucher(promotionId, voucherCode);
+        return ResponseEntity.ok("Promotion voucher deleted successfully");
+    }
 }

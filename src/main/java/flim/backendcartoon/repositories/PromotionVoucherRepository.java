@@ -15,6 +15,7 @@ package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.PromotionPackage;
 import flim.backendcartoon.entities.PromotionVoucher;
+import flim.backendcartoon.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -76,5 +77,15 @@ public class PromotionVoucherRepository {
         voucher.setUsedCount(voucher.getUsedCount() + 1);
         promotionVoucherDynamoDbTable.updateItem(voucher);
         return true;
+    }
+
+    public void delete(String promotionId, String voucherCode) {
+        Key key = Key.builder().partitionValue("PROMO#" + promotionId)
+                .sortValue("VOUCHER#" + voucherCode).build();
+        PromotionVoucher existing = promotionVoucherDynamoDbTable.getItem(r -> r.key(key));
+        if (existing == null) {
+            throw new ResourceNotFoundException("PromotionVoucher not found with promotionId: " + promotionId + " and voucherCode: " + voucherCode);
+        }
+        promotionVoucherDynamoDbTable.deleteItem(existing);
     }
 }

@@ -26,4 +26,6 @@ public interface PromotionVoucherService {
     PromotionVoucher findByVoucherCode(String voucherCode);
     void confirmVoucherUsage(String promotionId, String voucherCode);
     List<PromotionVoucher> getAllPromotionVoucher(String promotionId);
+    void deletePromotionVoucher(String promotionId, String voucherCode);
+    void updatePromotionVoucher(String promotionId, String voucherCode, CreatePromotionVoucherRequest request);
 }
