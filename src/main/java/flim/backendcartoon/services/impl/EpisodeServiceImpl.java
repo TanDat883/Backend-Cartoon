@@ -63,4 +63,11 @@ public class EpisodeServiceImpl implements EpisodeService {
     public void delete(String seasonId, Integer episodeNumber) {
         episodeRepository.delete(seasonId, episodeNumber);
     }
+
+    @Override
+    public Episode findById(String episodeId) {
+        Episode ep = episodeRepository.findById(episodeId);
+        if (ep == null) throw new RuntimeException("Episode not found");
+        return ep;
+    }
 }

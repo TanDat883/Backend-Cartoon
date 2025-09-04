@@ -66,4 +66,18 @@ public class EpisodeRepository {
     }
 
 
+    public Episode findById(String episodeId) {
+        List<Episode> out = new ArrayList<>();
+        table.scan().items().forEach(ep -> {
+            if (episodeId.equals(ep.getEpisodeId())) out.add(ep);
+        });
+        if (out.isEmpty()) return null;
+        if (out.size() > 1) {
+            // nếu có nhiều hơn 1 phần tử, chọn phần tử có episodeNumber lớn nhất
+            return out.stream()
+                    .max(Comparator.comparing(Episode::getEpisodeNumber))
+                    .orElse(null);
+        }
+        return out.get(0);
+    }
 }

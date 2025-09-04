@@ -135,5 +135,13 @@ public class EpisodeController {
         }
     }
 
+    @GetMapping("/{episodeId}")
+    public ResponseEntity<?> getEpisodeById(@PathVariable String episodeId) {
+        Episode ep = episodeService.findById(episodeId);
+        if (ep == null) return ResponseEntity.status(404).body("Episode not found");
+        return ResponseEntity.ok(ep);
+    }
+
+
 
 }

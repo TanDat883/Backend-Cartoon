@@ -15,4 +15,7 @@ public interface EpisodeService {
     void update(Episode episode);
     void delete(String seasonId, Integer episodeNumber);
 
+    //find by id
+    Episode findById(String episodeId);
+
 }
