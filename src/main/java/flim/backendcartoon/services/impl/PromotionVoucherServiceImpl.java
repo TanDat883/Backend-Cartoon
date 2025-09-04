@@ -110,4 +110,23 @@ public class PromotionVoucherServiceImpl implements PromotionVoucherService {
         return promotionVoucherRepository.listByPromotion(promotionId);
     }
 
+    @Override
+    public void deletePromotionVoucher(String promotionId, String voucherCode) {
+        promotionVoucherRepository.delete(promotionId, voucherCode);
+    }
+
+    @Override
+    public void updatePromotionVoucher(String promotionId, String voucherCode, CreatePromotionVoucherRequest request) {
+        PromotionVoucher existingVoucher = promotionVoucherRepository.get(promotionId, voucherCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Voucher not found"));
+
+        existingVoucher.setDiscountType(request.getDiscountType());
+        existingVoucher.setDiscountValue(request.getDiscountValue());
+        existingVoucher.setMaxUsage(request.getMaxUsage());
+        existingVoucher.setMaxUsagePerUser(request.getMaxUsagePerUser());
+        existingVoucher.setMaxDiscountAmount(request.getMaxDiscountAmount());
+        existingVoucher.setMinOrderAmount(request.getMinOrderAmount());
+
+        promotionVoucherRepository.save(existingVoucher);
+    }
 }

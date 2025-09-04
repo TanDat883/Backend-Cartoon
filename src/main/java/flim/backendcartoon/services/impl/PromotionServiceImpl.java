@@ -66,23 +66,6 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public void updateStatus(String promotionId, String status) {
-        Promotion promotion = getPromotionById(promotionId);
-        promotion.setStatus(status);
-        promotionRepository.save(promotion);
-    }
-
-    @Override
-    public void updateDates(String promotionId, LocalDate start, LocalDate end) {
-
-    }
-
-    @Override
-    public List<Promotion> listActive() {
-        return List.of();
-    }
-
-    @Override
     public void delete(String promotionId) {
 
     }
@@ -95,6 +78,18 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public List<Promotion> listAll() {
         return promotionRepository.findAll();
+    }
+
+    @Override
+    public void expireOutdatedPromotions() {
+        List<Promotion> promotions = promotionRepository.findAll();
+        LocalDate today = LocalDate.now();
+        for (Promotion promo : promotions) {
+            if (promo.getEndDate().isBefore(today) && !promo.getStatus().equals("EXPIRED")) {
+                promo.setStatus("EXPIRED");
+                promotionRepository.save(promo);
+            }
+        }
     }
 
     private void validateDates(LocalDate start, LocalDate end) {

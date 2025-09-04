@@ -25,12 +25,10 @@ import java.util.List;
 public interface PromotionService {
     void createPromotion(CreatePromotionRequest request);
     Promotion getPromotionById(String promotionId);
-    void updateStatus(String promotionId, String status);
-    void updateDates(String promotionId, LocalDate start, LocalDate end);
-    List<Promotion> listActive();
     void delete(String promotionId);
     List<Promotion> listByType(PromotionType type);
     List<Promotion> listAll();
+    void expireOutdatedPromotions();
 }
 
     

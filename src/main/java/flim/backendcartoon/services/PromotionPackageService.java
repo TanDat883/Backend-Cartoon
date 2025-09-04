@@ -21,7 +21,8 @@ public interface PromotionPackageService {
     void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent);
     PromotionPackage getPromotionPackageById(String promotionId, List<String> packageId);
     List<PromotionPackage> getAllPromotionPackages(String promotionId);
-//    void updatePercent(String promotionId, String packageId, int newPercent);
+    boolean deletePromotionPackage(String promotionId, List<String> packageId);
+    void updatePercent(String promotionId, List<String> packageId, int newPercent);
 }
 
     
