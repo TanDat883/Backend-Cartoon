@@ -1,6 +1,7 @@
 package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Author;
+import flim.backendcartoon.entities.AuthorRole;
 import flim.backendcartoon.exception.AuthorException;
 import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.AuthorRepository;
@@ -21,39 +22,59 @@ public class AuthorServiceImpl implements AuthorService {
         this.authorRepository = authorRepository;
     }
 
-
+    //check trùng
+    private static String normalize(String s) {
+        if (s == null) return "";
+        String noDiac = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return noDiac.toLowerCase().trim().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", " ");
+    }
+    private Author findDuplicate(String name, AuthorRole role) {
+        String key = normalize(name);
+        return authorRepository.findAll().stream()
+                .filter(a -> role == a.getAuthorRole())
+                .filter(a -> key.equals(a.getNormalizedName()))
+                .findFirst().orElse(null);
+    }
     @Override
     public void saveAuthor(Author author) {
-        // Tạo ID nếu chưa có
-        if (author.getAuthorId() == null || author.getAuthorId().isEmpty()) {
-            author.setAuthorId(UUID.randomUUID().toString());
-        }
+        if (author.getName() == null || author.getName().isBlank()) throw new IllegalArgumentException("Author name is required");
+        if (author.getAuthorRole() == null) throw new IllegalArgumentException("Author role is required");
 
-        // Validate dữ liệu nâng cao (ví dụ: name, role)
-        if (author.getName() == null || author.getName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Author name is required");
+        // set id nếu thiếu
+        if (author.getAuthorId() == null || author.getAuthorId().isBlank()) {
+            author.setAuthorId(java.util.UUID.randomUUID().toString());
         }
-        if (author.getAuthorRole() == null) {
-            throw new IllegalArgumentException("Author role is required");
-        }
+        author.setNormalizedName(normalize(author.getName()));
 
-        // Gọi repository để lưu vào DynamoDB
+        // check trùng name+role
+        Author dup = findDuplicate(author.getName(), author.getAuthorRole());
+        if (dup != null) {
+            // thay vì 409, ta trả về “đối tượng đã tồn tại” để FE dễ dùng
+            // => caller có thể dùng dup.getAuthorId()
+            // Nếu muốn 409 thì throw IllegalStateException("DUPLICATE")
+            author.setAuthorId(dup.getAuthorId());
+            author.setName(dup.getName());
+            author.setAuthorRole(dup.getAuthorRole());
+            author.setMovieId(dup.getMovieId());
+            author.setNormalizedName(dup.getNormalizedName());
+            return; // coi như idempotent
+        }
+        if (author.getMovieId() == null) author.setMovieId(new java.util.ArrayList<>());
         authorRepository.save(author);
     }
 
     @Override
-    public List<Author> findAllAuthors() {
-        // Gọi repository để lấy danh sách tất cả tác giả
-        return (List<Author>) authorRepository.findAll();
-    }
+    public List<Author> findAllAuthors() { return authorRepository.findAll(); }
 
     @Override
     public void addMovieToAuthor(List<String> authorIds, String movieId) {
-        for (String authorId : authorIds) {
+        if (authorIds == null || authorIds.isEmpty() || movieId == null || movieId.isBlank()) return;
+        for (String authorId : new java.util.HashSet<>(authorIds)) { // unique
             Author author = authorRepository.findById(authorId);
-            if (author == null) continue; // bỏ qua nếu không tồn tại
-
+            if (author == null) continue;
             List<String> movieIds = author.getMovieId();
+            if (movieIds == null) movieIds = new java.util.ArrayList<>();
             if (!movieIds.contains(movieId)) {
                 movieIds.add(movieId);
                 author.setMovieId(movieIds);
@@ -64,15 +85,42 @@ public class AuthorServiceImpl implements AuthorService {
 
     @Override
     public List<Author> findAuthorsByMovieId(String movieId) throws AuthorException {
-        if (movieId == null || movieId.trim().isEmpty()) {
-            throw new AuthorException("Movie ID is required");
-        }
-        // Lấy tất cả tác giả
-        List<Author> authors = (List<Author>) authorRepository.findAll();
-        // Lọc các tác giả có movieId trong danh sách movieId của họ
-        return authors.stream()
-                .filter(author -> author.getMovieId() != null && author.getMovieId().contains(movieId))
+        if (movieId == null || movieId.isBlank()) throw new AuthorException("Movie ID is required");
+        return authorRepository.findAll().stream()
+                .filter(a -> a.getMovieId() != null && a.getMovieId().contains(movieId))
                 .collect(Collectors.toList());
+    }
+
+    // NEW
+    @Override
+    public Author updateAuthor(String authorId, String name, AuthorRole role) {
+        Author a = authorRepository.findById(authorId);
+        if (a == null) throw new IllegalArgumentException("Author not found");
+        if (name != null && !name.isBlank()) a.setName(name);
+        if (role != null) a.setAuthorRole(role);
+
+        // re-check duplicate nếu đổi name/role
+        Author dup = findDuplicate(a.getName(), a.getAuthorRole());
+        if (dup != null && !dup.getAuthorId().equals(a.getAuthorId())) {
+            throw new IllegalStateException("DUPLICATE_NAME_ROLE");
+        }
+        a.setNormalizedName(normalize(a.getName()));
+        authorRepository.save(a);
+        return a;
+    }
+
+    @Override
+    public void deleteAuthor(String authorId) { authorRepository.deleteById(authorId); }
+
+    @Override
+    public void deleteAuthors(List<String> ids) {
+        if (ids == null) return;
+        for (String id : ids) authorRepository.deleteById(id);
+    }
+
+    @Override
+    public Author findByNameAndRole(String name, AuthorRole role) {
+        return findDuplicate(name, role);
     }
 
 }
