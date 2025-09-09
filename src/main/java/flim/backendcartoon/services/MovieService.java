@@ -42,4 +42,7 @@ public interface MovieService {
     default void cascadeDeleteMovies(List<String> ids) {
         if (ids != null) ids.forEach(this::cascadeDeleteMovie);
     }
+
+    //đề xuất phim cho detail & watch
+    List<Movie> recommendForWatchPage(String currentMovieId, int limit);
 }

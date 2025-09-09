@@ -541,5 +541,16 @@ public class MovieController {
         return ResponseEntity.ok(m);
     }
 
-
+    @GetMapping("/{movieId}/recommendations")
+    public ResponseEntity<List<Movie>> recommendForWatchPage(
+            @PathVariable String movieId,
+            @RequestParam(defaultValue = "6") int limit) {
+        try {
+            var list = movieService.recommendForWatchPage(movieId, limit);
+            return ResponseEntity.ok(list); // trả [] nếu không có
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 }
