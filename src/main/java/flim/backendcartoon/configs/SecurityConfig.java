@@ -24,6 +24,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/movies/delete").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/*/publish").authenticated()
+
+
                         .requestMatchers("/payment/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
                         .requestMatchers(HttpMethod.POST, "/wishlist/add").authenticated()
@@ -32,6 +34,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/promotions/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/promotions/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/movies/*/increment-view").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                        .requestMatchers(HttpMethod.GET,  "/api/ai/welcome").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/authors/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
