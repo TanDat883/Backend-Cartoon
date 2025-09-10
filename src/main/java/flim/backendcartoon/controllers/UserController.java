@@ -102,6 +102,7 @@ public class UserController {
         // Cập nhật thông tin người dùng
         existingUser.setUserName(user.getUserName());
         existingUser.setEmail(user.getEmail());
+        existingUser.setGender(user.getGender());
         existingUser.setDob(user.getDob());
 
         userService.updateUser(existingUser);

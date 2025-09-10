@@ -15,6 +15,7 @@ public class User {
     private String phoneNumber;
     private String userName;
     private String dob;
+    private String gender;
     private Role role;
     private String email;
     private String avatarUrl;
@@ -36,6 +37,15 @@ public class User {
 
     public void setDob(String dob) {
         this.dob = dob;
+    }
+
+    @DynamoDbAttribute("gender")
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     @DynamoDbAttribute("phoneNumber")
