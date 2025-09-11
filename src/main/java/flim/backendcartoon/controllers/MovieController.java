@@ -1,6 +1,7 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.*;
+import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -347,15 +348,28 @@ public class MovieController {
 
 
     @GetMapping("/{id}/watch")
-    public ResponseEntity<?> watchMovie(@PathVariable String id, @RequestHeader("userId") String userId) {
-        User user = userService.findUserById(userId);
-        if (user == null) {
-            return ResponseEntity.status(404).body("Người dùng không tồn tại");
+    public ResponseEntity<?> watchMovie(
+            @PathVariable String id,
+            @RequestHeader(value = "userId", required = false) String userId
+    ) {
+        try {
+            User user = (userId == null || userId.isBlank()) ? null : userService.findUserById(userId);
+            Movie movie = movieService.getMovieIfAccessible(id, user); // ✅ service tự xử lý FREE/VIP
+            return ResponseEntity.ok(Map.of(
+                    "allowed", true,
+                    "movieId", movie.getMovieId(),
+                    "title", movie.getTitle(),
+                    "minVipLevel", movie.getMinVipLevel() == null ? "FREE" : movie.getMinVipLevel().name()
+            ));
+        } catch (BaseException ex) {
+            String msg = ex.getMessage() == null ? "Không được phép" : ex.getMessage();
+            // Nếu muốn chuẩn REST hơn: user==null với VIP → 401, còn thiếu quyền → 403
+            if (msg.toLowerCase().contains("đăng nhập")) return ResponseEntity.status(401).body(msg);
+            if (msg.toLowerCase().contains("không tồn tại")) return ResponseEntity.status(404).body(msg);
+            return ResponseEntity.status(403).body(msg);
         }
-        Movie movie = movieService.getMovieIfAccessible(id, user);
-
-        return ResponseEntity.ok("Bạn được phép xem: " + movie.getTitle());
     }
+
 
 
     //tìm phim theo quốc gia

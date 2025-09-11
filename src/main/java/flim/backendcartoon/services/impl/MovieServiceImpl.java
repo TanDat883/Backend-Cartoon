@@ -1,16 +1,10 @@
 package flim.backendcartoon.services.impl;
 
 import com.amazonaws.services.kms.model.NotFoundException;
-import flim.backendcartoon.entities.Episode;
-import flim.backendcartoon.entities.Movie;
-import flim.backendcartoon.entities.Season;
-import flim.backendcartoon.entities.User;
+import flim.backendcartoon.entities.*;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.MovieRepository;
-import flim.backendcartoon.services.EpisodeService;
-import flim.backendcartoon.services.MovieService;
-import flim.backendcartoon.services.S3Service;
-import flim.backendcartoon.services.SeasonService;
+import flim.backendcartoon.services.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,17 +16,20 @@ public class MovieServiceImpl implements MovieService {
     private final SeasonService seasonService;
     private final EpisodeService episodeService;
     private final S3Service s3Service;
+    private final VipSubscriptionService vipSubscriptionService;
 
     public MovieServiceImpl(
             MovieRepository movieRepository,
             SeasonService seasonService,
             EpisodeService episodeService,
-            S3Service s3Service) {
+            S3Service s3Service,
+            VipSubscriptionService vipSubscriptionService) {
 
         this.movieRepository = movieRepository;
         this.seasonService = seasonService;
         this.episodeService = episodeService;
         this.s3Service = s3Service;
+        this.vipSubscriptionService = vipSubscriptionService;
 
     }
 
@@ -128,19 +125,35 @@ public class MovieServiceImpl implements MovieService {
         return movieRepository.top10MoviesByViewCount();
     }
 
+    @Override
     public Movie getMovieIfAccessible(String movieId, User user) {
         Movie movie = movieRepository.findById(movieId);
+        if (movie == null) throw new BaseException("Phim không tồn tại.");
 
-        if (movie == null) {
-            throw new BaseException("Phim không tồn tại.");
+        if (movie.getStatus() == MovieStatus.UPCOMING) {
+            throw new BaseException("Phim chưa phát hành.");
         }
 
-        // Nếu không yêu cầu VIP hoặc người dùng có đủ cấp độ
-//        if (movie.getAccessVipLevel() == null || user.getVipLevel().ordinal() >= movie.getAccessVipLevel().ordinal()) {
-//            return movie;
-//        }
-        throw new BaseException("Bạn không có quyền truy cập vào phim này. Vui lòng nâng cấp VIP để xem.");
+        PackageType required = movie.getMinVipLevel() == null ? PackageType.FREE : movie.getMinVipLevel();
+
+        // ✅ FREE: ai cũng xem được
+        if (required == PackageType.FREE) return movie;
+
+        // VIP: cần user
+        if (user == null) throw new BaseException("Vui lòng đăng nhập để xem nội dung VIP.");
+
+        // ADMIN bypass
+        if (user.getRole() != null && "ADMIN".equalsIgnoreCase(user.getRole().name())) return movie;
+
+        // Kiểm tra tier
+        PackageType userTier = vipSubscriptionService.findUserHighestActiveTier(user.getUserId());
+        if (userTier.getLevelValue() >= required.getLevelValue()) return movie;
+
+        throw new BaseException("Bạn không có quyền truy cập vào phim này. " +
+                "Yêu cầu gói tối thiểu: " + required.getLevelName() +
+                ", gói hiện tại của bạn: " + userTier.getLevelName());
     }
+
 
     @Override
     public List<Movie> findMoviesByCountry(String country) {

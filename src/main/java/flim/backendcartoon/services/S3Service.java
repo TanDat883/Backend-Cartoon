@@ -11,6 +11,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.mediaconvert.model.AudioDefaultSelection;
 import software.amazon.awssdk.services.mediaconvert.model.AudioSelectorType;
+import software.amazon.awssdk.services.mediaconvert.model.AccelerationMode;
+import software.amazon.awssdk.services.mediaconvert.model.AccelerationSettings;
+
 
 
 import java.awt.*;
@@ -188,10 +191,21 @@ public class S3Service {
                         .build())
                 .build();
 
+// Đọc env (mặc định PREFERRED để tăng tốc; nếu không hỗ trợ sẽ tự fallback)
+        String accEnv = String.valueOf(dotenv.get("MEDIACONVERT_ACCELERATION"));
+        AccelerationMode accMode = "DISABLED".equalsIgnoreCase(accEnv)
+                ? AccelerationMode.DISABLED
+                : AccelerationMode.PREFERRED; // default nhanh nhất
+
+        int priority = 0; // -50..50 (cao hơn = ưu tiên hơn)
+        try { priority = Integer.parseInt(String.valueOf(dotenv.get("MEDIACONVERT_PRIORITY"))); } catch (Exception ignore) {}
+
         CreateJobResponse res = mc.createJob(CreateJobRequest.builder()
                 .role(mcRoleArn)
                 .queue(mcQueueArn)
                 .settings(settings)
+                .accelerationSettings(AccelerationSettings.builder().mode(accMode).build())
+                .priority(priority)
                 .build());
 
         // 4) LUÔN chờ MediaConvert hoàn tất (blocking)
