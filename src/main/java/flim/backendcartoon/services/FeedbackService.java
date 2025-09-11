@@ -9,8 +9,10 @@ package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.DTO.request.FeedBackRequest;
 import flim.backendcartoon.entities.DTO.response.FeedbackResponse;
+import flim.backendcartoon.entities.Feedback;
 
 import java.util.List;
+import java.util.Optional;
 
 /*
  * @description
@@ -21,6 +23,8 @@ import java.util.List;
 public interface FeedbackService {
     void createFeedback(FeedBackRequest request);
     List<FeedbackResponse> getFeedbacksByMovieId(String movieId);
+    Optional<Feedback> likeFeedback(String feedbackId, String userId);
+    Optional<Feedback> dislikeFeedback(String feedbackId, String userId);
 }
 
     

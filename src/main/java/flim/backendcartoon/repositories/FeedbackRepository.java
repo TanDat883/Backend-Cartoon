@@ -15,6 +15,9 @@ import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.List;
+import java.util.Optional;
+
+import static org.yaml.snakeyaml.tokens.Token.ID.Key;
 
 /*
  * @description
@@ -34,8 +37,13 @@ public class FeedbackRepository {
         table.putItem(feedback);
     }
 
-    public Feedback findById(String feedbackId) {
-        return table.getItem(r -> r.key(k -> k.partitionValue(feedbackId)));
+//    public Feedback findById(String feedbackId) {
+//        return table.getItem(r -> r.key(k -> k.partitionValue(feedbackId)));
+//    }
+
+    public Optional<Feedback> findById(String feedbackId) {
+        Feedback feedback = table.getItem(r -> r.key(k -> k.partitionValue(feedbackId)));
+        return Optional.ofNullable(feedback);
     }
 
     public List<Feedback> findByMovieId(String movieId) {
@@ -48,5 +56,11 @@ public class FeedbackRepository {
         )).items().stream().toList();
     }
 
+    public void delete(String feedbackId) {
+        table.deleteItem(r -> r.key(k -> k.partitionValue(feedbackId)));
+    }
 
+    public void update(Feedback feedback) {
+        table.updateItem(feedback);
+    }
 }

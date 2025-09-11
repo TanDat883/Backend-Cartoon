@@ -16,6 +16,7 @@ package flim.backendcartoon.entities.DTO.response;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class FeedbackResponse {
@@ -26,4 +27,7 @@ public class FeedbackResponse {
     private String movieId;
     private String content;
     private LocalDateTime createdAt;
+    private List<String> likedUserIds;
+    private List<String> dislikedUserIds;
+    private String parentFeedbackId;
 }

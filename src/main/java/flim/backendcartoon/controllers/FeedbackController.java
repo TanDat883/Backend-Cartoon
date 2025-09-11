@@ -62,4 +62,22 @@ public class FeedbackController {
                 .body(items);
     }
 
+    @PostMapping("/like/{feedbackId}")
+    public ResponseEntity<String> likeFeedback(
+            @PathVariable String feedbackId,
+            @RequestParam String userId
+    ) {
+        feedbackService.likeFeedback(feedbackId, userId);
+        return ResponseEntity.ok("Feedback liked successfully");
+    }
+
+    @PostMapping("/dislike/{feedbackId}")
+    public ResponseEntity<String> dislikeFeedback(
+            @PathVariable String feedbackId,
+            @RequestParam String userId
+    ) {
+        feedbackService.dislikeFeedback(feedbackId, userId);
+        return ResponseEntity.ok("Feedback disliked successfully");
+    }
+
 }

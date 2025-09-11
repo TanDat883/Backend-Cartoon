@@ -25,7 +25,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/*/publish").authenticated()
                         .requestMatchers("/payment/**").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/feedback").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/feedback/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/wishlist/add").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/wishlist/remove").authenticated()
                         .requestMatchers(HttpMethod.GET, "/wishlist/**").authenticated()

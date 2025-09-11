@@ -17,9 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /*
  * @description
@@ -47,8 +45,18 @@ public class FeedbackServiceImpl implements FeedbackService {
         feedback.setContent(request.getContent());
         feedback.setCreatedAt(LocalDateTime.now());
 
+        // Nếu là reply thì set parentId
+        if (request.getParentFeedbackId() != null && !request.getParentFeedbackId().isEmpty()) {
+            feedback.setParentFeedbackId(request.getParentFeedbackId());
+        }
+
+        // mặc định like/dislike rỗng
+        feedback.setLikedUserIds(new ArrayList<>());
+        feedback.setDislikedUserIds(new ArrayList<>());
+
         feedbackRepository.save(feedback);
     }
+
 
     @Override
     public List<FeedbackResponse> getFeedbacksByMovieId(String movieId) {
@@ -65,6 +73,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                     response.setMovieId(feedback.getMovieId());
                     response.setContent(feedback.getContent());
                     response.setCreatedAt(feedback.getCreatedAt());
+                    response.setLikedUserIds(feedback.getLikedUserIds() != null ? feedback.getLikedUserIds() : new ArrayList<>());
+                    response.setDislikedUserIds(feedback.getDislikedUserIds() != null ? feedback.getDislikedUserIds() : new ArrayList<>());
+                    response.setParentFeedbackId(feedback.getParentFeedbackId());
 
                     User user = userReponsitory.findById(feedback.getUserId());
                     if (user != null) {
@@ -75,4 +86,62 @@ public class FeedbackServiceImpl implements FeedbackService {
                     return response;
                 }).toList();
     }
+
+    @Override
+    public Optional<Feedback> likeFeedback(String feedbackId, String userId) {
+        Optional<Feedback> optFeedback = feedbackRepository.findById(feedbackId);
+        if (optFeedback.isPresent()) {
+            Feedback fb = optFeedback.get();
+
+            // Khởi tạo nếu null
+            List<String> likes = fb.getLikedUserIds() == null ? new ArrayList<>() : fb.getLikedUserIds();
+            List<String> dislikes = fb.getDislikedUserIds() == null ? new ArrayList<>() : fb.getDislikedUserIds();
+
+            // Bỏ dislike nếu trước đó user đã dislike
+            dislikes.remove(userId);
+
+            // Toggle like
+            if (likes.contains(userId)) {
+                likes.remove(userId); // unlike
+            } else {
+                likes.add(userId);
+            }
+
+            fb.setLikedUserIds(likes);
+            fb.setDislikedUserIds(dislikes);
+
+            feedbackRepository.update(fb);
+            return Optional.of(fb);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Feedback> dislikeFeedback(String feedbackId, String userId) {
+        Optional<Feedback> optFeedback = feedbackRepository.findById(feedbackId);
+        if (optFeedback.isPresent()) {
+            Feedback fb = optFeedback.get();
+
+            List<String> likes = fb.getLikedUserIds() == null ? new ArrayList<>() : fb.getLikedUserIds();
+            List<String> dislikes = fb.getDislikedUserIds() == null ? new ArrayList<>() : fb.getDislikedUserIds();
+
+            // Bỏ like nếu trước đó user đã like
+            likes.remove(userId);
+
+            // Toggle dislike
+            if (dislikes.contains(userId)) {
+                dislikes.remove(userId); // undislike
+            } else {
+                dislikes.add(userId);
+            }
+
+            fb.setLikedUserIds(likes);
+            fb.setDislikedUserIds(dislikes);
+
+            feedbackRepository.update(fb);
+            return Optional.of(fb);
+        }
+        return Optional.empty();
+    }
+
 }

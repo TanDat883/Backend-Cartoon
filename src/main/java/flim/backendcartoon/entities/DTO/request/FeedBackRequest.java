@@ -20,4 +20,5 @@ public class FeedBackRequest {
     private String userId;
     private String movieId;
     private String content;
+    private String parentFeedbackId;
 }
