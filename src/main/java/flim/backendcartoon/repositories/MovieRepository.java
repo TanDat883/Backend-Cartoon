@@ -115,4 +115,28 @@ public class MovieRepository {
                         a.getViewCount() == null ? 0L : a.getViewCount()))
                 .limit(10).collect(Collectors.toList());
     }
+
+    // Lấy top N theo genres (scan + filter + sort theo viewCount)
+    public List<Movie> findTopNByGenresOrderByViewCountDesc(List<String> genres, int limit) {
+        if (genres == null || genres.isEmpty()) {
+            return topNMoviesByViewCount(limit);
+        }
+        return table.scan().items().stream()
+                .filter(m -> m.getGenres() != null && m.getGenres().stream()
+                        .anyMatch(g -> genres.contains(g)))
+                .sorted((a,b) -> Long.compare(
+                        b.getViewCount() == null ? 0L : b.getViewCount(),
+                        a.getViewCount() == null ? 0L : a.getViewCount()))
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    public List<Movie> topNMoviesByViewCount(int limit) {
+        return table.scan().items().stream()
+                .sorted((a,b) -> Long.compare(
+                        b.getViewCount() == null ? 0L : b.getViewCount(),
+                        a.getViewCount() == null ? 0L : a.getViewCount()))
+                .limit(limit).collect(Collectors.toList());
+    }
+
 }

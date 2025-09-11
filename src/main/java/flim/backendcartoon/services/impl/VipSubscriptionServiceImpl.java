@@ -89,5 +89,27 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
         }
         return vips;
     }
+
+
+    //check gói vip cao nhất còn hiệu lực của user
+    @Override
+    public PackageType findUserHighestActiveTier(String userId) {
+        PackageType best = PackageType.FREE;
+        List<VipSubscription> all = repository.findUserVipSubscriptions(userId); // đã có trong repo
+        LocalDate today = LocalDate.now();
+
+        for (VipSubscription vip : all) {
+            if (!"ACTIVE".equalsIgnoreCase(vip.getStatus())) continue;
+            LocalDate end;
+            try { end = LocalDate.parse(vip.getEndDate()); } catch (Exception e) { continue; }
+            if (end.isBefore(today)) continue;
+
+            PackageType t = vip.getPackageType();
+            if (t != null && t.getLevelValue() > best.getLevelValue()) {
+                best = t;
+            }
+        }
+        return best;
+    }
 }
 

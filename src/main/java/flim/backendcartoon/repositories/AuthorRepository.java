@@ -18,19 +18,13 @@ public class AuthorRepository {
         this.table = enhancedClient.table("Author", TableSchema.fromBean(Author.class));
     }
 
-    // Save an author to the database
-    public void save(Author author) {
-        System.out.println("Saving author to DynamoDB: " + author);
-        table.putItem(author);
-    }
-    //find all author
-    public List<Author> findAll() {
-        return table.scan().items().stream().collect(Collectors.toList());
-    }
+    public void save(Author author) { table.putItem(author); } // upsert
+    public List<Author> findAll() { return table.scan().items().stream().collect(Collectors.toList()); }
+    public Author findById(String authorId) { return table.getItem(r -> r.key(k -> k.partitionValue(authorId))); }
 
-
-    public Author findById(String authorId) {
-        System.out.println("Finding author by ID: " + authorId);
-        return table.getItem(r -> r.key(k -> k.partitionValue(authorId)));
+    public void deleteById(String authorId) {
+        Author key = new Author();
+        key.setAuthorId(authorId);
+        table.deleteItem(key);
     }
 }

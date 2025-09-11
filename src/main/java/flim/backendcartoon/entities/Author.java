@@ -25,6 +25,8 @@ public class Author {
     private String name;
     private AuthorRole authorRole;
 
+    private String normalizedName;
+
     @DynamoDbPartitionKey
     @DynamoDbAttribute("authorId")
     public String getAuthorId() {
@@ -54,4 +56,8 @@ public class Author {
     public void setAuthorRole(AuthorRole authorRole) {
         this.authorRole = authorRole;
     }
+
+    @DynamoDbAttribute("normalizedName")
+    public String getNormalizedName() { return normalizedName; }
+    public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
 }

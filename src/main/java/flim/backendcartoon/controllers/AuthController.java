@@ -195,6 +195,8 @@ public class AuthController {
             InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
             String idToken = authResponse.authenticationResult().idToken();
             String accessToken = authResponse.authenticationResult().accessToken();
+            String refeshToken = authResponse.authenticationResult().refreshToken();
+            Integer expiresIn = authResponse.authenticationResult().expiresIn();
 
             // Truy vấn thông tin người dùng từ accessToken
             GetUserRequest getUserRequest = GetUserRequest.builder()
@@ -221,8 +223,12 @@ public class AuthController {
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("idToken", idToken);
             responseData.put("accessToken", accessToken);
+            responseData.put("refeshToken", refeshToken);
+            responseData.put("expiresIn", expiresIn);
             responseData.put("userAttributes", userAttributes);
             responseData.put("my_user", my_user);
+
+            responseData.put("username", username);
 
             // Trả về ResponseEntity với dữ liệu người dùng
             return ResponseEntity.ok(responseData);
@@ -235,6 +241,46 @@ public class AuthController {
             return ResponseEntity.status(500).body("Error during authentication: " + e.getMessage());
         }
     }
+
+    //hàm làm mới token
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshTokens(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String refreshToken = request.get("refreshToken");
+
+        if (username == null || username.isBlank() || refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "username and refreshToken are required"));
+        }
+
+        try {
+            String secretHash = calculateSecretHash(clientId, clientSecret, username);
+
+            InitiateAuthRequest refreshReq = InitiateAuthRequest.builder()
+                    .authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
+                    .clientId(clientId)
+                    .authParameters(Map.of(
+                            "REFRESH_TOKEN", refreshToken,
+                            "SECRET_HASH", secretHash
+                    ))
+                    .build();
+
+            InitiateAuthResponse res = cognitoClient.initiateAuth(refreshReq);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("accessToken", res.authenticationResult().accessToken());
+            body.put("idToken", res.authenticationResult().idToken());
+            body.put("expiresIn", res.authenticationResult().expiresIn());
+            // Lưu ý: Cognito KHÔNG trả refreshToken mới trong flow này
+            return ResponseEntity.ok(body);
+
+        } catch (NotAuthorizedException e) {
+            // ví dụ: "Invalid Refresh Token", "Token has been revoked", "Expired"
+            return ResponseEntity.status(401).body(Map.of("error", "Refresh failed", "details", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Server error", "details", e.getMessage()));
+        }
+    }
+
 
     //hàm logout thì sét offline - tín viết cho đạt làm
     @PutMapping("/logout/{userId}")

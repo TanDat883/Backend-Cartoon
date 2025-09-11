@@ -1,19 +1,26 @@
 package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Author;
+import flim.backendcartoon.entities.AuthorRole;
 import flim.backendcartoon.exception.AuthorException;
 
 import java.util.List;
 
 public interface AuthorService {
-    //lưu author
     void saveAuthor(Author author);
-    //find all
+
     List<Author> findAllAuthors();
 
-    //trường hợp đã có authorId thì sẽ update
     void addMovieToAuthor(List<String> authorIds, String movieId);
 
-    //tìm author trong bộ phim
     List<Author> findAuthorsByMovieId(String movieId) throws AuthorException;
+
+    // NEW
+    Author updateAuthor(String authorId, String name, AuthorRole role);
+
+    void deleteAuthor(String authorId);
+
+    void deleteAuthors(List<String> ids);
+
+    Author findByNameAndRole(String name, AuthorRole role);
 }
