@@ -2,6 +2,7 @@ package flim.backendcartoon.controllers;
 
 
 import flim.backendcartoon.entities.Episode;
+import flim.backendcartoon.services.CloudFrontService;
 import flim.backendcartoon.services.EpisodeService;
 import flim.backendcartoon.services.S3Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
@@ -23,6 +25,13 @@ public class EpisodeController {
     private EpisodeService episodeService;
     @Autowired
     private S3Service s3Service;
+    @Autowired private CloudFrontService cloudFrontService;
+
+    private Episode toCdn(Episode ep) {
+        if (ep == null) return null;
+        ep.setVideoUrl(cloudFrontService.convertToCloudFrontUrl(ep.getVideoUrl()));
+        return ep;
+    }
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadEpisode(
@@ -55,7 +64,7 @@ public class EpisodeController {
 
             episodeService.saveEpisode(ep);
 
-            return ResponseEntity.ok(ep);
+            return ResponseEntity.ok(toCdn(ep));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to upload episode: " + e.getMessage());
@@ -65,7 +74,8 @@ public class EpisodeController {
     //find by episodeId
     @GetMapping("/season/{seasonId}")
     public ResponseEntity<?> getEpisodesBySeason(@PathVariable String seasonId) {
-        List<Episode> episodes = episodeService.findEpisodesBySeasonId(seasonId);
+        List<Episode> episodes = episodeService.findEpisodesBySeasonId(seasonId)
+                .stream().map(this::toCdn).collect(Collectors.toList());
         return ResponseEntity.ok(episodes);
     }
 
@@ -82,7 +92,8 @@ public class EpisodeController {
             @PathVariable String seasonId,
             @PathVariable Integer episodeNumber) {
         Episode ep = episodeService.findOne(seasonId, episodeNumber);
-        return ResponseEntity.ok(ep);
+        return ResponseEntity.ok(toCdn(episodeService.findOne(seasonId, episodeNumber)));
+
     }
 
     // UPDATE title / video (tuỳ chọn)
@@ -106,7 +117,7 @@ public class EpisodeController {
             }
             existing.setUpdatedAt(Instant.now());
             episodeService.update(existing);
-            return ResponseEntity.ok(existing);
+            return ResponseEntity.ok(toCdn(existing));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError()
@@ -139,7 +150,7 @@ public class EpisodeController {
     public ResponseEntity<?> getEpisodeById(@PathVariable String episodeId) {
         Episode ep = episodeService.findById(episodeId);
         if (ep == null) return ResponseEntity.status(404).body("Episode not found");
-        return ResponseEntity.ok(ep);
+        return ResponseEntity.ok(toCdn(ep));
     }
 
 

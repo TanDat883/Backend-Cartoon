@@ -1,5 +1,6 @@
 package flim.backendcartoon.configs;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -7,11 +8,14 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudfront.CloudFrontClient;
+import software.amazon.awssdk.services.cloudfront.CloudFrontClientBuilder;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import io.github.cdimascio.dotenv.Dotenv;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sns.SnsClient;
+
 
 @Configuration
 public class AwsConfig {
@@ -60,5 +64,21 @@ public class AwsConfig {
                 .region(Region.of(region))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
                 .build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(CloudFrontClient.class)
+    public CloudFrontClient cloudFrontClient() {
+        CloudFrontClientBuilder builder = CloudFrontClient.builder()
+                .region(Region.AWS_GLOBAL); // hoặc Region.US_EAST_1
+
+        if (accessKey != null && !accessKey.isBlank()
+                && secretKey != null && !secretKey.isBlank()) {
+            builder = builder.credentialsProvider(
+                    StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)));
+        } else {
+            builder = builder.credentialsProvider(DefaultCredentialsProvider.create());
+        }
+        return builder.build();
     }
 }

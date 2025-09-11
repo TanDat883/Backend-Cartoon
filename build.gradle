@@ -86,6 +86,9 @@ dependencies {
 
 // https://mvnrepository.com/artifact/software.amazon.awssdk/mediaconvert
     implementation 'software.amazon.awssdk:mediaconvert:2.29.43'
+
+    // https://mvnrepository.com/artifact/software.amazon.awssdk/cloudfront
+    implementation 'software.amazon.awssdk:cloudfront:2.29.43'
 }
 
 dependencyManagement {
