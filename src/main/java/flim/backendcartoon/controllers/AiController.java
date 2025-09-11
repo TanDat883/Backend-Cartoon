@@ -27,7 +27,7 @@ public class AiController {
     private final RecommendationService recService;
     private final AiService aiService;
 
-    @PostMapping("/chat")
+    @PostMapping(value = "/chat", produces = "application/json;charset=UTF-8")
     public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal Jwt jwt,
                                              @RequestBody ChatRequest req) {
         String userName = "bạn"; String userId = null;
@@ -116,7 +116,7 @@ public class AiController {
     }
 
 
-    @GetMapping("/welcome")
+    @GetMapping(value = "/welcome", produces = "application/json;charset=UTF-8")
     public ResponseEntity<ChatResponse> welcome(@AuthenticationPrincipal Jwt jwt) {
         String userName = "bạn"; String userId = null;
         if (jwt != null) {
