@@ -56,6 +56,7 @@ public class MovieController {
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "banner", required = false) MultipartFile banner,
             @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo,
+            @RequestParam(value = "trailerUrl", required = false) String trailerUrl,
 
             @RequestParam(value="authorIds", required=false) List<String> authorIds
 
@@ -75,10 +76,7 @@ public class MovieController {
             if (banner != null && !banner.isEmpty()) {
                 bannerUrl = s3Service.uploadBannerUrl(banner);
             }
-            String trailerUrl = null;
-            if (trailerVideo != null && !trailerVideo.isEmpty()) {
-                trailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
-            }
+
             // ===== Slug =====
             String finalSlug = (slug != null && !slug.isBlank())
                     ? normalizeSlug(slug)
@@ -100,7 +98,12 @@ public class MovieController {
 
             movie.setThumbnailUrl(thumbnailUrl);
             movie.setBannerUrl(bannerUrl);
-            movie.setTrailerUrl(trailerUrl);
+            if (trailerUrl != null && !trailerUrl.isBlank()) {
+                movie.setTrailerUrl(trailerUrl);
+            } else if (trailerVideo != null && !trailerVideo.isEmpty()) {
+                trailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
+                movie.setTrailerUrl(trailerUrl);
+            }
             movie.setReleaseYear(releaseYear);
             movie.setStatus(status != null ? MovieStatus.valueOf(status) : MovieStatus.UPCOMING);
 
@@ -218,7 +221,9 @@ public class MovieController {
             @RequestParam(value = "authorIds", required = false) List<String> authorIds,
             @RequestPart(value = "thumbnail", required = false) MultipartFile thumbnail,
             @RequestPart(value = "banner", required = false) MultipartFile banner,
-            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo) {
+            @RequestPart(value = "trailerVideo", required = false) MultipartFile trailerVideo,
+            @RequestParam(value = "trailerUrl", required = false) String trailerUrl
+            ) {
         try {
             Movie m = movieService.findMovieById(movieId);
             if (m == null) return ResponseEntity.status(404).body("Movie not found");
@@ -250,11 +255,14 @@ public class MovieController {
                 m.setBannerUrl(url);
             }
 
-            if (trailerVideo != null && !trailerVideo.isEmpty()) {
-                // thay trailer: xoá HLS cũ rồi up mới
-                s3Service.deleteByMediaUrl(m.getTrailerUrl());
-                String trailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
+            if (trailerUrl != null && !trailerUrl.isBlank()) {
+                // Set URL trực tiếp (external URL)
                 m.setTrailerUrl(trailerUrl);
+            } else if (trailerVideo != null && !trailerVideo.isEmpty()) {
+                // Upload file mới và thay thế
+                s3Service.deleteByMediaUrl(m.getTrailerUrl());
+                String newTrailerUrl = s3Service.convertAndUploadToHLS(trailerVideo);
+                m.setTrailerUrl(newTrailerUrl);
             }
 
             movieService.updateMovie(m);
