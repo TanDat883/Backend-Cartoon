@@ -13,6 +13,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.util.List;
+
 /*
  * @description
  * @author: Tran Tan Dat
@@ -44,4 +46,11 @@ public class PaymentOrderRepository {
     public PaymentOrder findByOrderId(String orderId) {
         return table.getItem(r -> r.key(k -> k.partitionValue(orderId)));
     }
+
+    public List<PaymentOrder> findAllPaid() {
+        return table.scan().items().stream()
+                .filter(o -> "PAID".equalsIgnoreCase(o.getStatus()))
+                .toList();
+    }
+
 }
