@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,43 +33,78 @@ public class AiService {
     public ChatResponse composeAnswer(String userName,
                                       List<MovieSuggestionDTO> suggestions,
                                       String userMessage,
+                                      List<ChatMemoryService.ChatMsg> history,
                                       boolean wantsRec,
                                       boolean wantsPromo,
-                                      List<PromoSuggestionDTO> promos) {
+                                      List<PromoSuggestionDTO> promos,
+                                      Map<String,Object> extras) {
 
         final String safeUser = (userName == null || userName.isBlank()) ? "bạn" : userName;
 
         // Hướng dẫn model rất rõ + chỉ cho trả JSON
         String system = """
-Bạn là trợ lý cho website xem phim. Chỉ trả về MỘT JSON OBJECT hợp lệ với các khóa CHÍNH XÁC:
-- answer: string (câu trả lời ngắn gọn, thân thiện và vui vẻ)
-- showSuggestions: boolean
-- suggestions: array<MovieSuggestionDTO> (<=8) - dùng đúng các phần tử có sẵn trong "candidateSuggestions" nếu wantsRec=true, ngược lại []
-- showPromos: boolean
-- promos: array<PromoSuggestionDTO> (<=8) - dùng đúng các phần tử có sẵn trong "activePromos" nếu wantsPromo=true, ngược lại []
-Không thêm bất kỳ text/thuyết minh nào ngoài JSON.
-""";
+            Bạn là trợ lý thông minh cho website xem phim CartoonToo.
+            
+            BẠN ĐƯỢC CUNG CẤP TRONG 'Context':
+            - currentMovie: object | null — phim của trang hiện tại (nếu người dùng đang ở trang chi tiết).
+            - mentionedMovies: array — các phim trong DB khớp với tên mà người dùng vừa nhắc.
+            - candidateSuggestions: array — các phim đề xuất để GỢI Ý khi (và chỉ khi) user thực sự muốn gợi ý.
+            
+            QUY TẮC:
+            1) Nếu currentMovie != null và câu hỏi là về “phim này/đang xem” → trả lời dựa trên currentMovie.
+            2) Nếu user nêu đích danh tên phim và nó có trong mentionedMovies → trả lời dựa trên phim đó.
+            3) KHÔNG được nói "không có thông tin trong hệ thống" khi currentMovie hoặc mentionedMovies có dữ liệu.
+            4) Chỉ gợi ý từ candidateSuggestions khi wantsRec=true.
+            5) Trả về MỘT JSON OBJECT:
+               - answer: string
+               - showSuggestions: boolean
+               - suggestions: array<MovieSuggestionDTO> (<=8)
+               - showPromos: boolean
+               - promos: array<PromoSuggestionDTO> (<=8)
+            KHÔNG thêm text ngoài JSON.
+            
+                Trong 'Context' có thể có:
+                - currentMovie { ..., directors[], performers[], authors[] }
+                - mentionedMovies[] với cấu trúc tương tự
+                
+                QUY TẮC BỔ SUNG:
+                - Khi người dùng hỏi đạo diễn/diễn viên, chỉ dùng currentMovie/mentionedMovies.
+                - Nếu directors/performers rỗng hoặc thiếu, trả lời lịch sự kiểu:
+                  "Hiện hệ thống chưa lưu diễn viên/đạo diễn cho phim này." và KHÔNG tự bịa.
+                ...
+            """;
 
-        Map<String, Object> ctx = Map.of(
-                "userName", safeUser,
-                "wantsRec", wantsRec,
-                "wantsPromo", wantsPromo,
-                "candidateSuggestions", suggestions == null ? List.of() : suggestions,
-                "activePromos", promos == null ? List.of() : promos
-        );
+
+        Map<String, Object> ctx = new HashMap<>();
+        ctx.put("userName", safeUser);
+        ctx.put("wantsRec", wantsRec);
+        ctx.put("wantsPromo", wantsPromo);
+        ctx.put("candidateSuggestions", suggestions == null ? List.of() : suggestions);
+        ctx.put("activePromos", promos == null ? List.of() : promos);
+        if (extras != null) ctx.putAll(extras);   // ✅ quan trọng
+
 
         // Ép model theo JSON Schema để giảm sai key
         Map<String, Object> responseFormat = buildResponseFormat();
+
+        var messages = new ArrayList<Map<String, Object>>();
+        messages.add(Map.of("role", "system", "content", system));
+
+        if (history != null && !history.isEmpty()) {
+            for (var m : history) {
+                messages.add(Map.of("role", m.getRole(), "content", m.getContent()));
+            }
+        }
+        messages.add(Map.of("role", "user",
+                "content", "Context:\n" + writeSafe(ctx) + "\n\nUser: " + (userMessage == null ? "" : userMessage)));
+
+
 
         Map<String, Object> payload = Map.of(
                 "model", "gpt-4o-mini",
                 "temperature", 0.2,
                 "response_format", responseFormat,
-                "messages", List.of(
-                        Map.of("role", "system", "content", system),
-                        Map.of("role", "user", "content",
-                                "Context:\n" + writeSafe(ctx) + "\n\nUser: " + (userMessage == null ? "" : userMessage))
-                )
+                "messages", messages  // ✅ Use the full messages array
         );
 
         try {
@@ -150,8 +186,10 @@ Không thêm bất kỳ text/thuyết minh nào ngoài JSON.
         movieProps.put("movieId", Map.of("type", "string"));
         movieProps.put("title", Map.of("type", "string"));
         movieProps.put("thumbnailUrl", Map.of("type", "string"));
+        movieProps.put("description", Map.of("type", "string"));
         movieProps.put("genres", Map.of("type", "array", "items", Map.of("type", "string")));
         movieProps.put("viewCount", Map.of("type", "number"));
+        movieProps.put("duration", Map.of("type", "string"));
         movieProps.put("avgRating", Map.of("type", "number"));
 
         Map<String, Object> movieItem = Map.of(
