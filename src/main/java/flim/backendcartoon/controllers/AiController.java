@@ -50,17 +50,24 @@ public class AiController {
 
         // Ý định người dùng
         final boolean wantsPromo = containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
-        boolean wantsRec = containsAny(q, "goi y","de xuat","xem gi","nen xem","top","trending","hay nhat","phu hop");
 
         // Phim ngữ cảnh
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
         List<Movie> mentioned = findMentionedMovies(q);
 
+        //nhận diện gợi ý
+        final boolean explicitRec = containsAny(q,
+                "goi y","de xuat","xem gi","nen xem","top","trending",
+                "hay nhat","phu hop",
+                "phim nao hay","co phim nao hay","co gi xem", "hay khong", "hay ko",
+                "recommend","suggest"
+        );
         // Nếu hỏi thông tin phim → tắt gợi ý
         boolean asksInfo = current != null || !mentioned.isEmpty()
                 || containsAny(q, "thong tin","noi dung","tom tat","bao nhieu tap","may tap",
-                "trailer","danh gia","rating","nam phat hanh","quoc gia",
+                "trailer","danh gia","rating","nam phat hanh","quoc gia","luot xem",
                 "dien vien","dao dien","season","phan","tap");
+        boolean wantsRec = explicitRec || (!asksInfo && !wantsPromo);
         if (asksInfo) wantsRec = false;
 
         // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước
@@ -247,6 +254,7 @@ public class AiController {
         info.put("trailerUrl", m.getTrailerUrl());
         info.put("totalSeasons", seasons.size());
         info.put("totalEpisodes", eps);
+        info.put("viewCount", m.getViewCount());
 
         // thêm các field phục vụ QA về tác giả
         info.put("directors", directors);

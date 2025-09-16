@@ -24,7 +24,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/movies/delete").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/*/publish").authenticated()
-
+                        .requestMatchers(HttpMethod.POST,  "/reports/playback").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reports/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/reports/**").authenticated()
 
                         .requestMatchers("/payment/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/feedback/**").authenticated()
@@ -60,7 +62,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(List.of("http://localhost:3000")); // FE URL
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",

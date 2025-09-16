@@ -36,6 +36,7 @@ public class DynamoDBInitializer implements CommandLineRunner {
         createTableIfNotExists(Author.class, "Author");
         createTableIfNotExists(MovieRating.class, "MovieRating");
         createTableIfNotExists(Season.class, "Season");
+        createTableIfNotExists(PlaybackIssue.class, "PlaybackIssue");
 
 
     }

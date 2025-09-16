@@ -66,7 +66,6 @@ public class AiService {
                 Trong 'Context' có thể có:
                 - currentMovie { ..., directors[], performers[], authors[] }
                 - mentionedMovies[] với cấu trúc tương tự
-                
                 QUY TẮC BỔ SUNG:
                 - Khi người dùng hỏi đạo diễn/diễn viên, chỉ dùng currentMovie/mentionedMovies.
                 - Nếu directors/performers rỗng hoặc thiếu, trả lời lịch sự kiểu:
@@ -195,7 +194,7 @@ public class AiService {
         Map<String, Object> movieItem = Map.of(
                 "type", "object",
                 "properties", movieProps,
-                "required", List.of("movieId", "title")
+                "required", List.of("movieId", "title","thumbnailUrl")
         );
 
         // PromoSuggestionDTO schema
