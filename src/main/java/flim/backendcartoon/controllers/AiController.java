@@ -247,6 +247,7 @@ public class AiController {
         info.put("description", m.getDescription());
         info.put("genres", m.getGenres());
         info.put("country", m.getCountry());
+        info.put("duration", m.getDuration());
         info.put("releaseYear", m.getReleaseYear());
         info.put("status", m.getStatus()==null? null : m.getStatus().name());
         info.put("minVipLevel", m.getMinVipLevel()==null? "FREE" : m.getMinVipLevel().name());
