@@ -17,7 +17,7 @@ import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
  * @version: 1.0
  * @created: 15-September-2025 4:35 PM
  */
-public interface RevenueService {
+public interface DataAnalyzerService {
     RevenueChartResponse getRevenueByDay(int year, int month);
     RevenueChartResponse getRevenueByMonth(int year);
     RevenueChartResponse getRevenueByYear(int from, int to);

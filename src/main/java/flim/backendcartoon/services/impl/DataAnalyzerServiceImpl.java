@@ -20,7 +20,7 @@ import flim.backendcartoon.entities.Order;
 import flim.backendcartoon.entities.PaymentOrder;
 import flim.backendcartoon.repositories.OrderRepository;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
-import flim.backendcartoon.services.RevenueService;
+import flim.backendcartoon.services.DataAnalyzerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -34,13 +34,13 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
-public class RevenueServiceImpl implements RevenueService {
+public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
     private final PaymentOrderRepository paymentOrderRepository;
     private final OrderRepository orderRepository;
 
     @Autowired
-    public RevenueServiceImpl(PaymentOrderRepository paymentOrderRepository, OrderRepository orderRepository) {
+    public DataAnalyzerServiceImpl(PaymentOrderRepository paymentOrderRepository, OrderRepository orderRepository) {
         this.paymentOrderRepository = paymentOrderRepository;
         this.orderRepository = orderRepository;
     }

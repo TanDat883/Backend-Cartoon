@@ -8,7 +8,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
-import flim.backendcartoon.services.RevenueService;
+import flim.backendcartoon.services.DataAnalyzerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -28,10 +28,10 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/revenue")
 @RequiredArgsConstructor
-public class RevenueController {
+public class DataAnalyzerController {
 
     @Autowired
-    private final RevenueService revenueService;
+    private final DataAnalyzerService revenueService;
 
     // tổng quan doanh thu
     @GetMapping("/summary")
