@@ -69,7 +69,6 @@ dependencies {
 
     implementation 'software.amazon.awssdk:http-client-spi:2.29.43'
 
-
     // JWT này mạnh hơn và có nhiều tính năng hơn so với thư viện JWT cũ
     implementation 'com.nimbusds:nimbus-jose-jwt:10.3'
 
@@ -89,6 +88,9 @@ dependencies {
 
     // https://mvnrepository.com/artifact/software.amazon.awssdk/cloudfront
     implementation 'software.amazon.awssdk:cloudfront:2.29.43'
+
+    // https://mvnrepository.com/artifact/org.apache.poi/poi-ooxml xử lý file excel
+    implementation 'org.apache.poi:poi-ooxml:5.4.1'
 }
 
 dependencyManagement {
