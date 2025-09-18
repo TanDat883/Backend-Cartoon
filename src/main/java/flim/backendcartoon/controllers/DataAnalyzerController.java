@@ -26,7 +26,7 @@ import java.time.LocalDate;
  * @created: 15-September-2025 4:39 PM
  */
 @RestController
-@RequestMapping("/revenue")
+@RequestMapping("/data-analyzer")
 @RequiredArgsConstructor
 public class DataAnalyzerController {
 
@@ -34,7 +34,7 @@ public class DataAnalyzerController {
     private final DataAnalyzerService revenueService;
 
     // tổng quan doanh thu
-    @GetMapping("/summary")
+    @GetMapping("/revenue/summary")
     public ResponseEntity<RevenueSummaryResponse> getSummary(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
@@ -47,7 +47,7 @@ public class DataAnalyzerController {
     }
 
     // Doanh thu theo ngày trong 1 tháng
-    @GetMapping("/day")
+    @GetMapping("/revenue/day")
     public RevenueChartResponse getRevenueByDay(
             @RequestParam int year,
             @RequestParam int month) {
@@ -61,7 +61,7 @@ public class DataAnalyzerController {
     }
 
     // Doanh thu theo nhiều năm (from → to)
-    @GetMapping("/year")
+    @GetMapping("/revenue/year")
     public RevenueChartResponse getRevenueByYear(
             @RequestParam int from,
             @RequestParam int to) {
@@ -69,7 +69,7 @@ public class DataAnalyzerController {
     }
 
     // thống kê nhanh
-    @GetMapping("/quick-stats")
+    @GetMapping("/revenue/quick-stats")
     public ResponseEntity<?> getQuickStats() {
         return ResponseEntity.ok(revenueService.getQuickStats());
     }
