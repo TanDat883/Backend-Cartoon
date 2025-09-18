@@ -7,13 +7,17 @@
 package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
+import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
 import flim.backendcartoon.services.RevenueService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
 
 /*
  * @description
@@ -28,6 +32,19 @@ public class RevenueController {
 
     @Autowired
     private final RevenueService revenueService;
+
+    // tổng quan doanh thu
+    @GetMapping("/summary")
+    public ResponseEntity<RevenueSummaryResponse> getSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+
+        LocalDate now = LocalDate.now();
+        int y = (year != null) ? year : now.getYear();
+        int m = (month != null) ? month : now.getMonthValue();
+
+        return ResponseEntity.ok(revenueService.getSummary(y, m));
+    }
 
     // Doanh thu theo ngày trong 1 tháng
     @GetMapping("/day")
@@ -49,5 +66,11 @@ public class RevenueController {
             @RequestParam int from,
             @RequestParam int to) {
         return revenueService.getRevenueByYear(from, to);
+    }
+
+    // thống kê nhanh
+    @GetMapping("/quick-stats")
+    public ResponseEntity<?> getQuickStats() {
+        return ResponseEntity.ok(revenueService.getQuickStats());
     }
 }

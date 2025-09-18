@@ -7,7 +7,9 @@
 package flim.backendcartoon.services;
 
 
+import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
+import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
 
 /*
  * @description
@@ -16,10 +18,11 @@ import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
  * @created: 15-September-2025 4:35 PM
  */
 public interface RevenueService {
-    Double calculateTotalRevenue();
     RevenueChartResponse getRevenueByDay(int year, int month);
     RevenueChartResponse getRevenueByMonth(int year);
     RevenueChartResponse getRevenueByYear(int from, int to);
+    RevenueSummaryResponse getSummary(int year, int month);
+    QuickStatsResponse getQuickStats();
 }
 
     
