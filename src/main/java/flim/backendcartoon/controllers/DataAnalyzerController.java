@@ -6,16 +6,15 @@
 
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.DTO.response.CountChartResponse;
+import flim.backendcartoon.entities.DTO.response.MovieStatsSummaryResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
 import flim.backendcartoon.services.DataAnalyzerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
@@ -72,5 +71,76 @@ public class DataAnalyzerController {
     @GetMapping("/revenue/quick-stats")
     public ResponseEntity<?> getQuickStats() {
         return ResponseEntity.ok(revenueService.getQuickStats());
+    }
+
+
+
+
+    // ======= MOVIE ANALYTICS (mới) =======
+
+    @GetMapping("/movies/summary")
+    public ResponseEntity<MovieStatsSummaryResponse> getMovieSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        var now = LocalDate.now();
+        int y = (year != null) ? year : now.getYear();
+        int m = (month != null) ? month : now.getMonthValue();
+        return ResponseEntity.ok(revenueService.getMovieSummary(y, m));
+    }
+
+    @GetMapping("/movies/new/day")
+    public CountChartResponse getNewMoviesByDay(
+            @RequestParam int year,
+            @RequestParam int month) {
+        return revenueService.getNewMoviesByDay(year, month);
+    }
+
+    @GetMapping("/movies/new/month")
+    public CountChartResponse getNewMoviesByMonth(@RequestParam int year) {
+        return revenueService.getNewMoviesByMonth(year);
+    }
+
+    @GetMapping("/movies/genre")
+    public ResponseEntity<?> getCountByGenre(@RequestParam(defaultValue = "10") int top) {
+        return ResponseEntity.ok(revenueService.getCountByGenre(top));
+    }
+
+    @GetMapping("/movies/country")
+    public ResponseEntity<?> getCountByCountry(@RequestParam(defaultValue = "10") int top) {
+        return ResponseEntity.ok(revenueService.getCountByCountry(top));
+    }
+
+    @GetMapping("/movies/status")
+    public ResponseEntity<?> getStatusBreakdown() {
+        return ResponseEntity.ok(revenueService.getStatusBreakdown());
+    }
+
+    @GetMapping("/movies/type")
+    public ResponseEntity<?> getTypeBreakdown() {
+        return ResponseEntity.ok(revenueService.getTypeBreakdown());
+    }
+
+    @GetMapping("/movies/release-year")
+    public CountChartResponse getReleaseYearDistribution(
+            @RequestParam int from,
+            @RequestParam int to) {
+        return revenueService.getReleaseYearDistribution(from, to);
+    }
+
+    @GetMapping("/movies/{movieId}/episodes-per-season")
+    public CountChartResponse getEpisodesPerSeason(@PathVariable String movieId) {
+        return revenueService.getEpisodesPerSeason(movieId);
+    }
+
+    @GetMapping("/movies/top/views")
+    public ResponseEntity<?> getTopByViews(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(revenueService.getTopMoviesByViews(limit));
+    }
+
+    @GetMapping("/movies/top/rating")
+    public ResponseEntity<?> getTopByRating(
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "5") int minRatings) {
+        return ResponseEntity.ok(revenueService.getTopMoviesByRating(limit, minRatings));
     }
 }

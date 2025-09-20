@@ -7,9 +7,9 @@
 package flim.backendcartoon.services;
 
 
-import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
-import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
-import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
+import flim.backendcartoon.entities.DTO.response.*;
+
+import java.util.List;
 
 /*
  * @description
@@ -23,6 +23,20 @@ public interface DataAnalyzerService {
     RevenueChartResponse getRevenueByYear(int from, int to);
     RevenueSummaryResponse getSummary(int year, int month);
     QuickStatsResponse getQuickStats();
+
+
+    // ======= THỐNG KÊ PHIM =======
+    MovieStatsSummaryResponse getMovieSummary(int year, int month);
+    CountChartResponse getNewMoviesByDay(int year, int month);
+    CountChartResponse getNewMoviesByMonth(int year);
+    List<CategoryCountItemResponse> getCountByGenre(int top);
+    List<CategoryCountItemResponse> getCountByCountry(int top);
+    List<CategoryCountItemResponse> getStatusBreakdown(); // COMPLETED/UPCOMING
+    List<CategoryCountItemResponse> getTypeBreakdown();   // SINGLE/SERIES
+    CountChartResponse getReleaseYearDistribution(int from, int to);
+    CountChartResponse getEpisodesPerSeason(String movieId);
+    List<TopMovieDTOResponse> getTopMoviesByViews(int limit);
+    List<TopMovieDTOResponse> getTopMoviesByRating(int limit, int minRatings);
 }
 
     

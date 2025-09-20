@@ -38,6 +38,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/movies/*/increment-view").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
                         .requestMatchers(HttpMethod.GET,  "/api/ai/welcome").permitAll()
+                        .requestMatchers("/data-analyzer/movies/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/authors/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
