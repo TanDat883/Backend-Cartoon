@@ -53,4 +53,11 @@ public class PaymentOrderRepository {
                 .toList();
     }
 
+    public List<PaymentOrder> findTop5ByOrderByCreatedAtDesc() {
+        return table.scan().items().stream()
+                .sorted((o1, o2) -> o2.getCreatedAt().compareTo(o1.getCreatedAt()))
+                .limit(5)
+                .toList();
+    }
+
 }

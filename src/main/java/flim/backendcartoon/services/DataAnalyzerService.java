@@ -8,8 +8,11 @@ package flim.backendcartoon.services;
 
 
 import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
+import flim.backendcartoon.entities.DTO.response.RecentTransactionResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
+
+import java.util.List;
 
 /*
  * @description
@@ -23,6 +26,7 @@ public interface DataAnalyzerService {
     RevenueChartResponse getRevenueByYear(int from, int to);
     RevenueSummaryResponse getSummary(int year, int month);
     QuickStatsResponse getQuickStats();
+    List<RecentTransactionResponse> getRecentTransactions(int limit);
 }
 
     

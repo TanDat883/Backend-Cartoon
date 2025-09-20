@@ -14,12 +14,15 @@ package flim.backendcartoon.services.impl;
  */
 
 import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
+import flim.backendcartoon.entities.DTO.response.RecentTransactionResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
 import flim.backendcartoon.entities.Order;
 import flim.backendcartoon.entities.PaymentOrder;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.OrderRepository;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
+import flim.backendcartoon.repositories.UserReponsitory;
 import flim.backendcartoon.services.DataAnalyzerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,11 +41,14 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
     private final PaymentOrderRepository paymentOrderRepository;
     private final OrderRepository orderRepository;
+    private final UserReponsitory userRepository;
 
     @Autowired
-    public DataAnalyzerServiceImpl(PaymentOrderRepository paymentOrderRepository, OrderRepository orderRepository) {
+    public DataAnalyzerServiceImpl(PaymentOrderRepository paymentOrderRepository, OrderRepository orderRepository
+            , UserReponsitory userRepository) {
         this.paymentOrderRepository = paymentOrderRepository;
         this.orderRepository = orderRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -185,6 +191,36 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                 .orElse("N/A");
 
         return new QuickStatsResponse(todayRevenue, weekRevenue, growthPercent, popularPackage);
+    }
+
+    @Override
+    public List<RecentTransactionResponse> getRecentTransactions(int limit) {
+        return paymentOrderRepository.findTop5ByOrderByCreatedAtDesc().stream()
+                .map(po -> {
+                    Order order = orderRepository.findByOrderId(po.getOrderId());
+                    String userName = "Ẩn danh";
+                    String packageId = "N/A";
+
+                    if (order != null) {
+                        packageId = order.getPackageId();
+
+                        User user = userRepository.findById(order.getUserId());
+                        if (user != null) {
+                            userName = user.getUserName();
+                        }
+                    }
+
+                    return new RecentTransactionResponse(
+                            po.getOrderId(),
+                            userName,
+                            packageId,
+                            po.getFinalAmount(),
+                            po.getCreatedAt(),
+                            po.getStatus()
+                    );
+                })
+                .limit(limit)
+                .toList();
     }
 
 }
