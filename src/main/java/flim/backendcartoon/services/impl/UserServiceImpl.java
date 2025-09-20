@@ -4,6 +4,7 @@ import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.UserReponsitory;
 import flim.backendcartoon.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -34,8 +35,20 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<User> findAllUsers() {
-        return userRepository.findAllUsers();
+    public Page<User> findAllUsers(int page, int size, String keyword) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        List<User> users;
+        long total;
+
+        if (keyword != null && !keyword.isEmpty()) {
+            users = userRepository.findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(keyword, pageable);
+            total = userRepository.countByKeyword(keyword);
+        } else {
+            users = userRepository.findAllUsers(pageable);
+            total = userRepository.countAllUsers();
+        }
+
+        return new PageImpl<>(users, pageable, total);
     }
 
     @Override

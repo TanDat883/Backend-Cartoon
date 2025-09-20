@@ -5,6 +5,8 @@ import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.repositories.PaymentOrderRepository;
 import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -62,13 +64,20 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    @GetMapping("/all")
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.findAllUsers();
-        if (users.isEmpty()) {
-            return ResponseEntity.noContent().build(); // HTTP 204 nếu danh sách rỗng
-        }
-        return ResponseEntity.ok(users); // HTTP 200 và trả về danh sách người dùng
+    @GetMapping
+    public ResponseEntity<List<User>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Page<User> users = userService.findAllUsers(page, size, keyword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(users.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(users.getContent());
     }
 
 
