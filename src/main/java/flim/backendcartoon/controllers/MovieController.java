@@ -36,6 +36,9 @@ public class MovieController {
     private UserService userService;
     @Autowired
     private MovieRatingService movieRatingService;
+    @Autowired
+    private AuthorService authorService;
+
 
     @PostMapping(value = "/create", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadMovie(
@@ -111,6 +114,9 @@ public class MovieController {
 
 
             movieService.saveMovie(movie);
+            // Đồng bộ 2 chiều ngay lúc tạo:
+            authorService.setAuthorsForMovie(movie.getMovieId(), movie.getAuthorIds());
+
 
             return ResponseEntity.ok(movie);
         } catch (Exception e) {
@@ -266,7 +272,9 @@ public class MovieController {
             }
 
             movieService.updateMovie(m);
+            authorService.setAuthorsForMovie(m.getMovieId(), m.getAuthorIds());
             return ResponseEntity.ok(m);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Failed to update movie: " + e.getMessage());

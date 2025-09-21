@@ -2,7 +2,6 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.Author;
 import flim.backendcartoon.entities.AuthorRole;
-import flim.backendcartoon.exception.AuthorException;
 import flim.backendcartoon.services.AuthorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,14 +18,14 @@ public class AuthorController {
 
 
     @PostMapping("/create")
-    public ResponseEntity<String> createAuthor(@RequestBody Author author) {
+    public ResponseEntity<Author> createAuthor(@RequestBody Author author) {
         try {
             authorService.saveAuthor(author);
-            return ResponseEntity.ok("Author created with ID: " + author.getAuthorId());
+            return ResponseEntity.ok(author);
         } catch (IllegalStateException dup) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Duplicate author");
+            return ResponseEntity.ok(author); // vẫn trả về Author hiện có
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
     @GetMapping("/all")

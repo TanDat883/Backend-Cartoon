@@ -9,6 +9,10 @@ import java.util.List;
 public interface AuthorService {
     void saveAuthor(Author author);
 
+    //đồng bộ lưu phim thì sẽ lưu luôn authors
+    void setAuthorsForMovie(String movieId, List<String> authorIds);
+
+
     List<Author> findAllAuthors();
 
     void addMovieToAuthor(List<String> authorIds, String movieId);

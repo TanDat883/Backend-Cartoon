@@ -17,19 +17,22 @@ public class MovieServiceImpl implements MovieService {
     private final EpisodeService episodeService;
     private final S3Service s3Service;
     private final VipSubscriptionService vipSubscriptionService;
+    private final AuthorService authorService;
 
     public MovieServiceImpl(
             MovieRepository movieRepository,
             SeasonService seasonService,
             EpisodeService episodeService,
             S3Service s3Service,
-            VipSubscriptionService vipSubscriptionService) {
+            VipSubscriptionService vipSubscriptionService,
+            AuthorService authorService) {
 
         this.movieRepository = movieRepository;
         this.seasonService = seasonService;
         this.episodeService = episodeService;
         this.s3Service = s3Service;
         this.vipSubscriptionService = vipSubscriptionService;
+        this.authorService = authorService;
 
     }
 
@@ -199,6 +202,9 @@ public class MovieServiceImpl implements MovieService {
             }
             seasonService.delete(movieId, s.getSeasonNumber());
         }
+
+        // Gỡ movieId khỏi tất cả Author đang tham chiếu đến phim này
+        try { authorService.setAuthorsForMovie(movieId, List.of()); } catch (Exception ignore) {}
 
         // (tuỳ chọn) Xoá các dữ liệu “phụ” khác: rating/feedback/wishlist/quan hệ tác giả...
 

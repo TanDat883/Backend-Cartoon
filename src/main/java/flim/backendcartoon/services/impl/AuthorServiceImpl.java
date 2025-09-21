@@ -5,6 +5,7 @@ import flim.backendcartoon.entities.AuthorRole;
 import flim.backendcartoon.exception.AuthorException;
 import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.AuthorRepository;
+import flim.backendcartoon.repositories.MovieRepository;
 import flim.backendcartoon.services.AuthorService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,10 +17,12 @@ import java.util.stream.Collectors;
 @Service
 public class AuthorServiceImpl implements AuthorService {
     private final AuthorRepository authorRepository;
+    private final MovieRepository movieRepository;
 
     @Autowired
-    public AuthorServiceImpl(AuthorRepository authorRepository) {
+    public AuthorServiceImpl(AuthorRepository authorRepository, MovieRepository movieRepository) {
         this.authorRepository = authorRepository;
+        this.movieRepository = movieRepository;
     }
 
     //check trùng
@@ -110,7 +113,20 @@ public class AuthorServiceImpl implements AuthorService {
     }
 
     @Override
-    public void deleteAuthor(String authorId) { authorRepository.deleteById(authorId); }
+    public void deleteAuthor(String authorId) {
+        Author a = authorRepository.findById(authorId);
+        if (a != null && a.getMovieId() != null) {
+            var movies = movieRepository.findAllMovies();
+            for (var m : movies) {
+                var ids = m.getAuthorIds();
+                if (ids != null && ids.remove(authorId)) {
+                    m.setAuthorIds(ids);
+                    movieRepository.update(m);
+                }
+            }
+        }
+        authorRepository.deleteById(authorId);
+    }
 
     @Override
     public void deleteAuthors(List<String> ids) {
@@ -121,6 +137,30 @@ public class AuthorServiceImpl implements AuthorService {
     @Override
     public Author findByNameAndRole(String name, AuthorRole role) {
         return findDuplicate(name, role);
+    }
+
+
+    @Override
+    public void setAuthorsForMovie(String movieId, List<String> authorIds) {
+        var all = authorRepository.findAll();
+        var want = new java.util.HashSet<>(authorIds == null ? List.<String>of() : authorIds);
+
+        for (Author a : all) {
+            var list = a.getMovieId();
+            if (list == null) list = new java.util.ArrayList<>();
+            boolean has = list.contains(movieId);
+            boolean should = want.contains(a.getAuthorId());
+
+            if (should && !has) {
+                list.add(movieId);
+                a.setMovieId(list);
+                authorRepository.save(a);
+            } else if (!should && has) {
+                list.remove(movieId);
+                a.setMovieId(list);
+                authorRepository.save(a);
+            }
+        }
     }
 
 }

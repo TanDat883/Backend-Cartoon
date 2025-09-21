@@ -11,6 +11,7 @@ import flim.backendcartoon.services.EpisodeService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class EpisodeServiceImpl implements EpisodeService {
@@ -30,11 +31,29 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     public void saveEpisode(Episode episode) {
+        if (episode.getEpisodeNumber() == null || episode.getEpisodeNumber() < 1)
+            throw new RuntimeException("episodeNumber must be >= 1");
+
         Season season = seasonRepository.findBySeasonId(episode.getSeasonId());
+        if (season == null) throw new RuntimeException("Season not found");
+
         Movie movie = movieRepository.findById(episode.getMovieId());
-        if(movie.getMovieType() == MovieType.SINGLE && episode.getEpisodeNumber()!=1){
-            throw new RuntimeException("Single movie chỉ cho phép seasonNumber = 1");
+        if (movie == null) throw new RuntimeException("Movie not found");
+
+        // Season phải thuộc đúng movie
+        if (!Objects.equals(season.getMovieId(), episode.getMovieId()))
+            throw new RuntimeException("Season không thuộc movieId đã truyền");
+
+        // Single movie chỉ cho phép Season 1 & Episode 1
+        if (movie.getMovieType() == MovieType.SINGLE) {
+            if (season.getSeasonNumber() != 1) throw new RuntimeException("Single movie chỉ cho phép Season 1");
+            if (episode.getEpisodeNumber() != 1) throw new RuntimeException("Single movie chỉ có Episode 1");
         }
+
+        // chặn trùng tập
+        if (episodeRepository.exists(episode.getSeasonId(), episode.getEpisodeNumber()))
+            throw new RuntimeException("Episode đã tồn tại trong season");
+
         episodeRepository.save(episode);
     }
 

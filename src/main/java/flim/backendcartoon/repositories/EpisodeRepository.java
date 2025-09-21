@@ -1,6 +1,7 @@
 package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.Episode;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -19,7 +20,7 @@ public class EpisodeRepository {
     private final DynamoDbTable<Episode> table;
     private final DynamoDbEnhancedClient client;
 
-    public EpisodeRepository(DynamoDbEnhancedClient client) {
+    public EpisodeRepository(DynamoDbEnhancedClient client, JwtDecoder jwtDecoderByJwkKeySetUri) {
         this.table = client.table("Episode", TableSchema.fromBean(Episode.class));
         this.client = client;
     }
@@ -30,12 +31,19 @@ public class EpisodeRepository {
 
     public List<Episode> findBySeasonId(String seasonId) {
         List<Episode> out = new ArrayList<>();
-        table.scan().items().forEach(ep -> {
-            if (seasonId.equals(ep.getSeasonId())) out.add(ep);
-        });
-        // sắp xếp theo episodeNumber tăng dần
-        out.sort(Comparator.comparing(Episode::getEpisodeNumber));
+        Key key = Key.builder().partitionValue(seasonId).build();
+        table.query(r->r.queryConditional(QueryConditional.keyEqualTo(key))
+                .scanIndexForward(true))  // true: tăng dần theo episodeNumber
+                .items().forEach(out::add);
         return out;
+    }
+    //chặn trùng
+    public boolean exists ( String seasonId, int episodeNumber ) {
+       Key key = Key.builder()
+               .partitionValue(seasonId)
+               .sortValue(episodeNumber)
+               .build();
+       return  table.getItem(r -> r.key(key)) != null;
     }
 
     public int countBySeasonId(String seasonId) {
