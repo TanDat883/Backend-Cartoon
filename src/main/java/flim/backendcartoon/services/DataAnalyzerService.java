@@ -7,16 +7,16 @@
 package flim.backendcartoon.services;
 
 
-<<<<<<< HEAD
+
 import flim.backendcartoon.entities.DTO.response.*;
 
 import java.util.List;
-=======
+
 import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
 import flim.backendcartoon.entities.DTO.response.RecentTransactionResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
->>>>>>> origin/dat
+
 
 import java.util.List;
 
