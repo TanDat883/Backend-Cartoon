@@ -54,7 +54,7 @@ public class DataAnalyzerController {
     }
 
     // Doanh thu theo 12 tháng trong 1 năm
-    @GetMapping("/month")
+    @GetMapping("/revenue/month")
     public RevenueChartResponse getRevenueByMonth(@RequestParam int year) {
         return revenueService.getRevenueByMonth(year);
     }
@@ -71,6 +71,11 @@ public class DataAnalyzerController {
     @GetMapping("/revenue/quick-stats")
     public ResponseEntity<?> getQuickStats() {
         return ResponseEntity.ok(revenueService.getQuickStats());
+    }
+    //giao dịch gần đây
+    @GetMapping("/revenue/recent-transactions")
+    public ResponseEntity<?> getRecentTransaction() {
+        return ResponseEntity.ok(revenueService.getRecentTransactions(5));
     }
 
 
@@ -144,3 +149,6 @@ public class DataAnalyzerController {
         return ResponseEntity.ok(revenueService.getTopMoviesByRating(limit, minRatings));
     }
 }
+
+
+

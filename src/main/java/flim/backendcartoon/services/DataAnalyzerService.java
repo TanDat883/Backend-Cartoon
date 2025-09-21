@@ -7,7 +7,16 @@
 package flim.backendcartoon.services;
 
 
+<<<<<<< HEAD
 import flim.backendcartoon.entities.DTO.response.*;
+
+import java.util.List;
+=======
+import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
+import flim.backendcartoon.entities.DTO.response.RecentTransactionResponse;
+import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
+import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
+>>>>>>> origin/dat
 
 import java.util.List;
 
@@ -23,7 +32,7 @@ public interface DataAnalyzerService {
     RevenueChartResponse getRevenueByYear(int from, int to);
     RevenueSummaryResponse getSummary(int year, int month);
     QuickStatsResponse getQuickStats();
-
+    List<RecentTransactionResponse> getRecentTransactions(int limit);
 
     // ======= THỐNG KÊ PHIM =======
     MovieStatsSummaryResponse getMovieSummary(int year, int month);
@@ -37,6 +46,7 @@ public interface DataAnalyzerService {
     CountChartResponse getEpisodesPerSeason(String movieId);
     List<TopMovieDTOResponse> getTopMoviesByViews(int limit);
     List<TopMovieDTOResponse> getTopMoviesByRating(int limit, int minRatings);
+
 }
 
     

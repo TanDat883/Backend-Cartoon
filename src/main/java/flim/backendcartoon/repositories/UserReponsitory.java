@@ -2,6 +2,7 @@ package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -37,12 +38,6 @@ public class UserReponsitory {
                 .orElse(null);
     }
 
-    //Find id userr để chat message
-    public User findById_ttt(String id) {
-        Key key = Key.builder().partitionValue(id).build();
-        return table.getItem(key); // Sử dụng getItem thay vì query
-    }
-
     public User findByPhoneNumber(String phoneNumber) {
         return table.scan().items().stream()
                 .filter(user -> user.getPhoneNumber().equals(phoneNumber))
@@ -50,8 +45,35 @@ public class UserReponsitory {
                 .orElse(null);
     }
 
-    public List<User> findAllUsers() {
-        return table.scan().items().stream().collect(Collectors.toList());
+    public List<User> findAllUsers(Pageable pageable) {
+        return table.scan().items().stream()
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public List<User> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(String keyword, Pageable pageable) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(user -> (user.getUserName() != null && user.getUserName().toLowerCase().contains(lowerKeyword)) ||
+                        (user.getEmail() != null && user.getEmail().toLowerCase().contains(lowerKeyword)) ||
+                        (user.getPhoneNumber() != null && user.getPhoneNumber().toLowerCase().contains(lowerKeyword)))
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public long countAllUsers() {
+        return table.scan().items().stream().count();
+    }
+
+    public long countByKeyword(String keyword) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(user -> (user.getUserName() != null && user.getUserName().toLowerCase().contains(lowerKeyword)) ||
+                        (user.getEmail() != null && user.getEmail().toLowerCase().contains(lowerKeyword)) ||
+                        (user.getPhoneNumber() != null && user.getPhoneNumber().toLowerCase().contains(lowerKeyword)))
+                .count();
     }
 
 }
