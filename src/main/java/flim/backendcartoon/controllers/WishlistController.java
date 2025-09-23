@@ -55,4 +55,9 @@ public class WishlistController {
     public ResponseEntity<List<WishlistResponse>> getWishlistByUserId(@PathVariable String userId) {
         return ResponseEntity.ok(wishlistService.getWishlistByUserId(userId));
     }
+
+    @GetMapping("/top")
+    public ResponseEntity<List<WishlistResponse>> topFavorites(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(wishlistService.getTopFavorites(limit));
+    }
 }

@@ -145,7 +145,7 @@ public class DataAnalyzerController {
     @GetMapping("/movies/top/rating")
     public ResponseEntity<?> getTopByRating(
             @RequestParam(defaultValue = "10") int limit,
-            @RequestParam(defaultValue = "5") int minRatings) {
+            @RequestParam(defaultValue = "1") int minRatings) {
         return ResponseEntity.ok(revenueService.getTopMoviesByRating(limit, minRatings));
     }
 }

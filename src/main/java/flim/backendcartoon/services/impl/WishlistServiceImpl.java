@@ -99,4 +99,29 @@ public class WishlistServiceImpl implements WishlistService {
         return wishlistRepository.exists(userId, movieId);
     }
 
+    @Override
+    public List<WishlistResponse> getTopFavorites(int limit) {
+        // quét toàn bộ Wishlist (bảng {userId, movieId})
+        var all = wishlistRepository.findAll(); // cần thêm hàm này ở repo
+        var counts = all.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Wishlist::getMovieId,
+                        java.util.stream.Collectors.counting()
+                ));
+
+        return counts.entrySet().stream()
+                .sorted((a,b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(Math.max(1, limit))
+                .map(e -> {
+                    Movie m = movieService.findMovieById(e.getKey());
+                    return new WishlistResponse(
+                            null,                     // userId không cần cho bảng xếp hạng
+                            e.getKey(),               // movieId
+                            m != null ? m.getTitle() : "(Unknown)",
+                            m != null ? m.getThumbnailUrl() : null
+                    );
+                })
+                .toList();
+    }
+
 }

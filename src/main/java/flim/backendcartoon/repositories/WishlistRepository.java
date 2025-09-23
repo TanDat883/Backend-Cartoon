@@ -58,4 +58,8 @@ public class WishlistRepository {
             delete(wishlist);
         }
     }
+
+    public List<Wishlist> findAll() {
+        return table.scan().items().stream().toList();
+    }
 }

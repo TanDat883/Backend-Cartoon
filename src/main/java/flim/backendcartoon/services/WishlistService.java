@@ -24,6 +24,7 @@ public interface WishlistService {
     void removeFromWishlist(String userId, String movieId);
     List<WishlistResponse> getWishlistByUserId(String userId);
     boolean isMovieInWishlist(String userId, String movieId);
+    List<WishlistResponse> getTopFavorites (int limit);
 }
 
     
