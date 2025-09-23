@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
+import static flim.backendcartoon.utils.MovieValidationUtils.*;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -70,6 +70,43 @@ public class MovieController {
             if (role == null || !role.equals("ADMIN")) {
                 return ResponseEntity.status(403).body("Chỉ admin mới có quyền upload video");
             }
+
+            // Title
+            if (isBlank(title)) return bad("Tiêu đề không được trống");
+            if (!validTitle(title)) return bad("Tiêu đề chỉ được chứa chữ, số và khoảng trắng; tối đa 200 ký tự");
+
+            // Release year
+            if (releaseYear != null && (releaseYear < 1900 || releaseYear > 2100))
+                return bad("Năm phát hành phải trong khoảng 1900–2100");
+
+            // Duration
+            if (!validDuration(duration))
+                return bad("Thời lượng phải dạng '120p' hoặc '120 phút'");
+
+            // Enums
+            try { MovieType.valueOf(movieType); } catch (Exception e) { return bad("movieType không hợp lệ (SINGLE|SERIES)"); }
+            try { PackageType.valueOf(minVipLevel); } catch (Exception e) { return bad("minVipLevel không hợp lệ"); }
+            if (!isBlank(status)) { try { MovieStatus.valueOf(status); } catch (Exception e) { return bad("status không hợp lệ"); } }
+
+            // Trailer chỉ 1 nguồn
+            if (!isBlank(trailerUrl) && trailerVideo != null && !trailerVideo.isEmpty())
+                return bad("Chỉ gửi một trong trailerUrl hoặc trailerVideo");
+
+            // Files
+            if (thumbnail != null && !thumbnail.isEmpty() && !isImage(thumbnail.getContentType()))
+                return bad("Thumbnail phải là ảnh (image/*)");
+            if (banner != null && !banner.isEmpty() && !isImage(banner.getContentType()))
+                return bad("Banner phải là ảnh (image/*)");
+            if (trailerVideo != null && !trailerVideo.isEmpty() && !isVideo(trailerVideo.getContentType()))
+                return bad("Trailer phải là video (video/*)");
+
+            // Original title (nếu có) – áp cùng quy tắc
+            if (!isBlank(originalTitle) && !validTitle(originalTitle))
+                return bad("Original title chỉ được chứa chữ, số và khoảng trắng");
+
+            // genres/authorIds không rỗng phần tử
+            if (arrayHasBlank(genres)) return bad("Genres chứa phần tử rỗng");
+            if (arrayHasBlank(authorIds)) return bad("authorIds chứa phần tử rỗng");
 
             String thumbnailUrl = null;
             if (thumbnail != null && !thumbnail.isEmpty()) {
