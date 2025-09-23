@@ -131,7 +131,7 @@ public class AuthorServiceImpl implements AuthorService {
     @Override
     public void deleteAuthors(List<String> ids) {
         if (ids == null) return;
-        for (String id : ids) authorRepository.deleteById(id);
+        for (String id : ids)  deleteAuthor(id);
     }
 
     @Override
