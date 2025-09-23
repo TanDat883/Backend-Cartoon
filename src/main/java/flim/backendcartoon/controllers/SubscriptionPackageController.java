@@ -49,9 +49,6 @@ public class SubscriptionPackageController {
     public ResponseEntity<?> getSubscriptionPackageById(@PathVariable String packageId) {
         try{
             SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(packageId);
-            if (subscriptionPackage == null) {
-                return ResponseEntity.status(404).body("Gói đăng ký không tồn tại");
-            }
             return ResponseEntity.ok(subscriptionPackage);
         }catch (Exception e) {
             return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());

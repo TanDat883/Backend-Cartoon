@@ -27,6 +27,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,  "/reports/playback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/reports/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/reports/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/export/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/data-analyzer/revenue/**").authenticated()
 
                         .requestMatchers("/payment/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/feedback/**").authenticated()
