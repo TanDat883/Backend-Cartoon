@@ -17,6 +17,7 @@ import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionType;
 import flim.backendcartoon.exception.BaseException;
+import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionService;
@@ -62,7 +63,7 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public Promotion getPromotionById(String promotionId) {
         return promotionRepository.findById(promotionId)
-                .orElseThrow(() -> new BaseException("Promotion with id " + promotionId + " not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion with id " + promotionId + " not found"));
     }
 
     @Override

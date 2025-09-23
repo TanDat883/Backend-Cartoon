@@ -121,9 +121,6 @@ public class UserController {
     @GetMapping("/{userId}/subscription-packages")
     public ResponseEntity<?> getUserSubscriptionPackages(@PathVariable String userId) {
         List<VipSubscription> packages = vipSubscriptionService.UserVipSubscriptions(userId);
-        if (packages.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Người dùng chưa mua gói đăng ký nào");
-        }
         return ResponseEntity.ok(packages);
     }
 }
