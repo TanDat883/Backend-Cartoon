@@ -6,16 +6,17 @@
 
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.DTO.request.PriceView;
+import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.services.PricingService;
 import flim.backendcartoon.services.SubscriptionPackageService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.ILoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,6 +31,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
+    private final PricingService pricingService;
 
     @GetMapping("/all")
     public ResponseEntity<List<SubscriptionPackageResponse>> getAllSubscriptionPackages() {
@@ -53,6 +55,22 @@ public class SubscriptionPackageController {
         }catch (Exception e) {
             return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
         }
+    }
+
+    @PostMapping
+    public ResponseEntity<String> createSubscriptionPackage(@Valid @RequestBody SubscriptionPackageRequest request) {
+        try {
+            subscriptionPackageService.saveSubscriptionPackage(request);
+            return ResponseEntity.ok("Tạo gói đăng ký thành công");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{packageId}/price")
+    public PriceView getPriceForPackage(@PathVariable String packageId) {
+        return pricingService.getPriceForPackage(packageId);
     }
 
 }

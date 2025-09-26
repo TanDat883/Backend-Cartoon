@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
@@ -37,8 +38,8 @@ public class SubscriptionPackageRepository {
         table.putItem(subscriptionPackage);
     }
 
-    public SubscriptionPackage findById(String packageId) {
-        return table.getItem(r -> r.key(k -> k.partitionValue(packageId)));
+    public SubscriptionPackage get(String packageId) {
+        return table.getItem(Key.builder().partitionValue(packageId).build());
     }
 
     public List<SubscriptionPackage> findAll() {
