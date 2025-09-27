@@ -22,11 +22,9 @@ import java.time.LocalDate;
 
 @Data
 public class CreatePriceListRequest {
-    @NotBlank
-    private String priceListId;
+
     @NotBlank
     private String name;
-    private String description;
 
     @NotNull
     @JsonFormat(pattern = "yyyy-MM-dd")
@@ -36,7 +34,4 @@ public class CreatePriceListRequest {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate endDate;
 
-    /** ACTIVE | INACTIVE | FUTURE */
-    @NotBlank
-    private String status;
 }

@@ -16,6 +16,7 @@ package flim.backendcartoon.entities;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 import java.util.List;
 
@@ -55,6 +56,7 @@ public class SubscriptionPackage {
         this.imageUrl = imageUrl;
     }
 
+    @DynamoDbSecondaryPartitionKey(indexNames = "gsi_currentPriceList")
     @DynamoDbAttribute("currentPriceListId")
     public String getCurrentPriceListId() {
         return currentPriceListId;

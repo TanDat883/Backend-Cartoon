@@ -73,4 +73,25 @@ public class SubscriptionPackageController {
         return pricingService.getPriceForPackage(packageId);
     }
 
+    @PutMapping("/{packageId}")
+    public ResponseEntity<String> updateSubscriptionPackage(@PathVariable String packageId,
+                                                            @Valid @RequestBody SubscriptionPackageRequest request) {
+        try {
+            subscriptionPackageService.updateSubscriptionPackage(packageId, request);
+            return ResponseEntity.ok("Cập nhật gói đăng ký thành công");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
+    @DeleteMapping("/{packageId}")
+    public ResponseEntity<String> deleteSubscriptionPackage(@PathVariable String packageId) {
+        try {
+            subscriptionPackageService.deleteSubscriptionPackage(packageId);
+            return ResponseEntity.ok("Xóa gói đăng ký thành công");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
 }

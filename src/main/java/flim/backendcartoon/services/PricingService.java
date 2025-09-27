@@ -13,6 +13,9 @@ import flim.backendcartoon.entities.DTO.request.PriceView;
 import flim.backendcartoon.entities.PriceItem;
 import flim.backendcartoon.entities.PriceList;
 
+import java.time.LocalDate;
+import java.util.List;
+
 /*
  * @description
  * @author: Tran Tan Dat
@@ -21,11 +24,16 @@ import flim.backendcartoon.entities.PriceList;
  */
 public interface PricingService {
     PriceView getPriceForPackage(String packageId);
+    List<PriceList> getAllPriceLists();
     void createPriceList(CreatePriceListRequest priceListRequest);
+    List<PriceList> getPriceListsByStatusAndStartDate(String status, LocalDate startDate);
+    int expireOutdatedPriceLists();
     PriceList getPriceListById(String priceListId);
     void createPriceItem(PriceItem priceItem);
     void addPrice(AddPriceRequest addPriceRequest);
     int activatePriceList(String priceListId);
+    List<PriceItem> getPriceItemsByPriceListId(String priceListId);
+    void updateEffectiveEndOfCurrentPriceItem(String priceListId, String packageId, LocalDate newEndDate);
 }
 
     

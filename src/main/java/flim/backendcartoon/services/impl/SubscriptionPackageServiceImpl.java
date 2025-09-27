@@ -68,97 +68,6 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                 .orElse(null);
     }
 
-//    @Override
-//    public List<SubscriptionPackageResponse> findAllSubscriptionPackages() {
-//        List<SubscriptionPackage> packages = subscriptionPackageRepository.findAll();
-//
-//        return packages.stream()
-//                .map(pkg -> {
-//                    List<String> ids = normalizeIdsFromString(pkg.getPackageId());
-//
-//                    // lấy toàn bộ promotions áp dụng cho package này
-//                    List<PromotionPackage> promos =
-//                            Optional.ofNullable(promotionPackageRepository.findPromotionsByPackageId(ids))
-//                                    .orElse(List.of());
-//
-//                    // chọn promo hợp lệ có % giảm lớn nhất
-//                    PromotionPackage best = pickBestPromotion(promos);
-//
-//                    double base = defaultDouble(pkg.getAmount());
-//                    int percent = (best == null || best.getDiscountPercent() == null) ? 0 : best.getDiscountPercent();
-//                    double effective = calcPrice(base, percent);
-//
-//                    SubscriptionPackageResponse dto = new SubscriptionPackageResponse();
-//                    dto.setPackageId(pkg.getPackageId());
-//                    dto.setNamePackage(pkg.getNamePackage());
-//                    dto.setAmount(base);
-//                    dto.setDiscountedAmount(effective);               // giá sau giảm
-//                    dto.setApplicablePackageType(pkg.getApplicableVipLevel());
-//                    dto.setDurationInDays(pkg.getDurationInDays());
-//                    dto.setFeatures(pkg.getFeatures());
-//                    dto.setAppliedDiscountPercent(percent);           // % giảm áp dụng
-//                    if (best != null) dto.setAppliedPromotionId(best.getPromotionId());
-//                    return dto;
-//                })
-//                .toList();
-//    }
-
-    /** Chọn promotion hợp lệ có % giảm lớn nhất (theo ngày + status) */
-//    private PromotionPackage pickBestPromotion(List<PromotionPackage> promos) {
-//        if (promos == null || promos.isEmpty()) return null;
-//
-//        LocalDate today = LocalDate.now();
-//
-//        return promos.stream()
-//                .filter(Objects::nonNull)
-//                .filter(p -> p.getDiscountPercent() != null && p.getDiscountPercent() > 0)
-//                .filter(p -> {
-//                    // Join sang PROMO cha để kiểm tra hiệu lực
-//                    Promotion promoParent = promotionRepository.findById(p.getPromotionId()).orElse(null);
-//                    if (promoParent == null) return false;
-//
-//                    boolean active = "ACTIVE".equalsIgnoreCase(promoParent.getStatus());
-//                    boolean startOk = promoParent.getStartDate() == null || !today.isBefore(promoParent.getStartDate());
-//                    boolean endOk   = promoParent.getEndDate() == null   || !today.isAfter(promoParent.getEndDate());
-//                    return active && startOk && endOk;
-//                })
-//                .max(Comparator.comparingInt(PromotionPackage::getDiscountPercent))
-//                .orElse(null);
-//    }
-//
-//
-//    /** Giá sau giảm theo % */
-//    private double calcPrice(double base, int percent) {
-//        if (base <= 0) return base;
-//        if (percent <= 0) return base;
-//        if (percent >= 100) return 0.0;
-//        return base * (100 - percent) / 100.0;
-//    }
-//
-//    private double defaultDouble(Double v) {
-//        return v == null ? 0.0 : v;
-//    }
-//
-//    public static List<String> normalizeIdsFromString(String raw) {
-//        if (raw == null || raw.isBlank()) return List.of();
-//        String s = raw.trim();
-//
-//        // Nếu có prefix "PACKAGE#["..."]"
-//        if (s.startsWith("PACKAGE#[")) {
-//            s = s.substring("PACKAGE#".length()); // còn "[a, b]"
-//        }
-//        // Bỏ ngoặc vuông nếu có
-//        if (s.startsWith("[") && s.endsWith("]")) {
-//            s = s.substring(1, s.length() - 1);
-//        }
-//
-//        return Arrays.stream(s.split(","))
-//                .map(String::trim)
-//                .map(x -> x.startsWith("PACKAGE#") ? x.substring("PACKAGE#".length()) : x)
-//                .filter(str -> !str.isEmpty())
-//                .toList();
-//    }
-
     @Override
     public List<SubscriptionPackageResponse> findAllSubscriptionPackages() {
         List<SubscriptionPackage> packages = subscriptionPackageRepository.findAll();
@@ -194,6 +103,28 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     return dto;
                 })
                 .toList();
+    }
+
+    @Override
+    public void deleteSubscriptionPackage(String packageId) {
+        subscriptionPackageRepository.delete(packageId);
+    }
+
+    @Override
+    public void updateSubscriptionPackage(String packageId, SubscriptionPackageRequest subscriptionPackage) {
+        SubscriptionPackage optionalPkg = subscriptionPackageRepository.get(packageId);
+        if (optionalPkg == null) {
+            throw new NoSuchElementException("SubscriptionPackage with ID " + packageId + " not found.");
+        }
+
+        SubscriptionPackage pkg = optionalPkg;
+        pkg.setPackageName(subscriptionPackage.getPackageName());
+        pkg.setImageUrl(subscriptionPackage.getImageUrl());
+        pkg.setApplicablePackageType(subscriptionPackage.getApplicablePackageType());
+        pkg.setDurationInDays(subscriptionPackage.getDurationInDays());
+        pkg.setFeatures(subscriptionPackage.getFeatures());
+
+        subscriptionPackageRepository.save(pkg);
     }
 
     /** NEW: lấy giá gốc từ PriceItem theo currentPriceListId + packageId */

@@ -15,6 +15,9 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
+
 /*
  * @description
  * @author: Tran Tan Dat
@@ -31,6 +34,12 @@ public class PricingController {
     }
 
     //================== Price List =================//
+    @GetMapping("/all-price-lists")
+    public ResponseEntity<List<PriceList>> getAllPriceLists() {
+            List<PriceList> priceList = pricingService.getAllPriceLists();
+            return ResponseEntity.ok(priceList);
+    }
+
     @PostMapping("/create-price-list")
     public ResponseEntity<String> createPriceList(@Valid @RequestBody CreatePriceListRequest priceList) {
         try {
@@ -87,6 +96,31 @@ public class PricingController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Error adding price item: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/price-items/{priceListId}")
+    public ResponseEntity<?> getPriceItemsByPriceListId(@PathVariable String priceListId) {
+        try {
+            List<PriceItem> items = pricingService.getPriceItemsByPriceListId(priceListId);
+            return ResponseEntity.ok(items);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error retrieving price items: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/update-effective-end-date")
+    public ResponseEntity<String> updateEffectiveEndOfCurrentPriceItem(
+            @RequestParam String priceListId,
+            @RequestParam String packageId,
+            @RequestParam LocalDate newEndDate) {
+        try {
+            pricingService.updateEffectiveEndOfCurrentPriceItem(priceListId, packageId, newEndDate);
+            return ResponseEntity.ok("Effective end date updated successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error updating effective end date: " + e.getMessage());
         }
     }
 }

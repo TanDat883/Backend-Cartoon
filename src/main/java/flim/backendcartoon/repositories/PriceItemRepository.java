@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -77,5 +79,50 @@ public class PriceItemRepository {
                 .stream()
                 .forEach(page -> page.items().forEach(it -> ids.add(it.getPackageId())));
         return ids;
+    }
+
+    public void updateEffectiveEnd(String priceListId, String packageId, LocalDate newEffectiveEnd) {
+        Key key = Key.builder()
+                .partitionValue(priceListId)
+                .sortValue(packageId)
+                .build();
+
+        PriceItem existingItem = table.getItem(r -> r.key(key));
+        if (existingItem != null) {
+            existingItem.setEffectiveEnd(newEffectiveEnd);
+            table.updateItem(existingItem);
+        } else {
+            throw new RuntimeException("PriceItem not found for priceListId: " + priceListId + " and packageId: " + packageId);
+        }
+    }
+
+    public List<String> findPackageIdsCoveringDate(String priceListId, LocalDate day) {
+        String dayStr = day.toString(); // "YYYY-MM-DD"
+
+        // KeyCondition: priceListId = :pl (trên bảng chính)
+        QueryConditional cond = QueryConditional.keyEqualTo(
+                Key.builder().partitionValue(priceListId).build()
+        );
+
+        // Filter: effectiveStart <= :today AND (effectiveEnd không có OR effectiveEnd >= :today)
+        var expr = Expression.builder()
+                .expression("effectiveStart <= :today AND (attribute_not_exists(effectiveEnd) OR effectiveEnd >= :today)")
+                .expressionValues(java.util.Map.of(
+                        ":today", AttributeValue.builder().s(dayStr).build()
+                ))
+                .build();
+
+        List<String> pkgIds = new ArrayList<>();
+        table.query((QueryEnhancedRequest.Builder r) -> r
+                        .queryConditional(cond)
+                        .filterExpression(expr)
+                )
+                .stream()
+                .forEach(page -> page.items().forEach(it -> {
+                    if (it.getPackageId() != null) pkgIds.add(it.getPackageId());
+                }));
+
+        // loại trùng nếu có
+        return pkgIds.stream().distinct().collect(Collectors.toList());
     }
 }

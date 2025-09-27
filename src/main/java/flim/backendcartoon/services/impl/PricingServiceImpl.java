@@ -25,9 +25,12 @@ import flim.backendcartoon.repositories.PriceListRepository;
 import flim.backendcartoon.repositories.SubscriptionPackageRepository;
 import flim.backendcartoon.services.PricingService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class PricingServiceImpl implements PricingService {
@@ -84,13 +87,21 @@ public class PricingServiceImpl implements PricingService {
     }
 
     @Override
+    public List<PriceList> getAllPriceLists() {
+        return priceListRepository.getAll();
+    }
+
+    @Override
     public void createPriceList(CreatePriceListRequest priceListRequest) {
         PriceList priceList = new PriceList();
-        priceList.setPriceListId(priceListRequest.getPriceListId());
+        String priceListId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String priceListStatus = "ACTIVE";
+        priceList.setPriceListId(priceListId);
         priceList.setName(priceListRequest.getName());
         priceList.setStartDate(priceListRequest.getStartDate());
         priceList.setEndDate(priceListRequest.getEndDate());
-        priceList.setStatus(priceListRequest.getStatus());
+        priceList.setStatus(priceListStatus);
+        priceList.setCreatedAt(LocalDate.now());
 
         // Kiểm tra tính hợp lệ của khoảng thời gian
         if (priceList.getEndDate().isBefore(priceList.getStartDate())) {
@@ -99,6 +110,41 @@ public class PricingServiceImpl implements PricingService {
 
         // Lưu bảng giá vào repository
         priceListRepository.save(priceList);
+    }
+
+    @Override
+    public List<PriceList> getPriceListsByStatusAndStartDate(String status, LocalDate startDate) {
+        return priceListRepository.findByStatusAndStartDate(status, startDate);
+    }
+
+    @Override
+    @Transactional
+    public int expireOutdatedPriceLists() {
+        // Dùng đúng timezone hệ thống của bạn
+        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDate today = LocalDate.now(zone);
+
+        // Chỉ lấy các list có endDate < today và chưa EXPIRED
+        List<PriceList> expired = priceListRepository.findByEndDateBeforeAndStatusNot(today, "EXPIRED");
+
+        int clearedPkgs = 0;
+
+        for (PriceList pl : expired) {
+            final String listId = pl.getPriceListId();
+
+            pl.setStatus("EXPIRED");
+            priceListRepository.save(pl);
+
+            List<SubscriptionPackage> pkgs = subscriptionPackageRepository.findByCurrentPriceListId(listId);
+            for (SubscriptionPackage sp : pkgs) {
+                if (listId.equals(sp.getCurrentPriceListId())) {
+                    sp.setCurrentPriceListId(null);
+                    subscriptionPackageRepository.save(sp);
+                    clearedPkgs++;
+                }
+            }
+        }
+        return clearedPkgs;
     }
 
     @Override
@@ -149,31 +195,78 @@ public class PricingServiceImpl implements PricingService {
     }
 
     @Override
+    @Transactional
     public int activatePriceList(String priceListId) {
         PriceList list = priceListRepository.get(priceListId);
         if (list == null) throw new IllegalArgumentException("PriceList not found: " + priceListId);
 
-        // (khuyến nghị) chỉ cho activate khi status = ACTIVE
         if (!"ACTIVE".equalsIgnoreCase(list.getStatus())) {
             throw new IllegalStateException("PriceList must be ACTIVE before activation: " + list.getStatus());
         }
 
-        // Lấy tất cả packageId có trong PriceItem của priceListId
-        List<String> packageIds = priceItemRepository.findPackageIdsByPriceListId(priceListId);
-        if (packageIds.isEmpty()) return 0;
+        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDate today = LocalDate.now(zone);
+
+        boolean listCoversToday =
+                !today.isBefore(list.getStartDate()) &&
+                        (list.getEndDate() == null || !today.isAfter(list.getEndDate()));
+        if (!listCoversToday) return 0;
+
+        List<String> pkgIdsCoveredToday =
+                priceItemRepository.findPackageIdsCoveringDate(priceListId, today);
+        if (pkgIdsCoveredToday.isEmpty()) return 0;
 
         int updated = 0;
-        for (String packageId : packageIds) {
-            SubscriptionPackage subscriptionPackage = subscriptionPackageRepository.get(packageId);
+        for (String packageId : pkgIdsCoveredToday) {
             if (packageId == null) continue;
 
+            SubscriptionPackage sp = subscriptionPackageRepository.get(packageId);
+            if (sp == null) continue;
+
             // Chỉ update khi khác để tránh ghi thừa
-            if (!priceListId.equals(subscriptionPackage.getCurrentPriceListId())) {
-                subscriptionPackage.setCurrentPriceListId(priceListId);
-                subscriptionPackageRepository.save(subscriptionPackage);
+            if (!priceListId.equals(sp.getCurrentPriceListId())) {
+                sp.setCurrentPriceListId(priceListId);
+                subscriptionPackageRepository.save(sp);
                 updated++;
             }
         }
         return updated;
+    }
+
+
+    @Override
+    public List<PriceItem> getPriceItemsByPriceListId(String priceListId) {
+        PriceList list = priceListRepository.get(priceListId);
+        if (list == null) throw new IllegalArgumentException("PriceList not found: " + priceListId);
+
+        // Lấy tất cả packageId có trong PriceItem của priceListId
+        List<String> packageIds = priceItemRepository.findPackageIdsByPriceListId(priceListId);
+        if (packageIds.isEmpty()) return List.of();
+
+        return packageIds.stream()
+                .map(pkgId -> priceItemRepository.get(priceListId, pkgId))
+                .toList();
+    }
+
+    @Override
+    public void updateEffectiveEndOfCurrentPriceItem(String priceListId, String packageId, LocalDate newEndDate) {
+        PriceList list = priceListRepository.get(priceListId);
+        if (list == null) throw new IllegalArgumentException("PriceList not found: " + priceListId);
+
+        SubscriptionPackage subscriptionPackage = subscriptionPackageRepository.get(packageId);
+        if (subscriptionPackage == null) {
+            throw new ResourceNotFoundException("Subscription package not found for ID: " + packageId);
+        }
+        String currentPriceListId = subscriptionPackage.getCurrentPriceListId();
+        if (currentPriceListId == null || currentPriceListId.isBlank()) {
+            throw new ResourceNotFoundException("currentPriceListId is not set for package " + packageId);
+        }
+        if (!currentPriceListId.equals(priceListId)) {
+            throw new IllegalStateException("The provided priceListId is not the current one for package " + packageId);
+        }
+        if (newEndDate.isBefore(list.getStartDate()) || newEndDate.isAfter(list.getEndDate())) {
+            throw new IllegalArgumentException("newEndDate must be within the range of the PriceList's start and end dates");
+        }
+        priceItemRepository.updateEffectiveEnd(priceListId, packageId, newEndDate);
     }
 }
