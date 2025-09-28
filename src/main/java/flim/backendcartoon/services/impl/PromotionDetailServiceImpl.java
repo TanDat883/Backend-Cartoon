@@ -1,5 +1,5 @@
 /*
- * @(#) $(NAME).java    1.0     8/27/2025
+ * @(#) $(NAME).java    1.0     9/28/2025
  *
  * Copyright (c) 2025 IUH. All rights reserved.
  */
@@ -10,53 +10,57 @@ package flim.backendcartoon.services.impl;
  * @description
  * @author: Tran Tan Dat
  * @version: 1.0
- * @created: 27-August-2025 9:52 PM
+ * @created: 28-September-2025 2:53 PM
  */
 
 import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
 import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
 import flim.backendcartoon.entities.DiscountType;
-import flim.backendcartoon.entities.PromotionVoucher;
+import flim.backendcartoon.entities.PromotionDetail;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.exception.ResourceNotFoundException;
-import flim.backendcartoon.repositories.PromotionVoucherRepository;
-import flim.backendcartoon.services.PromotionVoucherService;
+import flim.backendcartoon.repositories.PromotionDetailRepository;
+import flim.backendcartoon.repositories.PromotionRepository;
+import flim.backendcartoon.services.PromotionDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
-public class PromotionVoucherServiceImpl implements PromotionVoucherService {
-    private final PromotionVoucherRepository promotionVoucherRepository;
+public class PromotionDetailServiceImpl implements PromotionDetailService {
+    private final PromotionRepository promotionRepository;
+    private final PromotionDetailRepository promotionDetailRepository;
 
     @Autowired
-    public PromotionVoucherServiceImpl(PromotionVoucherRepository promotionVoucherRepository) {
-        this.promotionVoucherRepository = promotionVoucherRepository;
+    public PromotionDetailServiceImpl(PromotionRepository promotionRepository, PromotionDetailRepository promotionDetailRepository) {
+        this.promotionRepository = promotionRepository;
+        this.promotionDetailRepository = promotionDetailRepository;
     }
-
+    // ====== Prmotion Voucher ====== //
     @Override
     public void createPromotionVoucher(CreatePromotionVoucherRequest request) {
-        promotionVoucherRepository.get(request.getPromotionId(), request.getVoucherCode()).ifPresent(x -> {
+        promotionDetailRepository.getVoucher(request.getPromotionId(), request.getVoucherCode()).ifPresent(x -> {
             throw new BaseException("Voucher code already exists");
         });
-        PromotionVoucher promotionVoucher = PromotionVoucher.of(
+        PromotionDetail d = PromotionDetail.newVoucher(
                 request.getPromotionId(),
                 request.getVoucherCode(),
                 request.getDiscountType(),
                 request.getDiscountValue(),
+                request.getMinOrderAmount(),
                 request.getMaxUsage(),
                 request.getMaxUsagePerUser(),
-                request.getMaxDiscountAmount(),
-                request.getMinOrderAmount()
+                request.getMaxDiscountAmount()
         );
-        promotionVoucherRepository.save(promotionVoucher);
+        d.setStatus("ACTIVE");
+        promotionDetailRepository.save(d);
     }
 
     @Override
     public ApplyVoucherResponse applyVoucher(ApplyVoucherRequest request) {
-        PromotionVoucher promotionVoucher = promotionVoucherRepository.findByVoucherCode(request.getVoucherCode());
+        PromotionDetail promotionVoucher = promotionDetailRepository.findByVoucherCode(request.getVoucherCode());
         // Check if the voucher is applicable for the package price
 //        if (request.getPackagePrice() < promotionVoucher.getMinPackagePrice()) {
 //            throw new BaseException("Voucher is not applicable for the selected package");
@@ -89,8 +93,8 @@ public class PromotionVoucherServiceImpl implements PromotionVoucherService {
     }
 
     @Override
-    public PromotionVoucher findByVoucherCode(String voucherCode) {
-        PromotionVoucher promotionVoucher = promotionVoucherRepository.findByVoucherCode(voucherCode);
+    public PromotionDetail findByVoucherCode(String voucherCode) {
+        PromotionDetail promotionVoucher = promotionDetailRepository.findByVoucherCode(voucherCode);
         if (promotionVoucher == null) {
             throw new ResourceNotFoundException("Voucher không tồn tại hoặc đã hết hiệu lực");
         }
@@ -99,25 +103,25 @@ public class PromotionVoucherServiceImpl implements PromotionVoucherService {
 
     @Override
     public void confirmVoucherUsage(String promotionId, String voucherCode) {
-        boolean success = promotionVoucherRepository.incrementUsedCount(promotionId, voucherCode);
+        boolean success = promotionDetailRepository.incrementUsedCount(promotionId, voucherCode);
         if (!success) {
             throw new BaseException("Failed to confirm voucher usage. Voucher may not exist or has reached its maximum usage.");
         }
     }
 
     @Override
-    public List<PromotionVoucher> getAllPromotionVoucher(String promotionId) {
-        return promotionVoucherRepository.listByPromotion(promotionId);
+    public List<PromotionDetail> getAllPromotionVoucher(String promotionId) {
+        return promotionDetailRepository.listByPromotionVoucher(promotionId);
     }
 
     @Override
     public void deletePromotionVoucher(String promotionId, String voucherCode) {
-        promotionVoucherRepository.delete(promotionId, voucherCode);
+        promotionDetailRepository.deleteVoucher(promotionId, voucherCode);
     }
 
     @Override
     public void updatePromotionVoucher(String promotionId, String voucherCode, CreatePromotionVoucherRequest request) {
-        PromotionVoucher existingVoucher = promotionVoucherRepository.get(promotionId, voucherCode)
+        PromotionDetail existingVoucher = promotionDetailRepository.getVoucher(promotionId, voucherCode)
                 .orElseThrow(() -> new ResourceNotFoundException("Voucher not found"));
 
         existingVoucher.setDiscountType(request.getDiscountType());
@@ -127,6 +131,49 @@ public class PromotionVoucherServiceImpl implements PromotionVoucherService {
         existingVoucher.setMaxDiscountAmount(request.getMaxDiscountAmount());
         existingVoucher.setMinOrderAmount(request.getMinOrderAmount());
 
-        promotionVoucherRepository.save(existingVoucher);
+        promotionDetailRepository.save(existingVoucher);
+    }
+
+    // ====== Prmotion Package ====== //
+    @Override
+    public void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent) {
+        validatePercent(discountPercent);
+        promotionDetailRepository.getPackage(promotionId, packageId).ifPresent(x -> {
+            throw new BaseException("Promotion package already exists");
+        });
+        PromotionDetail promotionPackage = PromotionDetail.newPackage(promotionId, packageId, discountPercent);
+        promotionPackage.setStatus("ACTIVE");
+        promotionDetailRepository.save(promotionPackage);
+    }
+
+    @Override
+    public PromotionDetail getPromotionPackageById(String promotionId, List<String> packageId) {
+        return promotionDetailRepository.getPackage(promotionId, packageId)
+                .orElseThrow(() -> new IllegalArgumentException("Promotion package not found"));
+    }
+
+    @Override
+    public List<PromotionDetail> getAllPromotionPackages(String promotionId) {
+        return promotionDetailRepository.listByPromotionPackage(promotionId);
+    }
+
+    @Override
+    public boolean deletePromotionPackage(String promotionId, List<String> packageId) {
+        promotionDetailRepository.deletePackage(promotionId, packageId);
+        return true;
+    }
+
+    @Override
+    public void updatePercent(String promotionId, List<String> packageId, int newPercent) {
+        validatePercent(newPercent);
+        PromotionDetail promotionPackage = getPromotionPackageById(promotionId, packageId);
+        promotionPackage.setDiscountPercent(newPercent);
+        promotionDetailRepository.save(promotionPackage);
+    }
+
+    private void validatePercent(int percent) {
+        if (percent < 1 || percent > 100) {
+            throw new BaseException("discountPercent must be 1..100");
+        }
     }
 }

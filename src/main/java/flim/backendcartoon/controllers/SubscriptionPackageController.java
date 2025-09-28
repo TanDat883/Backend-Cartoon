@@ -33,6 +33,20 @@ public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
     private final PricingService pricingService;
 
+    @GetMapping
+    public ResponseEntity<List<SubscriptionPackage>> getAll() {
+        try {
+            List<SubscriptionPackage> subscriptionPackages = subscriptionPackageService.getAll();
+            if (subscriptionPackages.isEmpty()) {
+                return ResponseEntity.status(404).body(List.of());
+            }
+            return ResponseEntity.ok(subscriptionPackages);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(List.of());
+        }
+    }
+
     @GetMapping("/all")
     public ResponseEntity<List<SubscriptionPackageResponse>> getAllSubscriptionPackages() {
         try {

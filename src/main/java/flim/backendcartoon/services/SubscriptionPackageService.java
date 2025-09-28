@@ -23,6 +23,7 @@ public interface SubscriptionPackageService {
     void saveSubscriptionPackage(SubscriptionPackageRequest subscriptionPackage);
     SubscriptionPackageResponse findSubscriptionPackageById(String packageId);
     List<SubscriptionPackageResponse> findAllSubscriptionPackages();
+    List<SubscriptionPackage> getAll();
     void deleteSubscriptionPackage(String packageId);
     void updateSubscriptionPackage(String packageId, SubscriptionPackageRequest subscriptionPackage);
 }

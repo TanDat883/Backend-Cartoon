@@ -14,8 +14,6 @@ package flim.backendcartoon.repositories;
  */
 
 import flim.backendcartoon.entities.Promotion;
-import flim.backendcartoon.entities.PromotionPackage;
-import flim.backendcartoon.entities.PromotionVoucher;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -48,11 +46,11 @@ public class PromotionRepository {
         return promotionTable.scan().items().stream().collect(Collectors.toList());
     }
 
-    public List<Promotion> findByType(String type) {
-        return promotionTable.scan().items().stream()
-                .filter(it -> it.getPromotionType().toString().equals(type))
-                .collect(Collectors.toList());
-    }
+//    public List<Promotion> findByType(String type) {
+//        return promotionTable.scan().items().stream()
+//                .filter(it -> it.getPromotionType().toString().equals(type))
+//                .collect(Collectors.toList());
+//    }
 
     public boolean isPromotionActive(String promotionId) {
         Optional<Promotion> promotionOpt = findById(promotionId);

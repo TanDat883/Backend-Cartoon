@@ -40,7 +40,7 @@ public class PaymentController {
     private final UserService userService;
     private final OrderService orderService;
     private final VipSubscriptionService vipSubscriptionService;
-    private final PromotionVoucherService promotionVoucherService;
+    private final PromotionDetailService promotionVoucherService;
 
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody CreatePaymentRequest req) throws Exception {

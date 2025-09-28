@@ -16,10 +16,10 @@ package flim.backendcartoon.services.impl;
 import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.Promotion;
-import flim.backendcartoon.entities.PromotionPackage;
+import flim.backendcartoon.entities.PromotionDetail;
 import flim.backendcartoon.entities.SubscriptionPackage;
 import flim.backendcartoon.repositories.PriceItemRepository;
-import flim.backendcartoon.repositories.PromotionPackageRepository;
+import flim.backendcartoon.repositories.PromotionDetailRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.repositories.SubscriptionPackageRepository;
 import flim.backendcartoon.services.SubscriptionPackageService;
@@ -34,12 +34,12 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
 
     private final SubscriptionPackageRepository subscriptionPackageRepository;
     private final PriceItemRepository priceItemRepository;
-    private final PromotionPackageRepository promotionPackageRepository;
+    private final PromotionDetailRepository promotionPackageRepository;
     private final PromotionRepository promotionRepository;
 
     @Autowired
     public SubscriptionPackageServiceImpl(SubscriptionPackageRepository subscriptionPackageRepository,
-                                          PromotionPackageRepository promotionPackageRepository, PromotionRepository promotionRepository
+                                          PromotionDetailRepository promotionPackageRepository, PromotionRepository promotionRepository
                                           , PriceItemRepository priceItemRepository) {
         this.subscriptionPackageRepository = subscriptionPackageRepository;
         this.promotionPackageRepository = promotionPackageRepository;
@@ -79,10 +79,10 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
 
                     // --- ÁP KHUYẾN MÃI (giữ logic cũ) ---
                     List<String> ids = normalizeIdsFromString(pkg.getPackageId());
-                    List<PromotionPackage> promos =
+                    List<PromotionDetail> promos =
                             Optional.ofNullable(promotionPackageRepository.findPromotionsByPackageId(ids))
                                     .orElse(List.of());
-                    PromotionPackage best = pickBestPromotion(promos);
+                    PromotionDetail best = pickBestPromotion(promos);
 
                     int percent = (best == null || best.getDiscountPercent() == null) ? 0 : best.getDiscountPercent();
                     double effective = calcPrice(base, percent);
@@ -103,6 +103,11 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     return dto;
                 })
                 .toList();
+    }
+
+    @Override
+    public List<SubscriptionPackage> getAll() {
+        return subscriptionPackageRepository.findAll();
     }
 
     @Override
@@ -138,7 +143,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     }
 
     /** Chọn promotion hợp lệ có % giảm lớn nhất (theo ngày + status) */
-    private PromotionPackage pickBestPromotion(List<PromotionPackage> promos) {
+    private PromotionDetail pickBestPromotion(List<PromotionDetail> promos) {
         if (promos == null || promos.isEmpty()) return null;
 
         LocalDate today = LocalDate.now();
@@ -155,7 +160,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     boolean endOk   = promoParent.getEndDate() == null   || !today.isAfter(promoParent.getEndDate());
                     return active && startOk && endOk;
                 })
-                .max(Comparator.comparingInt(PromotionPackage::getDiscountPercent))
+                .max(Comparator.comparingInt(PromotionDetail::getDiscountPercent))
                 .orElse(null);
     }
 
