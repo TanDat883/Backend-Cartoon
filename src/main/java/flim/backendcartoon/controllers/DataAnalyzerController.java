@@ -6,10 +6,7 @@
 
 package flim.backendcartoon.controllers;
 
-import flim.backendcartoon.entities.DTO.response.CountChartResponse;
-import flim.backendcartoon.entities.DTO.response.MovieStatsSummaryResponse;
-import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
-import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
+import flim.backendcartoon.entities.DTO.response.*;
 import flim.backendcartoon.services.DataAnalyzerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,6 +73,37 @@ public class DataAnalyzerController {
     @GetMapping("/revenue/recent-transactions")
     public ResponseEntity<?> getRecentTransaction() {
         return ResponseEntity.ok(revenueService.getRecentTransactions(5));
+    }
+
+    // ===== Revenue (date range + groupBy) =====
+    @GetMapping("/revenue/range")
+    public RevenueChartResponse getRevenueByRange(
+            @RequestParam String startDate,   // yyyy-MM-dd
+            @RequestParam String endDate,     // yyyy-MM-dd
+            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy // DAY|WEEK|MONTH
+    ) {
+        return revenueService.getRevenueByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
+    }
+
+    @GetMapping("/revenue/range/summary")
+    public RevenueSummaryResponse getRevenueSummaryByRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate
+    ) {
+        return revenueService.getRevenueSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
+    }
+
+    // Recent transactions có phân trang + (optional) range filter
+    @GetMapping("/revenue/recent-transactions/paged")
+    public PagedResponse<RecentTransactionResponse> getRecentTransactions(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate
+    ) {
+        LocalDate s = (startDate == null || startDate.isBlank()) ? null : LocalDate.parse(startDate);
+        LocalDate e = (endDate == null || endDate.isBlank()) ? null : LocalDate.parse(endDate);
+        return revenueService.getRecentTransactionsPaged(page, size, s, e);
     }
 
 
@@ -147,6 +175,25 @@ public class DataAnalyzerController {
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "1") int minRatings) {
         return ResponseEntity.ok(revenueService.getTopMoviesByRating(limit, minRatings));
+    }
+
+
+    // ===== Movies (date range + groupBy) =====
+    @GetMapping("/movies/new/range")
+    public CountChartResponse getNewMoviesByRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy
+    ) {
+        return revenueService.getNewMoviesByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
+    }
+
+    @GetMapping("/movies/range/summary")
+    public MovieStatsSummaryResponse getMovieSummaryByRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate
+    ) {
+        return revenueService.getMovieSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
     }
 }
 

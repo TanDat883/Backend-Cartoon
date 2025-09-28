@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.WeekFields;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +44,7 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
     private final PaymentOrderRepository paymentOrderRepository;
     private final OrderRepository orderRepository;
     private final UserReponsitory userRepository;
+    private static final ZoneId Z = ZoneId.of("Asia/Bangkok");
 
     //thống kê cho phim...
     private final MovieRepository movieRepository;
@@ -478,6 +480,212 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                 m.getGenres()
         );
     }
+
+    // ====== Revenue (range) ======
+    @Override
+    public RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy) {
+        if (end.isBefore(start)) { var t = start; start = end; end = t; }
+
+        // Nếu range quá dài mà groupBy=DAY, ép lên WEEK để tránh label quá nhiều
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days > 366 && groupBy == GroupByDataAnalzerResponse.DAY) groupBy = GroupByDataAnalzerResponse.WEEK;
+
+        var orders = paymentOrderRepository.findAllPaid(); // TODO: tối ưu bằng query theo range ở repo
+        Map<String, Double> bucket = new LinkedHashMap<>();
+
+        switch (groupBy) {
+            case WEEK -> {
+                LocalDate ptr = start.with(DayOfWeek.MONDAY);
+                while (!ptr.isAfter(end)) {
+                    String key = "W" + ptr.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    bucket.put(key, 0.0);
+                    ptr = ptr.plusWeeks(1);
+                }
+                for (var o : orders) {
+                    LocalDate d = o.getCreatedAt(); // nếu là Instant -> convert về LocalDate theo Z
+                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+                    LocalDate monday = d.with(DayOfWeek.MONDAY);
+                    String k = "W" + monday.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
+                }
+            }
+            case MONTH -> {
+                YearMonth ym = YearMonth.from(start);
+                YearMonth ymEnd = YearMonth.from(end);
+                while (!ym.isAfter(ymEnd)) {
+                    String key = ym.getYear() + "-" + String.format("%02d", ym.getMonthValue());
+                    bucket.put(key, 0.0);
+                    ym = ym.plusMonths(1);
+                }
+                for (var o : orders) {
+                    LocalDate d = o.getCreatedAt();
+                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+                    YearMonth ymo = YearMonth.from(d);
+                    String k = ymo.getYear() + "-" + String.format("%02d", ymo.getMonthValue());
+                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
+                }
+            }
+            case DAY -> {
+                for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) bucket.put(d.toString(), 0.0);
+                for (var o : orders) {
+                    LocalDate d = o.getCreatedAt();
+                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+                    bucket.computeIfPresent(d.toString(), (kk, v) -> v + o.getFinalAmount());
+                }
+            }
+        }
+
+        var labels = new ArrayList<>(bucket.keySet());
+        var data = labels.stream().map(bucket::get).toList();
+        return new RevenueChartResponse(labels, data);
+    }
+
+    @Override
+    public RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end) {
+        final LocalDate s = start.isAfter(end) ? end : start;
+        final LocalDate e = start.isAfter(end) ? start : end;
+
+        var paid = paymentOrderRepository.findAllPaid();
+        double totalAll = paid.stream().mapToDouble(PaymentOrder::getFinalAmount).sum();
+        long txAll = paid.size();
+
+        double totalRange = paid.stream()
+                .filter(o -> {
+                    LocalDate d = o.getCreatedAt();
+                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                })
+                .mapToDouble(PaymentOrder::getFinalAmount)
+                .sum();
+
+        long txRange = paid.stream()
+                .filter(o -> {
+                    LocalDate d = o.getCreatedAt();
+                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                })
+                .count();
+
+        // Ánh xạ: monthlyRevenue = revenue trong range; monthlyTransactions = số GD trong range
+        return new RevenueSummaryResponse(totalAll, totalRange, txAll, txRange);
+    }
+
+    @Override
+    public PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end) {
+        if (page < 1) page = 1;
+        if (size < 1) size = 10;
+
+        var all = paymentOrderRepository.findAllPaid();
+
+        var filtered = all.stream()
+                .filter(po -> {
+                    if (start == null || end == null) return true;
+                    LocalDate d = po.getCreatedAt();
+                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                })
+                .sorted(Comparator.comparing(PaymentOrder::getCreatedAt).reversed())
+                .toList();
+
+        int from = Math.max(0, (page - 1) * size);
+        int to = Math.min(filtered.size(), from + size);
+        var slice = from >= filtered.size() ? List.<PaymentOrder>of() : filtered.subList(from, to);
+
+        var items = slice.stream().map(po -> {
+            Order order = orderRepository.findByOrderId(po.getOrderId());
+            String userName = "Ẩn danh";
+            String packageId = "N/A";
+            if (order != null) {
+                packageId = order.getPackageId();
+                User user = userRepository.findById(order.getUserId());
+                if (user != null) userName = user.getUserName();
+            }
+            return new RecentTransactionResponse(
+                    po.getOrderId(),
+                    userName,
+                    packageId,
+                    po.getFinalAmount(),
+                    po.getCreatedAt(),
+                    po.getStatus()
+            );
+        }).toList();
+
+        return new PagedResponse<>(page, size, filtered.size(), items);
+    }
+
+    // ====== Movies (range) ======
+    @Override
+    public CountChartResponse getNewMoviesByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy) {
+        if (end.isBefore(start)) { var t = start; start = end; end = t; }
+
+        long days = ChronoUnit.DAYS.between(start, end) + 1;
+        if (days > 366 && groupBy == GroupByDataAnalzerResponse.DAY) groupBy = GroupByDataAnalzerResponse.WEEK;
+
+        var movies = movieRepository.findAllMovies();
+        Map<String, Long> bucket = new LinkedHashMap<>();
+
+        switch (groupBy) {
+            case WEEK -> {
+                LocalDate ptr = start.with(DayOfWeek.MONDAY);
+                while (!ptr.isAfter(end)) {
+                    String key = "W" + ptr.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    bucket.put(key, 0L);
+                    ptr = ptr.plusWeeks(1);
+                }
+                for (var m : movies) {
+                    if (m.getCreatedAt() == null) continue;
+                    LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), Z).toLocalDate();
+                    if (d.isBefore(start) || d.isAfter(end)) continue;
+                    LocalDate monday = d.with(DayOfWeek.MONDAY);
+                    String k = "W" + monday.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    bucket.computeIfPresent(k, (kk, v) -> v + 1);
+                }
+            }
+            case MONTH -> {
+                YearMonth ym = YearMonth.from(start);
+                YearMonth ymEnd = YearMonth.from(end);
+                while (!ym.isAfter(ymEnd)) {
+                    bucket.put(ym.toString(), 0L);
+                    ym = ym.plusMonths(1);
+                }
+                for (var m : movies) {
+                    if (m.getCreatedAt() == null) continue;
+                    LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), Z).toLocalDate();
+                    if (d.isBefore(start) || d.isAfter(end)) continue;
+                    YearMonth ymo = YearMonth.from(d);
+                    bucket.computeIfPresent(ymo.toString(), (kk, v) -> v + 1);
+                }
+            }
+            case DAY -> {
+                for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) bucket.put(d.toString(), 0L);
+                for (var m : movies) {
+                    if (m.getCreatedAt() == null) continue;
+                    LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), Z).toLocalDate();
+                    if (d.isBefore(start) || d.isAfter(end)) continue;
+                    bucket.computeIfPresent(d.toString(), (kk, v) -> v + 1);
+                }
+            }
+        }
+
+        var labels = new ArrayList<>(bucket.keySet());
+        var counts = labels.stream().map(bucket::get).toList();
+        return new CountChartResponse(labels, counts);
+    }
+
+    @Override
+    public MovieStatsSummaryResponse getMovieSummaryByRange(LocalDate start, LocalDate end) {
+        var base = getMovieSummary(LocalDate.now().getYear(), LocalDate.now().getMonthValue());
+
+        var all = movieRepository.findAllMovies();
+        long addedRange = all.stream().filter(m -> {
+            if (m.getCreatedAt() == null) return false;
+            LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), Z).toLocalDate();
+            return !d.isBefore(start) && !d.isAfter(end);
+        }).count();
+
+        // reuse field: addedThisMonth = addedInRange
+        base.setAddedThisMonth(addedRange);
+        return base;
+    }
+
+
 }
 
 

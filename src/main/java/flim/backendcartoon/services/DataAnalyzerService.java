@@ -10,6 +10,7 @@ package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.DTO.response.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
@@ -46,6 +47,15 @@ public interface DataAnalyzerService {
     CountChartResponse getEpisodesPerSeason(String movieId);
     List<TopMovieDTOResponse> getTopMoviesByViews(int limit);
     List<TopMovieDTOResponse> getTopMoviesByRating(int limit, int minRatings);
+
+
+    // ===== MỚI (range) =====
+    RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
+    RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end);
+    PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end);
+
+    CountChartResponse getNewMoviesByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
+    MovieStatsSummaryResponse getMovieSummaryByRange(LocalDate start, LocalDate end);
 
 }
 
