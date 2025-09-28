@@ -24,9 +24,6 @@ import java.util.List;
  */
 public interface PromotionService {
     void createPromotion(CreatePromotionRequest request);
-    Promotion getPromotionById(String promotionId);
-    void delete(String promotionId);
-    List<Promotion> listByType(PromotionType type);
     List<Promotion> listAll();
     void expireOutdatedPromotions();
 }

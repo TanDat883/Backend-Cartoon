@@ -15,10 +15,6 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.Promotion;
-import flim.backendcartoon.entities.PromotionType;
-import flim.backendcartoon.exception.BaseException;
-import flim.backendcartoon.exception.ResourceNotFoundException;
-import flim.backendcartoon.repositories.PromotionPackageRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +26,11 @@ import java.util.UUID;
 
 @Service
 public class PromotionServiceImpl implements PromotionService {
+
     private final PromotionRepository promotionRepository;
 
     @Autowired
-    public PromotionServiceImpl(PromotionRepository promotionRepository, PromotionPackageRepository promotionPackageRepository) {
+    public PromotionServiceImpl(PromotionRepository promotionRepository) {
         this.promotionRepository = promotionRepository;
     }
 
@@ -52,28 +49,11 @@ public class PromotionServiceImpl implements PromotionService {
                 promotionId,
                 request.getPromotionName(),
                 request.getDescription(),
-                request.getPromotionType(),
                 request.getStartDate(),
                 request.getEndDate(),
                 promotionStatus
         );
         promotionRepository.save(promotion);
-    }
-
-    @Override
-    public Promotion getPromotionById(String promotionId) {
-        return promotionRepository.findById(promotionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Promotion with id " + promotionId + " not found"));
-    }
-
-    @Override
-    public void delete(String promotionId) {
-
-    }
-
-    @Override
-    public List<Promotion> listByType(PromotionType type) {
-        return promotionRepository.findByType(type.toString());
     }
 
     @Override

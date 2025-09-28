@@ -7,6 +7,7 @@
 package flim.backendcartoon.services;
 
 
+import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
 
@@ -19,9 +20,12 @@ import java.util.List;
  * @created: 13-July-2025 1:32 PM
  */
 public interface SubscriptionPackageService {
-    void saveSubscriptionPackage(SubscriptionPackage subscriptionPackage);
+    void saveSubscriptionPackage(SubscriptionPackageRequest subscriptionPackage);
     SubscriptionPackageResponse findSubscriptionPackageById(String packageId);
     List<SubscriptionPackageResponse> findAllSubscriptionPackages();
+    List<SubscriptionPackage> getAll();
+    void deleteSubscriptionPackage(String packageId);
+    void updateSubscriptionPackage(String packageId, SubscriptionPackageRequest subscriptionPackage);
 }
 
     

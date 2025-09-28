@@ -20,11 +20,11 @@ import lombok.Data;
 public class CreatePromotionVoucherRequest {
     private String promotionId;
     private String voucherCode;
-    private DiscountType discountType;   // PERCENT | AMOUNT
+    private DiscountType discountType;
     private int discountValue;
-    private int maxDiscountAmount;
+    private Long maxDiscountAmount;
     private int maxUsage;
     private int maxUsagePerUser;
-    private int minOrderAmount;
+    private Long minOrderAmount;
     private int minPackagePrice;
 }

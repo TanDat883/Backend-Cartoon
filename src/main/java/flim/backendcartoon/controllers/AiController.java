@@ -28,7 +28,7 @@ public class AiController {
 
     private final UserService userService;
     private final PromotionService promotionService;
-    private final PromotionVoucherService voucherService;
+//    private final PromotionVoucherService voucherService;
     private final RecommendationService recService;
     private final SeasonService seasonService;
     private final EpisodeService episodeService;
@@ -83,9 +83,9 @@ public class AiController {
 
         // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
         if (wantsPromo) {
-            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
-            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
-            return ResponseEntity.ok(promoResp);
+//            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
+//            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
+//            return ResponseEntity.ok(promoResp);
         }
 
         // Gọi AI với đầy đủ context (phim hiện tại + phim được nhắc)
@@ -165,48 +165,48 @@ public class AiController {
         return new UserCtx(uid, name);
     }
 
-    private ChatResponse buildPromoResponse(boolean wantsRec, List<MovieSuggestionDTO> candidates) {
-        LocalDate today = LocalDate.now();
-        var activePromos = promotionService.listAll().stream()
-                .filter(p -> "ACTIVE".equalsIgnoreCase(p.getStatus())
-                        && (p.getEndDate() == null || !p.getEndDate().isBefore(today)))
-                .toList();
-
-        List<PromoSuggestionDTO> promoCards = new ArrayList<>();
-        for (var p : activePromos) {
-            if (p.getPromotionType() == PromotionType.VOUCHER) {
-                for (PromotionVoucher v : voucherService.getAllPromotionVoucher(p.getPromotionId())) {
-                    Integer percent = (v.getDiscountType() == DiscountType.PERCENTAGE) ? v.getDiscountValue() : null;
-                    Integer maxAmt  = v.getMaxDiscountAmount();
-                    String note = (v.getDiscountType() == DiscountType.PERCENTAGE)
-                            ? ("Giảm " + v.getDiscountValue() + "%, tối đa " + maxAmt)
-                            : ("Giảm " + v.getDiscountValue() + ", tối đa " + maxAmt);
-                    promoCards.add(new PromoSuggestionDTO(
-                            p.getPromotionId(), p.getPromotionName(), "VOUCHER",
-                            percent, v.getVoucherCode(), maxAmt,
-                            p.getStartDate(), p.getEndDate(), p.getStatus(), note
-                    ));
-                }
-            } else if (p.getPromotionType() == PromotionType.PACKAGE) {
-                promoCards.add(new PromoSuggestionDTO(
-                        p.getPromotionId(), p.getPromotionName(), "PACKAGE",
-                        null, null, null, p.getStartDate(), p.getEndDate(), p.getStatus(), p.getDescription()
-                ));
-            }
-        }
-
-        String answer = promoCards.isEmpty()
-                ? "Hiện chưa có khuyến mãi/voucher đang hoạt động."
-                : "Đây là các khuyến mãi/voucher đang hoạt động. Bấm vào để sao chép mã và dùng khi thanh toán:";
-
-        return ChatResponse.builder()
-                .answer(answer)
-                .suggestions(wantsRec ? candidates : List.of())
-                .showSuggestions(wantsRec && !candidates.isEmpty())
-                .promos(promoCards)
-                .showPromos(!promoCards.isEmpty())
-                .build();
-    }
+//    private ChatResponse buildPromoResponse(boolean wantsRec, List<MovieSuggestionDTO> candidates) {
+//        LocalDate today = LocalDate.now();
+//        var activePromos = promotionService.listAll().stream()
+//                .filter(p -> "ACTIVE".equalsIgnoreCase(p.getStatus())
+//                        && (p.getEndDate() == null || !p.getEndDate().isBefore(today)))
+//                .toList();
+//
+//        List<PromoSuggestionDTO> promoCards = new ArrayList<>();
+//        for (var p : activePromos) {
+//            if (p.getPromotionType() == PromotionType.VOUCHER) {
+//                for (PromotionVoucher v : voucherService.getAllPromotionVoucher(p.getPromotionId())) {
+//                    Integer percent = (v.getDiscountType() == DiscountType.PERCENTAGE) ? v.getDiscountValue() : null;
+//                    Integer maxAmt  = v.getMaxDiscountAmount();
+//                    String note = (v.getDiscountType() == DiscountType.PERCENTAGE)
+//                            ? ("Giảm " + v.getDiscountValue() + "%, tối đa " + maxAmt)
+//                            : ("Giảm " + v.getDiscountValue() + ", tối đa " + maxAmt);
+//                    promoCards.add(new PromoSuggestionDTO(
+//                            p.getPromotionId(), p.getPromotionName(), "VOUCHER",
+//                            percent, v.getVoucherCode(), maxAmt,
+//                            p.getStartDate(), p.getEndDate(), p.getStatus(), note
+//                    ));
+//                }
+//            } else if (p.getPromotionType() == PromotionType.PACKAGE) {
+//                promoCards.add(new PromoSuggestionDTO(
+//                        p.getPromotionId(), p.getPromotionName(), "PACKAGE",
+//                        null, null, null, p.getStartDate(), p.getEndDate(), p.getStatus(), p.getDescription()
+//                ));
+//            }
+//        }
+//
+//        String answer = promoCards.isEmpty()
+//                ? "Hiện chưa có khuyến mãi/voucher đang hoạt động."
+//                : "Đây là các khuyến mãi/voucher đang hoạt động. Bấm vào để sao chép mã và dùng khi thanh toán:";
+//
+//        return ChatResponse.builder()
+//                .answer(answer)
+//                .suggestions(wantsRec ? candidates : List.of())
+//                .showSuggestions(wantsRec && !candidates.isEmpty())
+//                .promos(promoCards)
+//                .showPromos(!promoCards.isEmpty())
+//                .build();
+//    }
 
     private void persistMemory(String convId, String userMsg, String aiAnswer,
                                List<MovieSuggestionDTO> shownSuggestions, boolean wantsRec) {

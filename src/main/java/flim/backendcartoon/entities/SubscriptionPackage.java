@@ -16,6 +16,7 @@ package flim.backendcartoon.entities;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttribute;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
 import java.util.List;
 
@@ -23,37 +24,52 @@ import java.util.List;
 public class SubscriptionPackage {
 
     private String packageId;
-    private Double amount;
+    private String packageName;
+    private String imageUrl;
+    private String currentPriceListId;
     private PackageType applicablePackageType;
     private Integer durationInDays;
     private List<String> features;
-    private String namePackage;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("packageId")
     public String getPackageId() {
         return packageId;
     }
-
     public void setPackageId(String packageId) {
         this.packageId = packageId;
     }
 
-    @DynamoDbAttribute("amount")
-    public Double getAmount() {
-        return amount;
+    @DynamoDbAttribute("packageName")
+    public String getPackageName() {
+        return packageName;
+    }
+    public void setPackageName(String packageName) {
+        this.packageName = packageName;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    @DynamoDbAttribute("imageUrl")
+    public String getImageUrl() {
+        return imageUrl;
+    }
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    @DynamoDbSecondaryPartitionKey(indexNames = "gsi_currentPriceList")
+    @DynamoDbAttribute("currentPriceListId")
+    public String getCurrentPriceListId() {
+        return currentPriceListId;
+    }
+    public void setCurrentPriceListId(String currentPriceListId) {
+        this.currentPriceListId = currentPriceListId;
     }
 
     @DynamoDbAttribute("applicablePackageType")
-    public PackageType getApplicableVipLevel() {
+    public PackageType getApplicablePackageType() {
         return applicablePackageType;
     }
-
-    public void setApplicableVipLevel(PackageType applicablePackageType) {
+    public void setApplicablePackageType(PackageType applicablePackageType) {
         this.applicablePackageType = applicablePackageType;
     }
 
@@ -61,7 +77,6 @@ public class SubscriptionPackage {
     public Integer getDurationInDays() {
         return durationInDays;
     }
-
     public void setDurationInDays(Integer durationInDays) {
         this.durationInDays = durationInDays;
     }
@@ -73,15 +88,6 @@ public class SubscriptionPackage {
     public void setFeatures(List<String> features) {
         this.features = features;
     }
-
-    @DynamoDbAttribute("namePackage")
-    public String getNamePackage() {
-        return namePackage;
-    }
-    public void setNamePackage(String namePackage) {
-        this.namePackage = namePackage;
-    }
-
 }
 
 
