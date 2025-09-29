@@ -125,4 +125,76 @@ public class PriceItemRepository {
         // loại trùng nếu có
         return pkgIds.stream().distinct().collect(Collectors.toList());
     }
+
+    public List<PriceItem> findOverlaps(String packageId,
+                                        LocalDate newStart,
+                                        LocalDate newEnd,
+                                        String excludePriceListId) {
+        // Lấy những item có effectiveStart <= newEnd (giới hạn trên bằng sort key)
+        QueryConditional cond = QueryConditional.sortLessThanOrEqualTo(
+                Key.builder().partitionValue(packageId).sortValue(newEnd.toString()).build()
+        );
+
+        return byPackageTime.query(r -> r.queryConditional(cond))
+                .stream()
+                .flatMap(p -> p.items().stream())
+                .filter(it ->
+                        !it.getPriceListId().equals(excludePriceListId) &&
+                                // Overlap nếu: it.start <= newEnd && it.end >= newStart
+                                !it.getEffectiveStart().isAfter(newEnd) &&
+                                !it.getEffectiveEnd().isBefore(newStart)
+                )
+                .collect(Collectors.toList());
+    }
+
+    public PriceItem findNextByStart(String packageId,
+                                     LocalDate afterStart,
+                                     String excludePriceListId) {
+
+        QueryConditional cond = QueryConditional.sortGreaterThan(
+                Key.builder().partitionValue(packageId).sortValue(afterStart.toString()).build()
+        );
+
+        var req = QueryEnhancedRequest.builder()
+                .queryConditional(cond)
+                .limit(1)                 // lấy 1 bản ghi gần nhất
+                .scanIndexForward(true)   // tăng dần theo effectiveStart
+                .build();
+
+        return byPackageTime.query(req)
+                .stream()
+                .flatMap(p -> p.items().stream())
+                .filter(it -> !it.getPriceListId().equals(excludePriceListId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    public PriceItem findLastBefore(String packageId,
+                                    LocalDate untilDate,
+                                    String excludePriceListId) {
+
+        QueryConditional cond = QueryConditional.sortLessThanOrEqualTo(
+                Key.builder().partitionValue(packageId).sortValue(untilDate.toString()).build()
+        );
+
+        return byPackageTime.query(r -> r.queryConditional(cond).scanIndexForward(false)) // start giảm dần
+                .stream()
+                .flatMap(p -> p.items().stream())
+                .filter(it -> !it.getPriceListId().equals(excludePriceListId)
+                        && !it.getEffectiveEnd().isAfter(untilDate)) // end <= untilDate
+                .findFirst()
+                .orElse(null);
+    }
+
+    public List<PriceItem> findByPriceList(String priceListId) {
+        QueryConditional cond = QueryConditional.keyEqualTo(
+                Key.builder().partitionValue(priceListId).build()
+        );
+        List<PriceItem> items = new ArrayList<>();
+        table.query(r -> r.queryConditional(cond))
+                .stream()
+                .forEach(page -> items.addAll(page.items()));
+        return items;
+    }
+
 }

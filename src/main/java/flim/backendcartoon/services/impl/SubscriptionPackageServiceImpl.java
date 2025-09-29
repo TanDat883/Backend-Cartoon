@@ -22,6 +22,7 @@ import flim.backendcartoon.repositories.PriceItemRepository;
 import flim.backendcartoon.repositories.PromotionDetailRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.repositories.SubscriptionPackageRepository;
+import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

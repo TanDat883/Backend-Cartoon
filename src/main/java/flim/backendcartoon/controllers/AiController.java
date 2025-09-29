@@ -82,11 +82,11 @@ public class AiController {
                 : memory.history(convId, HISTORY_LIMIT);
 
         // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
-        if (wantsPromo) {
+//        if (wantsPromo) {
 //            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
 //            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
 //            return ResponseEntity.ok(promoResp);
-        }
+//        }
 
         // Gọi AI với đầy đủ context (phim hiện tại + phim được nhắc)
         List<Map<String, ?>> mentionedInfos = mentioned.stream()

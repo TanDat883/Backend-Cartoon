@@ -8,6 +8,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.request.AddPriceRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePriceListRequest;
+import flim.backendcartoon.entities.DTO.request.ExtendPriceListEndRequest;
 import flim.backendcartoon.entities.PriceItem;
 import flim.backendcartoon.entities.PriceList;
 import flim.backendcartoon.services.PricingService;
@@ -64,6 +65,16 @@ public class PricingController {
             return ResponseEntity.status(500).body("Error retrieving price list: " + e.getMessage());
         }
     }
+
+    @PatchMapping("/price-lists/{priceListId}/extend")
+    public ResponseEntity<Void> extendPriceListEnd(
+            @PathVariable String priceListId,
+            @RequestBody @Valid ExtendPriceListEndRequest body
+    ) {
+        pricingService.extendPriceListEnd(priceListId, body.getNewEndDate(), Boolean.TRUE.equals(body.getCarryForwardMissing()));
+        return ResponseEntity.ok().build();
+    }
+
     // Activate a price list
     @PostMapping("/activate-price-list/{priceListId}")
     public ResponseEntity<String> activatePriceList(@PathVariable String priceListId) {
