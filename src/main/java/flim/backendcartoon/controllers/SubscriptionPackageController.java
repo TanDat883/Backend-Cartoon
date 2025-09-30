@@ -11,13 +11,16 @@ import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
 import flim.backendcartoon.services.PricingService;
+import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.ILoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.util.List;
 
 /*
@@ -32,6 +35,7 @@ import java.util.List;
 public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
     private final PricingService pricingService;
+    private final S3Service s3Service;
 
     @GetMapping
     public ResponseEntity<List<SubscriptionPackage>> getAll() {
@@ -72,7 +76,9 @@ public class SubscriptionPackageController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createSubscriptionPackage(@Valid @RequestBody SubscriptionPackageRequest request) {
+    public ResponseEntity<String> createSubscriptionPackage(
+            @Valid @RequestBody SubscriptionPackageRequest request
+            ) {
         try {
             subscriptionPackageService.saveSubscriptionPackage(request);
             return ResponseEntity.ok("Tạo gói đăng ký thành công");

@@ -34,6 +34,7 @@ public interface PricingService {
     int activatePriceList(String priceListId);
     List<PriceItem> getPriceItemsByPriceListId(String priceListId);
     void updateEffectiveEndOfCurrentPriceItem(String priceListId, String packageId, LocalDate newEndDate);
+    void extendPriceListEnd(String priceListId, LocalDate newEndDate, boolean carryForwardMissing);
 }
 
     
