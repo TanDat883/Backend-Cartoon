@@ -231,6 +231,13 @@ public class PricingServiceImpl implements PricingService {
                 updated++;
             }
         }
+        List<SubscriptionPackage> pointing = subscriptionPackageRepository.findByCurrentPriceListId(priceListId);
+        for (SubscriptionPackage sp : pointing) {
+            if (!pkgIdsCoveredToday.contains(sp.getPackageId())) {
+                sp.setCurrentPriceListId(null);
+                subscriptionPackageRepository.save(sp);
+            }
+        }
         return updated;
     }
 
