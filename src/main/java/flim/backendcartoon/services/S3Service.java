@@ -110,98 +110,120 @@ public class S3Service {
     }
 
     // ====== HLS qua MediaConvert (giữ nguyên SIGNATURE cũ) ======
-// S3Service.java
-    public String convertAndUploadToHLS(MultipartFile videoFile) throws IOException, InterruptedException {
-        // 1) Lưu file tạm
-        String inputFileName = UUID.randomUUID() + "_" + videoFile.getOriginalFilename();
-        File tempInput = new File(System.getProperty("java.io.tmpdir"), inputFileName);
-        videoFile.transferTo(tempInput);
+// VẪN TRẢ String .m3u8 URL để controller khỏi đổi
+    public String convertAndUploadToHLS(MultipartFile videoFile) throws IOException {
+        // 1) Upload input vào S3 (inputs/)
+        String safe = sanitize(videoFile.getOriginalFilename());
+        String inputKey = "inputs/" + UUID.randomUUID() + "_" + safe;
 
-        // 2) Thư mục output tạm
-        File outputDir = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString());
-        if (!outputDir.mkdirs()) throw new IOException("Cannot create temp HLS dir");
+        PutObjectRequest put = PutObjectRequest.builder()
+                .bucket(bucketName)
+                .key(inputKey)
+                .contentType(videoFile.getContentType())
+                .build();
+        s3Client.putObject(put, RequestBody.fromInputStream(videoFile.getInputStream(), videoFile.getSize()));
 
-        // 3) Cấu hình các mức
-        class V {
-            String name; int w, h; int vKbps; int aKbps; // bitrate xấp xỉ
-            V(String n, int w, int h, int v, int a){ this.name=n; this.w=w; this.h=h; this.vKbps=v; this.aKbps=a; }
+        String inputS3 = "s3://" + bucketName + "/" + inputKey;
+
+        // 2) Tạo MediaConvert client (dùng endpoint env nếu có, nếu không auto-discover)
+        Region r = Region.of(region);
+        String endpoint = mcEndpoint;
+        MediaConvertClient mc;
+        if (endpoint == null || endpoint.isBlank()) {
+            try (MediaConvertClient probe = MediaConvertClient.builder().region(r).build()) {
+                endpoint = probe
+                        .describeEndpoints(DescribeEndpointsRequest.builder().maxResults(1).build())
+                        .endpoints().get(0).url();
+            }
         }
-        V[] ladder = new V[] {
-                new V("480p",  854,  480,   800,  96),
-                new V("720p", 1280,  720,  2500, 128),
-                new V("1080p",1920, 1080,  5000, 192),
-        };
+        mc = MediaConvertClient.builder().region(r).endpointOverride(URI.create(endpoint)).build();
 
-        // 4) Chạy ffmpeg cho từng mức
-        for (V v : ladder) {
-            File varDir = new File(outputDir, v.name);
-            if (!varDir.mkdirs()) throw new IOException("Cannot create dir for " + v.name);
+        // 3) Cấu hình HLS outputs (dùng System presets)
+        String outFolder = UUID.randomUUID().toString();
+        String destination = "s3://" + bucketName + "/hls/" + outFolder + "/";
 
-            // scale giữ tỉ lệ, không phóng to quá mức (decrease)
-            String ffmpeg = System.getenv().getOrDefault("FFMPEG_PATH",
-                    "C:\\ffmpeg-2025-07-17-git-bc8d06d541-essentials_build\\bin\\ffmpeg.exe");
+        HlsGroupSettings hls = HlsGroupSettings.builder()
+                .destination(destination)
+                .segmentLength(6)
+                .minSegmentLength(2)
+                .segmentControl(HlsSegmentControl.SEGMENTED_FILES)
+                .build();
 
-// bộ filter bảo đảm even size + letterbox
-            String vf = switch (v.name) {
-                case "480p"  -> "scale='if(gt(a,854/480),854,-2)':'if(gt(a,854/480),-2,480)',pad=854:480:(854-iw)/2:(480-ih)/2,format=yuv420p";
-                case "720p"  -> "scale='if(gt(a,1280/720),1280,-2)':'if(gt(a,1280/720),-2,720)',pad=1280:720:(1280-iw)/2:(720-ih)/2,format=yuv420p";
-                default      -> "scale='if(gt(a,1920/1080),1920,-2)':'if(gt(a,1920/1080),-2,1080)',pad=1920:1080:(1920-iw)/2:(1080-ih)/2,format=yuv420p";
-            };
+        OutputGroupSettings ogs = OutputGroupSettings.builder()
+                .type(OutputGroupType.HLS_GROUP_SETTINGS)
+                .hlsGroupSettings(hls)
+                .build();
 
-            ProcessBuilder pb = new ProcessBuilder(
-                    ffmpeg,
-                    "-y",
-                    "-hide_banner","-loglevel","error",         // log gọn dễ bắt lỗi
-                    "-i", tempInput.getAbsolutePath(),
+        Output o540 = Output.builder()
+                .nameModifier("_540p")
+                .preset("System-Avc_16x9_540p_29_97fps_3500kbps")
+                .build();
+        Output o720 = Output.builder()
+                .nameModifier("_720p")
+                .preset("System-Avc_16x9_720p_29_97fps_5000kbps")
+                .build();
+        Output o1080 = Output.builder()
+                .nameModifier("_1080p")
+                .preset("System-Avc_16x9_1080p_29_97fps_8500kbps")
+                .build();
 
-                    // đảm bảo luôn có stream video, audio (audio có thể vắng)
-                    "-map","0:v:0","-map","0:a:0?",
+        // Khai báo Audio Selector 1 và ép dùng track #1 (MediaConvert: set trực tiếp)
+        java.util.Map<String, AudioSelector> audioSelectors = new java.util.HashMap<>();
+        AudioSelector audioSel = AudioSelector.builder()
+                .defaultSelection(AudioDefaultSelection.DEFAULT)   // enum đúng của MediaConvert
+                .selectorType(AudioSelectorType.TRACK)             // chọn theo track
+                .tracks(java.util.Arrays.asList(1))                // track index bắt đầu từ 1
+                .build();
+        audioSelectors.put("Audio Selector 1", audioSel);
 
-                    "-c:v","libx264",
-                    "-profile:v","main",
-                    "-preset","veryfast",
-                    "-pix_fmt","yuv420p",
-                    "-b:v", v.vKbps + "k",
-                    "-maxrate", (int)Math.round(v.vKbps*1.07) + "k",
-                    "-bufsize", (v.vKbps*2) + "k",
-                    "-g","48","-sc_threshold","0",              // GOP ổn định cho HLS
+        // Input có Audio Selector 1 đúng tên mà system preset đang tham chiếu
+        Input input = Input.builder()
+                .fileInput(inputS3)
+                .audioSelectors(audioSelectors)
+                .build();
 
-                    "-vf", vf,
+        JobSettings settings = JobSettings.builder()
+                .inputs(input)
+                .outputGroups(OutputGroup.builder()
+                        .name("Apple HLS")
+                        .outputGroupSettings(ogs)
+                        .outputs(o540, o720, o1080)
+                        .build())
+                .build();
 
-                    "-c:a","aac",
-                    "-b:a", v.aKbps + "k",
-                    "-ac","2",
-                    "-ar","48000",
+// Đọc env (mặc định PREFERRED để tăng tốc; nếu không hỗ trợ sẽ tự fallback)
+        String accEnv = String.valueOf(dotenv.get("MEDIACONVERT_ACCELERATION"));
+        AccelerationMode accMode = "DISABLED".equalsIgnoreCase(accEnv)
+                ? AccelerationMode.DISABLED
+                : AccelerationMode.PREFERRED; // default nhanh nhất
 
-                    "-hls_time","6",
-                    "-hls_list_size","0",
-                    "-hls_flags","independent_segments",        // segment tự lập, an toàn cho seek
-                    "-hls_segment_filename", new File(varDir, "seg_%03d.ts").getAbsolutePath(),
-                    new File(varDir, "index.m3u8").getAbsolutePath()
-            );
+        int priority = 0; // -50..50 (cao hơn = ưu tiên hơn)
+        try { priority = Integer.parseInt(String.valueOf(dotenv.get("MEDIACONVERT_PRIORITY"))); } catch (Exception ignore) {}
 
-            pb.inheritIO();
-            Process p = pb.start();
-            if (p.waitFor() != 0) throw new RuntimeException("FFmpeg failed at " + v.name);
+        CreateJobResponse res = mc.createJob(CreateJobRequest.builder()
+                .role(mcRoleArn)
+                .queue(mcQueueArn)
+                .settings(settings)
+                .accelerationSettings(AccelerationSettings.builder().mode(accMode).build())
+                .priority(priority)
+                .build());
+
+        // 4) LUÔN chờ MediaConvert hoàn tất (blocking)
+        String jobId = res.job().id();
+        waitUntilComplete(mc, jobId, java.time.Duration.ofMinutes(90));
+
+        // 5) Chờ object hiện trên S3 và chọn manifest tốt nhất (master/index/khác)
+        String prefix = "hls/" + outFolder + "/";
+        if (!waitForM3u8AndSegments(prefix, 60, 2000)) { // tối đa ~120s
+            throw new RuntimeException("HLS conversion completed but outputs not visible yet under: " + prefix);
+        }
+        String m3u8Key = findBestM3u8Key(prefix);
+        if (m3u8Key == null) {
+            throw new RuntimeException("MediaConvert completed but no .m3u8 found under: " + prefix);
         }
 
-        // 5) Tạo master.m3u8
-        File master = new File(outputDir, "master.m3u8");
-        String masterTxt =
-                "#EXTM3U\n" +
-                        "#EXT-X-VERSION:3\n" +
-                        // BANDWIDTH tính theo bps (video+audio, cộng thêm overhead nhẹ)
-                        "#EXT-X-STREAM-INF:BANDWIDTH=" + ((800+96+80)*1000) + ",RESOLUTION=854x480\n" + "480p/index.m3u8\n" +
-                        "#EXT-X-STREAM-INF:BANDWIDTH=" + ((2500+128+150)*1000) + ",RESOLUTION=1280x720\n" + "720p/index.m3u8\n" +
-                        "#EXT-X-STREAM-INF:BANDWIDTH=" + ((5000+192+300)*1000) + ",RESOLUTION=1920x1080\n" + "1080p/index.m3u8\n";
-        java.nio.file.Files.writeString(master.toPath(), masterTxt, java.nio.charset.StandardCharsets.UTF_8);
-
-        // 6) Upload toàn bộ folder lên S3 (đặt content-type đúng)
-        String hlsFolderKey = "hls/" + UUID.randomUUID();
-        uploadDirRecursively(outputDir, hlsFolderKey);
-
-        // 7) Trả về URL master
-        return "https://" + bucketName + ".s3.amazonaws.com/" + hlsFolderKey + "/master.m3u8";
+        // 6) Trả URL manifest hợp lệ (thường là master.m3u8 như ảnh bạn chụp)
+        return buildPublicUrl(m3u8Key);
     }
 
     /** Chờ tới khi có ít nhất một .m3u8 và một .ts dưới prefix */
