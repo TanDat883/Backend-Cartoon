@@ -7,12 +7,12 @@ import java.util.UUID;
 
 @DynamoDbBean
 public class PromotionDetail {
-
     public enum DetailType { VOUCHER, PACKAGE }
 
-    private String pk;
-    private String sk;
+    private String pk;           // PROMO#<promotionId>
+    private String sk;           // LINE#<promotionLineId>#DETAIL#<detailId>
     private String promotionId;
+    private String promotionLineId; // <<-- NEW: gắn detail vào line
     private String detailId;
     private DetailType detailType;
 
@@ -32,7 +32,7 @@ public class PromotionDetail {
     private Long maxDiscountAmount;
 
     // ===== PACKAGE fields =====
-    private List<String> packageId;
+    private List<String> packageId;    // vẫn giữ list; SK không phụ thuộc list
     private Integer discountPercent;
 
     @DynamoDbPartitionKey @DynamoDbAttribute("PK")
@@ -47,6 +47,10 @@ public class PromotionDetail {
     @DynamoDbAttribute("promotionId")
     public String getPromotionId() { return promotionId; }
     public void setPromotionId(String promotionId) { this.promotionId = promotionId; }
+
+    @DynamoDbAttribute("promotionLineId")
+    public String getPromotionLineId() { return promotionLineId; }
+    public void setPromotionLineId(String promotionLineId) { this.promotionLineId = promotionLineId; }
 
     @DynamoDbAttribute("detailId")
     public String getDetailId() { return detailId; }
@@ -111,7 +115,9 @@ public class PromotionDetail {
     public Integer getDiscountPercent() { return discountPercent; }
     public void setDiscountPercent(Integer discountPercent) { this.discountPercent = discountPercent; }
 
-    // Factories
+    // ===== Factories =====
+
+    /** VOUCHER — KHÔNG gắn line (giữ tương thích cũ) */
     public static PromotionDetail newVoucher(String promotionId, String voucherCode,
                                              DiscountType discountType, int discountValue,
                                              Long minOrderAmount, Integer maxUsage,
@@ -133,6 +139,7 @@ public class PromotionDetail {
         return it;
     }
 
+    /** PACKAGE — KHÔNG gắn line (giữ tương thích cũ) */
     public static PromotionDetail newPackage(String promotionId, List<String> packageId, int percent) {
         PromotionDetail it = new PromotionDetail();
         it.detailId = UUID.randomUUID().toString();
@@ -141,7 +148,35 @@ public class PromotionDetail {
         it.packageId = packageId;
         it.discountPercent = percent;
         it.pk = "PROMO#" + promotionId;
-        it.sk = "PACKAGE#" + it.packageId;
+        it.sk = "DETAIL#" + it.packageId; // tránh dùng List trong SK
+        return it;
+    }
+
+    /** VOUCHER — GẮN vào LINE */
+    public static PromotionDetail newVoucherInLine(String promotionId, String promotionLineId, String voucherCode,
+                                                   DiscountType discountType, int discountValue,
+                                                   Long minOrderAmount, Integer maxUsage,
+                                                   Integer maxUsagePerUser, Long maxDiscountAmount) {
+        PromotionDetail it = newVoucher(promotionId, voucherCode, discountType, discountValue,
+                minOrderAmount, maxUsage, maxUsagePerUser, maxDiscountAmount);
+        it.promotionLineId = promotionLineId;
+        it.pk = "PROMO#" + promotionId;
+        it.sk = "LINE#" + promotionLineId + "#DETAIL#" + it.detailId;
+        return it;
+    }
+
+    /** PACKAGE — GẮN vào LINE */
+    public static PromotionDetail newPackageInLine(String promotionId, String promotionLineId,
+                                                   List<String> packageIds, int percent) {
+        PromotionDetail it = new PromotionDetail();
+        it.detailId = UUID.randomUUID().toString();
+        it.promotionId = promotionId;
+        it.promotionLineId = promotionLineId;
+        it.detailType = DetailType.PACKAGE;
+        it.packageId = packageIds;
+        it.discountPercent = percent;
+        it.pk = "PROMO#" + promotionId;
+        it.sk = "LINE#" + promotionLineId + "#DETAIL#" + it.detailId;
         return it;
     }
 }

@@ -61,10 +61,6 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     @Override
     public ApplyVoucherResponse applyVoucher(ApplyVoucherRequest request) {
         PromotionDetail promotionVoucher = promotionDetailRepository.findByVoucherCode(request.getVoucherCode());
-        // Check if the voucher is applicable for the package price
-//        if (request.getPackagePrice() < promotionVoucher.getMinPackagePrice()) {
-//            throw new BaseException("Voucher is not applicable for the selected package");
-//        }
         // Check if the order amount meets the minimum requirement
         if (request.getOrderAmount() < promotionVoucher.getMinOrderAmount()) {
             throw new BaseException("Order amount does not meet the minimum requirement for this voucher");

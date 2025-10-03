@@ -16,7 +16,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /*
@@ -52,6 +51,20 @@ public class PricingController {
         }
     }
 
+    @PutMapping("/update-price-list/{priceListId}")
+    public ResponseEntity<String> updatePriceList(
+            @PathVariable String priceListId,
+            @Valid @RequestBody CreatePriceListRequest priceListRequest
+    ) {
+        try {
+            pricingService.updatePriceList(priceListId, priceListRequest);
+            return ResponseEntity.ok("Price list updated successfully");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error updating price list: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/price-list/{priceListId}")
     public ResponseEntity<?> getPriceListById(@PathVariable String priceListId) {
         try {
@@ -64,15 +77,6 @@ public class PricingController {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Error retrieving price list: " + e.getMessage());
         }
-    }
-
-    @PatchMapping("/price-lists/{priceListId}/extend")
-    public ResponseEntity<Void> extendPriceListEnd(
-            @PathVariable String priceListId,
-            @RequestBody @Valid ExtendPriceListEndRequest body
-    ) {
-        pricingService.extendPriceListEnd(priceListId, body.getNewEndDate(), Boolean.TRUE.equals(body.getCarryForwardMissing()));
-        return ResponseEntity.ok().build();
     }
 
     // Activate a price list
@@ -121,17 +125,4 @@ public class PricingController {
         }
     }
 
-    @PutMapping("/update-effective-end-date")
-    public ResponseEntity<String> updateEffectiveEndOfCurrentPriceItem(
-            @RequestParam String priceListId,
-            @RequestParam String packageId,
-            @RequestParam LocalDate newEndDate) {
-        try {
-            pricingService.updateEffectiveEndOfCurrentPriceItem(priceListId, packageId, newEndDate);
-            return ResponseEntity.ok("Effective end date updated successfully");
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error updating effective end date: " + e.getMessage());
-        }
-    }
 }

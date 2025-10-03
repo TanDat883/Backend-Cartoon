@@ -49,6 +49,9 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
 
     @Override
     public void saveSubscriptionPackage(SubscriptionPackageRequest subscriptionPackage) {
+        if (subscriptionPackageRepository.get(subscriptionPackage.getPackageId()) != null) {
+            throw new IllegalArgumentException("SubscriptionPackage with ID " + subscriptionPackage.getPackageId() + " already exists.");
+        }
         SubscriptionPackage pkg = new SubscriptionPackage();
         pkg.setPackageId(subscriptionPackage.getPackageId());
         pkg.setPackageName(subscriptionPackage.getPackageName());
@@ -56,6 +59,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
         pkg.setApplicablePackageType(subscriptionPackage.getApplicablePackageType());
         pkg.setDurationInDays(subscriptionPackage.getDurationInDays());
         pkg.setFeatures(subscriptionPackage.getFeatures());
+        pkg.setCreatedAt(LocalDate.now());
 
         subscriptionPackageRepository.save(pkg);
     }

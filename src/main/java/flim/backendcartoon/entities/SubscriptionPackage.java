@@ -18,6 +18,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSecondaryPartitionKey;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @DynamoDbBean
@@ -30,6 +31,7 @@ public class SubscriptionPackage {
     private PackageType applicablePackageType;
     private Integer durationInDays;
     private List<String> features;
+    private LocalDate createdAt;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("packageId")
@@ -87,6 +89,14 @@ public class SubscriptionPackage {
     }
     public void setFeatures(List<String> features) {
         this.features = features;
+    }
+
+    @DynamoDbAttribute("createdAt")
+    public LocalDate getCreatedAt() {
+        return createdAt;
+    }
+    public void setCreatedAt(LocalDate createdAt) {
+        this.createdAt = createdAt;
     }
 }
 

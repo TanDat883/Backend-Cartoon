@@ -19,13 +19,12 @@ import java.time.LocalDate;
 
 @DynamoDbBean
 public class PriceItem {
+
     private String priceListId;
     private String packageId;
     private Double amount;
     private String currency;
     private LocalDate createdAt;
-    private LocalDate effectiveStart; // denormalized
-    private LocalDate effectiveEnd;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("priceListId")
@@ -37,7 +36,6 @@ public class PriceItem {
     }
     @DynamoDbSortKey
     @DynamoDbAttribute("packageId")
-    @DynamoDbSecondaryPartitionKey(indexNames = {"gsi_package_time"})
     public String getPackageId() { return packageId; }
     public void setPackageId(String v) { this.packageId = v; }
     @DynamoDbAttribute("amount")
@@ -60,19 +58,6 @@ public class PriceItem {
     }
     public void setCreatedAt(LocalDate createdAt) {
         this.createdAt = createdAt;
-    }
-
-    @DynamoDbAttribute("effectiveStart")
-    @DynamoDbSecondarySortKey(indexNames = {"gsi_package_time"})
-    public LocalDate getEffectiveStart() { return effectiveStart; }
-    public void setEffectiveStart(LocalDate v) { this.effectiveStart = v; }
-
-    @DynamoDbAttribute("effectiveEnd")
-    public LocalDate getEffectiveEnd() {
-        return effectiveEnd;
-    }
-    public void setEffectiveEnd(LocalDate effectiveEnd) {
-        this.effectiveEnd = effectiveEnd;
     }
 
 }

@@ -38,21 +38,15 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     public void createPromotion(CreatePromotionRequest request) {
         validateDates(request.getStartDate(), request.getEndDate());
-        String promotionId = "PROMO-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        String promotionStatus = "ACTIVE";
-
-        while (promotionRepository.findById(promotionId).isPresent()) {
-            promotionId = "PROMO-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        }
 
         Promotion promotion = Promotion.of(
-                promotionId,
+                request.getPromotionId(),
                 request.getPromotionName(),
                 request.getDescription(),
                 request.getStartDate(),
                 request.getEndDate(),
-                promotionStatus
-        );
+                request.getStatus()
+                );
         promotionRepository.save(promotion);
     }
 
