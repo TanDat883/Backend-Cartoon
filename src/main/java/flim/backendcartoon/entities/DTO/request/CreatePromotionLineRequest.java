@@ -6,6 +6,8 @@
 
 package flim.backendcartoon.entities.DTO.request;
 
+import com.amazonaws.services.dynamodbv2.xspec.S;
+import flim.backendcartoon.entities.PromotionLine;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -19,7 +21,9 @@ import java.time.LocalDate;
 @Data
 public class CreatePromotionLineRequest {
     private String promotionId;
+    private String promotionLineId;
     private String promotionLineName;
+    private PromotionLine.PromotionLineType promotionLineType;
     private String status;
     private LocalDate startDate;
     private LocalDate endDate;

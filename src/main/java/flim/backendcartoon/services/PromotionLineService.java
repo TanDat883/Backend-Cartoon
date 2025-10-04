@@ -13,10 +13,14 @@ package flim.backendcartoon.services;
  * @created: 03-October-2025 9:40 AM
  */
 
-import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
+import flim.backendcartoon.entities.DTO.request.CreatePromotionLineRequest;
+import flim.backendcartoon.entities.PromotionLine;
 
-public class PromotionLineService {
-    void createPromotionLine(CreatePromotionLineRequest request) {
+import java.util.List;
 
-    }
+public interface PromotionLineService {
+    void createPromotionLine(CreatePromotionLineRequest request);
+    void updatePromotionLine(String promotionId, String promotionLineId, CreatePromotionLineRequest request);
+    List<PromotionLine> getPromotionLinesByPromotion(String promotionId);
+    void expireOutdatedPromotionLines();
 }

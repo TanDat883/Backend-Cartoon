@@ -19,6 +19,7 @@ import lombok.Data;
 @Data
 public class CreatePromotionVoucherRequest {
     private String promotionId;
+    private String promotionLineId;
     private String voucherCode;
     private DiscountType discountType;
     private int discountValue;

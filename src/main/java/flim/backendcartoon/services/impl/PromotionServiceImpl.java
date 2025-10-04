@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class PromotionServiceImpl implements PromotionService {
@@ -48,6 +47,23 @@ public class PromotionServiceImpl implements PromotionService {
                 request.getStatus()
                 );
         promotionRepository.save(promotion);
+    }
+
+    @Override
+    public void updatePromotion(String promotionId, CreatePromotionRequest request) {
+        Promotion existingPromotion = promotionRepository.get(promotionId);
+        if (existingPromotion == null) {
+            throw new IllegalArgumentException("Promotion with ID " + promotionId + " does not exist.");
+        }
+        validateDates(request.getStartDate(), request.getEndDate());
+
+        existingPromotion.setPromotionName(request.getPromotionName());
+        existingPromotion.setDescription(request.getDescription());
+        existingPromotion.setStartDate(request.getStartDate());
+        existingPromotion.setEndDate(request.getEndDate());
+        existingPromotion.setStatus(request.getStatus());
+
+        promotionRepository.save(existingPromotion);
     }
 
     @Override

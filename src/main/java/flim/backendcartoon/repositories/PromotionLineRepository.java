@@ -43,9 +43,14 @@ public class PromotionLineRepository {
         promotionLineDynamoDbTable.deleteItem(line);
     }
 
-    public PromotionLine getById(String promotionId, String promotionLineId) {
-        return promotionLineDynamoDbTable.getItem(r -> r.key(k -> k.partitionValue("PROMO#" + promotionId)
-                .sortValue("LINE#" + promotionLineId)));
+    public PromotionLine get(String promotionId, String promotionLineId) {
+        String pk = "PROMO#" + promotionId;
+        String sk = "LINE#" + promotionLineId;
+        return promotionLineDynamoDbTable.getItem(r -> r.key(k -> k.partitionValue(pk).sortValue(sk)));
+    }
+
+    public List<PromotionLine> listAll() {
+        return promotionLineDynamoDbTable.scan().items().stream().collect(Collectors.toList());
     }
 
     public List<PromotionLine> listByPromotionId(String promotionId) {

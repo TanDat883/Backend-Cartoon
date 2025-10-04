@@ -40,6 +40,7 @@ public class PromotionDetailController {
     public ResponseEntity<String> createPromotionPackage(@Valid @RequestBody CreatePromotionPackageRequest request) {
         promotionDetailService.createPromotionPackage(
                 request.getPromotionId(),
+                request.getPromotionLineId(),
                 request.getPackageId(),
                 request.getDiscountPercent()
         );
@@ -47,8 +48,8 @@ public class PromotionDetailController {
     }
 
     @GetMapping("/packages")
-    public ResponseEntity<List<PromotionDetail>> getAllPromotionPackages(@RequestParam("promotionId") String promotionId) {
-        List<PromotionDetail> promotions = promotionDetailService.getAllPromotionPackages(promotionId);
+    public ResponseEntity<List<PromotionDetail>> getAllPromotionPackages(@RequestParam("promotionLineId") String promotionLineId) {
+        List<PromotionDetail> promotions = promotionDetailService.getAllPromotionPackages(promotionLineId);
         return ResponseEntity.ok(promotions);
     }
 
@@ -88,8 +89,8 @@ public class PromotionDetailController {
 
     @GetMapping("/vouchers")
     public ResponseEntity<List<PromotionDetail>> getAllPromotionVoucher(
-            @RequestParam("promotionId") String promotionId) {
-        List<PromotionDetail> vouchers = promotionDetailService.getAllPromotionVoucher(promotionId);
+            @RequestParam("promotionLineId") String promotionLineId) {
+        List<PromotionDetail> vouchers = promotionDetailService.getAllPromotionVoucher(promotionLineId);
         return ResponseEntity.ok(vouchers);
     }
 

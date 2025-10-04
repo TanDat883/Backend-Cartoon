@@ -18,10 +18,7 @@ import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionDetail;
 import flim.backendcartoon.entities.SubscriptionPackage;
-import flim.backendcartoon.repositories.PriceItemRepository;
-import flim.backendcartoon.repositories.PromotionDetailRepository;
-import flim.backendcartoon.repositories.PromotionRepository;
-import flim.backendcartoon.repositories.SubscriptionPackageRepository;
+import flim.backendcartoon.repositories.*;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -36,15 +33,17 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     private final PriceItemRepository priceItemRepository;
     private final PromotionDetailRepository promotionPackageRepository;
     private final PromotionRepository promotionRepository;
+    private final PromotionLineRepository promotionLineRepository;
 
     @Autowired
     public SubscriptionPackageServiceImpl(SubscriptionPackageRepository subscriptionPackageRepository,
                                           PromotionDetailRepository promotionPackageRepository, PromotionRepository promotionRepository
-                                          , PriceItemRepository priceItemRepository) {
+                                          , PriceItemRepository priceItemRepository, PromotionLineRepository promotionLineRepository) {
         this.subscriptionPackageRepository = subscriptionPackageRepository;
         this.promotionPackageRepository = promotionPackageRepository;
         this.promotionRepository = promotionRepository;
         this.priceItemRepository = priceItemRepository;
+        this.promotionLineRepository = promotionLineRepository;
     }
 
     @Override
@@ -81,7 +80,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     // --- LẤY GIÁ GỐC THEO PriceList/PriceItem ---
                     double base = getBasePriceFromCurrentPriceList(pkg);
 
-                    // --- ÁP KHUYẾN MÃI (giữ logic cũ) ---
+                    // --- ÁP KHUYẾN MÃI  ---
                     List<String> ids = normalizeIdsFromString(pkg.getPackageId());
                     List<PromotionDetail> promos =
                             Optional.ofNullable(promotionPackageRepository.findPromotionsByPackageId(ids))
@@ -91,7 +90,6 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     int percent = (best == null || best.getDiscountPercent() == null) ? 0 : best.getDiscountPercent();
                     double effective = calcPrice(base, percent);
 
-                    // --- BUILD DTO ---
                     SubscriptionPackageResponse dto = new SubscriptionPackageResponse();
                     dto.setPackageId(pkg.getPackageId());
                     dto.setNamePackage(pkg.getPackageName());
@@ -140,7 +138,6 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
         String priceListId = pkg.getCurrentPriceListId();
         if (priceListId == null || priceListId.isBlank()) return 0.0;
 
-        // CHÚ Ý: Bảng PriceItem phải có primary key (priceListId PK, packageId SK)
         var item = priceItemRepository.get(priceListId, pkg.getPackageId());
         return item != null ? defaultDouble(item.getAmount()) : 0.0;
     }
@@ -154,18 +151,37 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
         return promos.stream()
                 .filter(Objects::nonNull)
                 .filter(p -> p.getDiscountPercent() != null && p.getDiscountPercent() > 0)
+                // --- Filter theo chính PromotionDetail (optional window + status) ---
+                // --- Filter theo Promotion cha ---
                 .filter(p -> {
-                    Promotion promoParent = promotionRepository.findById(p.getPromotionId()).orElse(null);
-                    if (promoParent == null) return false;
-
-                    boolean active = "ACTIVE".equalsIgnoreCase(promoParent.getStatus());
-                    boolean startOk = promoParent.getStartDate() == null || !today.isBefore(promoParent.getStartDate());
-                    boolean endOk   = promoParent.getEndDate() == null   || !today.isAfter(promoParent.getEndDate());
-                    return active && startOk && endOk;
+                    Promotion promo = promotionRepository.findById(p.getPromotionId()).orElse(null);
+                    if (promo == null) return false;
+                    boolean statusOk = "ACTIVE".equalsIgnoreCase(promo.getStatus());
+                    boolean startOk  = promo.getStartDate() == null || !today.isBefore(promo.getStartDate());
+                    boolean endOk    = promo.getEndDate() == null   || !today.isAfter(promo.getEndDate());
+                    return statusOk && startOk && endOk;
                 })
+                // --- Filter theo PromotionLine chứa detail ---
+                .filter(p -> {
+                    if (p.getPromotionLineId() == null || p.getPromotionLineId().isBlank()) {
+                        // Nếu chưa gắn line, cho qua (tuỳ business). Nếu bắt buộc phải có line -> return false;
+                        return true;
+                    }
+                    var line = promotionLineRepository.get(p.getPromotionId(), p.getPromotionLineId());
+                    if (line == null) return false;
+
+                    boolean statusOk = line.getStatus() == null || "ACTIVE".equalsIgnoreCase(line.getStatus());
+                    boolean typeOk   = "PACKAGE".equalsIgnoreCase(String.valueOf(line.getPromotionLineType()));
+                    boolean startOk  = line.getStartDate() == null || !today.isBefore(line.getStartDate());
+                    boolean endOk    = line.getEndDate() == null   || !today.isAfter(line.getEndDate());
+
+                    return statusOk && typeOk && startOk && endOk;
+                })
+                // --- chọn % lớn nhất ---
                 .max(Comparator.comparingInt(PromotionDetail::getDiscountPercent))
                 .orElse(null);
     }
+
 
     /** Giá sau giảm theo % */
     private double calcPrice(double base, int percent) {

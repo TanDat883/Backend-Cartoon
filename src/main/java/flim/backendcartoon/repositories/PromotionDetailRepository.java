@@ -54,19 +54,19 @@ public class PromotionDetailRepository {
         return Optional.ofNullable(promotionDetailDynamoDbTable.getItem(r -> r.key(key)));
     }
 
-    public List<PromotionDetail> listByPromotionVoucher(String promotionId) {
-        return promotionDetailDynamoDbTable.query(r -> r.queryConditional(
-                        QueryConditional.keyEqualTo(k -> k.partitionValue("PROMO#" + promotionId))))
+    public List<PromotionDetail> listByPromotionVoucher(String promotionLineId) {
+        return promotionDetailDynamoDbTable.scan()
                 .items().stream()
                 .filter(it -> it.getSk().startsWith("VOUCHER#"))
+                .filter(it -> Objects.equals(it.getPromotionLineId(), promotionLineId))
                 .toList();
     }
 
-    public List<PromotionDetail> listByPromotionPackage(String promotionId) {
-        return promotionDetailDynamoDbTable.query(r -> r.queryConditional(
-                        QueryConditional.keyEqualTo(k -> k.partitionValue("PROMO#" + promotionId))))
+    public List<PromotionDetail> listByPromotionPackage(String promotionLineId) {
+        return promotionDetailDynamoDbTable.scan()
                 .items().stream()
                 .filter(it -> it.getSk().startsWith("PACKAGE#"))
+                .filter(it -> Objects.equals(it.getPromotionLineId(), promotionLineId))
                 .toList();
     }
 
@@ -76,12 +76,6 @@ public class PromotionDetailRepository {
         );
         return promotionDetailDynamoDbTable.query(r -> r.queryConditional(qc))
                 .items().stream().collect(Collectors.toList());
-    }
-
-    public List<PromotionDetail> findByType(String promotionId, PromotionDetail.DetailType type) {
-        return findByPromotion(promotionId)
-                .stream().filter(d -> type.equals(d.getDetailType()))
-                .collect(Collectors.toList());
     }
 
     // tang usedCount len 1
@@ -133,7 +127,7 @@ public class PromotionDetailRepository {
         return promotionDetailDynamoDbTable.scan().items().stream()
                 .filter(it -> {
                     List<String> itemIds = normalizeIdsFromString(it.getSk());
-                    return !Collections.disjoint(itemIds, wanted); // có giao nhau thì match
+                    return !Collections.disjoint(itemIds, wanted);
                 })
                 .toList();
     }

@@ -23,6 +23,8 @@ import java.util.UUID;
 
 @DynamoDbBean
 public class PromotionLine {
+
+    public enum PromotionLineType { VOUCHER, PACKAGE }
     // ---- Dynamo keys ----
     private String pk; // PROMO#<promotionId>
     private String sk; // LINE#<promotionLineId>
@@ -30,7 +32,8 @@ public class PromotionLine {
     // ---- Business fields ----
     private String promotionLineId; // UUID
     private String promotionId;     // FK -> Promotion
-    private String name;
+    private PromotionLineType promotionLineType;
+    private String promotionLineName;
     private LocalDate startDate;
     private LocalDate endDate;
     private String status; // DRAFT | UPCOMING | ACTIVE | EXPIRED | PAUSED
@@ -51,9 +54,14 @@ public class PromotionLine {
     public String getPromotionId() { return promotionId; }
     public void setPromotionId(String promotionId) { this.promotionId = promotionId; }
 
-    @DynamoDbAttribute("name")
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    @DynamoDbAttribute("promotionLineType")
+    public PromotionLineType getPromotionLineType() { return promotionLineType; }
+    public void setPromotionLineType(PromotionLineType promotionLineType) { this.promotionLineType = promotionLineType; }
+
+    @DynamoDbAttribute("promotionLineName")
+    public String getPromotionLineName() { return promotionLineName; }
+    public void setPromotionLineName(String promotionLineName) { this.promotionLineName = promotionLineName; }
+
 
     @DynamoDbAttribute("startDate")
     public LocalDate getStartDate() { return startDate; }
@@ -68,12 +76,13 @@ public class PromotionLine {
     public void setStatus(String status) { this.status = status; }
 
     // Factory
-    public static PromotionLine of(String promotionId, String name,
+    public static PromotionLine of(String promotionId, String promotionLineId, PromotionLineType promotionLineType, String promotionLineName,
                                    LocalDate start, LocalDate end, String status) {
         PromotionLine it = new PromotionLine();
-        it.promotionLineId = UUID.randomUUID().toString();
+        it.promotionLineId =promotionLineId;
         it.promotionId = promotionId;
-        it.name = name;
+        it.promotionLineType = promotionLineType;
+        it.promotionLineName = promotionLineName;
         it.startDate = start;
         it.endDate = end;
         it.status = status;

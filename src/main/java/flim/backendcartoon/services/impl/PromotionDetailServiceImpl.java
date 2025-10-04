@@ -30,12 +30,10 @@ import java.util.List;
 
 @Service
 public class PromotionDetailServiceImpl implements PromotionDetailService {
-    private final PromotionRepository promotionRepository;
     private final PromotionDetailRepository promotionDetailRepository;
 
     @Autowired
-    public PromotionDetailServiceImpl(PromotionRepository promotionRepository, PromotionDetailRepository promotionDetailRepository) {
-        this.promotionRepository = promotionRepository;
+    public PromotionDetailServiceImpl(PromotionDetailRepository promotionDetailRepository) {
         this.promotionDetailRepository = promotionDetailRepository;
     }
     // ====== Prmotion Voucher ====== //
@@ -46,6 +44,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
         });
         PromotionDetail d = PromotionDetail.newVoucher(
                 request.getPromotionId(),
+                request.getPromotionLineId(),
                 request.getVoucherCode(),
                 request.getDiscountType(),
                 request.getDiscountValue(),
@@ -54,7 +53,6 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
                 request.getMaxUsagePerUser(),
                 request.getMaxDiscountAmount()
         );
-        d.setStatus("ACTIVE");
         promotionDetailRepository.save(d);
     }
 
@@ -106,8 +104,8 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     }
 
     @Override
-    public List<PromotionDetail> getAllPromotionVoucher(String promotionId) {
-        return promotionDetailRepository.listByPromotionVoucher(promotionId);
+    public List<PromotionDetail> getAllPromotionVoucher(String promotionLineId) {
+        return promotionDetailRepository.listByPromotionVoucher(promotionLineId);
     }
 
     @Override
@@ -132,13 +130,12 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
 
     // ====== Prmotion Package ====== //
     @Override
-    public void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent) {
+    public void createPromotionPackage(String promotionId, String promotionLineId, List<String> packageId, int discountPercent) {
         validatePercent(discountPercent);
         promotionDetailRepository.getPackage(promotionId, packageId).ifPresent(x -> {
             throw new BaseException("Promotion package already exists");
         });
-        PromotionDetail promotionPackage = PromotionDetail.newPackage(promotionId, packageId, discountPercent);
-        promotionPackage.setStatus("ACTIVE");
+        PromotionDetail promotionPackage = PromotionDetail.newPackage(promotionId, promotionLineId, packageId, discountPercent);
         promotionDetailRepository.save(promotionPackage);
     }
 
@@ -149,8 +146,8 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     }
 
     @Override
-    public List<PromotionDetail> getAllPromotionPackages(String promotionId) {
-        return promotionDetailRepository.listByPromotionPackage(promotionId);
+    public List<PromotionDetail> getAllPromotionPackages(String promotionLineId) {
+        return promotionDetailRepository.listByPromotionPackage(promotionLineId);
     }
 
     @Override

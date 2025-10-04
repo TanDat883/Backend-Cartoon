@@ -26,14 +26,14 @@ public interface PromotionDetailService {
     ApplyVoucherResponse applyVoucher(ApplyVoucherRequest request);
     PromotionDetail findByVoucherCode(String voucherCode);
     void confirmVoucherUsage(String promotionId, String voucherCode);
-    List<PromotionDetail> getAllPromotionVoucher(String promotionId);
+    List<PromotionDetail> getAllPromotionVoucher(String promotionLineId);
     void deletePromotionVoucher(String promotionId, String voucherCode);
     void updatePromotionVoucher(String promotionId, String voucherCode, CreatePromotionVoucherRequest request);
 
     // ====== Prmotion Package ====== //
-    void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent);
+    void createPromotionPackage(String promotionId, String promotionLineId, List<String> packageId, int discountPercent);
     PromotionDetail getPromotionPackageById(String promotionId, List<String> packageId);
-    List<PromotionDetail> getAllPromotionPackages(String promotionId);
+    List<PromotionDetail> getAllPromotionPackages(String promotionLineId);
     boolean deletePromotionPackage(String promotionId, List<String> packageId);
     void updatePercent(String promotionId, List<String> packageId, int newPercent);
 

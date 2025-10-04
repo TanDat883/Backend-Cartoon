@@ -45,5 +45,10 @@ public class PromotionController {
         return ResponseEntity.ok(promotions);
     }
 
+    @PutMapping("/{promotionId}")
+    public ResponseEntity<String> updatePromotion(@PathVariable String promotionId, @Valid @RequestBody CreatePromotionRequest request) {
+        promotionService.updatePromotion(promotionId, request);
+        return ResponseEntity.ok("Promotion updated successfully");
+    }
 
 }

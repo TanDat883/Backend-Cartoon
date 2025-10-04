@@ -32,6 +32,16 @@ public class PromotionRepository {
         this.promotionTable = dynamoDbEnhancedClient.table("Promotion", TableSchema.fromBean(Promotion.class));
     }
 
+    public Promotion get(String promotionId) {
+        Key key = Key.builder().partitionValue("PROMO#" + promotionId)
+                .sortValue("PROMO#" + promotionId).build();
+        Promotion promotion = promotionTable.getItem(r -> r.key(key));
+        if (promotion == null) {
+            throw new IllegalArgumentException("Promotion with ID " + promotionId + " does not exist.");
+        }
+        return promotion;
+    }
+
     public Optional<Promotion> findById(String promotionId) {
         Key key = Key.builder().partitionValue("PROMO#" + promotionId)
                 .sortValue("PROMO#" + promotionId).build();
@@ -45,12 +55,6 @@ public class PromotionRepository {
     public List<Promotion> findAll() {
         return promotionTable.scan().items().stream().collect(Collectors.toList());
     }
-
-//    public List<Promotion> findByType(String type) {
-//        return promotionTable.scan().items().stream()
-//                .filter(it -> it.getPromotionType().toString().equals(type))
-//                .collect(Collectors.toList());
-//    }
 
     public boolean isPromotionActive(String promotionId) {
         Optional<Promotion> promotionOpt = findById(promotionId);
