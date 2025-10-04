@@ -2,6 +2,7 @@ package flim.backendcartoon.controllers;
 
 
 import flim.backendcartoon.entities.Episode;
+import flim.backendcartoon.entities.SubtitleTrack;
 import flim.backendcartoon.services.CloudFrontService;
 import flim.backendcartoon.services.EpisodeService;
 import flim.backendcartoon.services.S3Service;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +32,16 @@ public class EpisodeController {
     private Episode toCdn(Episode ep) {
         if (ep == null) return null;
         ep.setVideoUrl(cloudFrontService.convertToCloudFrontUrl(ep.getVideoUrl()));
+        if (ep.getSubtitles()!=null){
+            ep.getSubtitles().forEach(t -> {
+                if (t.getUrl()!=null && !t.getUrl().isBlank()){
+                    t.setUrl(cloudFrontService.convertToCloudFrontUrl(t.getUrl()));
+                }
+            });
+        }
         return ep;
     }
+
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<?> uploadEpisode(
@@ -153,6 +163,61 @@ public class EpisodeController {
         return ResponseEntity.ok(toCdn(ep));
     }
 
+
+//thêm xóa phụ đề khi đã có tập
+@PostMapping(value="/season/{seasonId}/ep/{episodeNumber}/subtitles", consumes="multipart/form-data")
+public ResponseEntity<?> addSubtitle(
+        @PathVariable String seasonId,
+        @PathVariable Integer episodeNumber,
+        @RequestParam String lang,
+        @RequestParam(required=false) String label,
+        @RequestParam(required=false, defaultValue="subtitles") String kind,
+        @RequestParam(required=false, defaultValue="false") boolean isDefault,
+        @RequestPart("file") MultipartFile file
+) throws IOException {
+    Episode ep = episodeService.findOne(seasonId, episodeNumber);
+    String url = s3Service.uploadSubtitle(file);
+    SubtitleTrack tr = new SubtitleTrack();
+    tr.setLang(lang);
+    tr.setLabel(label==null||label.isBlank()?lang.toUpperCase():label);
+    tr.setKind(kind); tr.setIsDefault(isDefault);
+    tr.setUrl(url); tr.setCreatedAt(Instant.now());
+
+    var list = ep.getSubtitles()==null? new java.util.ArrayList<SubtitleTrack>() : new java.util.ArrayList<>(ep.getSubtitles());
+    // nếu isDefault=true thì unset default các track khác
+    if (isDefault) list.forEach(t -> t.setIsDefault(Boolean.FALSE));
+    // replace nếu cùng lang
+    list.removeIf(t -> t.getLang().equalsIgnoreCase(lang));
+    list.add(tr);
+    ep.setSubtitles(list);
+    ep.setUpdatedAt(Instant.now());
+    episodeService.update(ep);
+    return ResponseEntity.ok(toCdn(ep));
+}
+
+//xóa phụ đề phim theo ngôn ngữ
+@DeleteMapping("/season/{seasonId}/ep/{episodeNumber}/subtitles/{lang}")
+public ResponseEntity<?> deleteSubtitle(
+        @PathVariable String seasonId, @PathVariable Integer episodeNumber, @PathVariable String lang
+){
+    Episode ep = episodeService.findOne(seasonId, episodeNumber);
+    if (ep.getSubtitles()==null || ep.getSubtitles().isEmpty())
+        return ResponseEntity.ok(Map.of("message","No subtitles"));
+    var list = new java.util.ArrayList<>(ep.getSubtitles());
+    list.removeIf(t -> t.getLang().equalsIgnoreCase(lang));
+    ep.setSubtitles(list);
+    ep.setUpdatedAt(Instant.now());
+    episodeService.update(ep);
+    return ResponseEntity.ok(Map.of("message","Deleted"));
+}
+//lấy danh sách phụ đề của tập phim
+@GetMapping("/season/{seasonId}/ep/{episodeNumber}/subtitles")
+public ResponseEntity<?> listSubtitles(
+        @PathVariable String seasonId, @PathVariable Integer episodeNumber){
+    Episode ep = episodeService.findOne(seasonId, episodeNumber);
+    Episode out = toCdn(ep); // convert CDN URL cho subtitle luôn
+    return ResponseEntity.ok(out.getSubtitles()==null? List.of() : out.getSubtitles());
+}
 
 
 }

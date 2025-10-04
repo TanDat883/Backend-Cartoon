@@ -24,6 +24,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/movies/delete").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/users/*/update").authenticated()
                         .requestMatchers(HttpMethod.POST, "/movies/*/publish").authenticated()
+                        .requestMatchers(HttpMethod.POST,
+                                "/episodes/season/*/ep/*/subtitles").authenticated()
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/episodes/season/*/ep/*/subtitles/*").authenticated()
                         .requestMatchers(HttpMethod.POST,  "/reports/playback").permitAll()
                         .requestMatchers(HttpMethod.GET, "/reports/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/reports/**").authenticated()
@@ -41,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
                         .requestMatchers(HttpMethod.GET,  "/api/ai/welcome").permitAll()
                         .requestMatchers("/data-analyzer/movies/**").permitAll()
+                        .requestMatchers("/proxy/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/authors/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
@@ -63,24 +68,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); // FE URL
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "userId",              // ✅ quan trọng
-                "X-Requested-With",
-                "Accept",
-                "Origin"
-        ));
-        configuration.setExposedHeaders(List.of("*"));   // optional
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*")); // đủ, không cần gọi 2 lần
+        configuration.setExposedHeaders(List.of("*")); // nếu thực sự cần
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 }

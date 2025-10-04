@@ -431,4 +431,17 @@ public class S3Service {
             s3Client.putObject(req, RequestBody.fromFile(f));
         }
     }
+
+    // upload phụ đề phim
+    public String uploadSubtitle(MultipartFile file) throws IOException {
+        String key = "subtitles/" + UUID.randomUUID() + "_" + sanitize(file.getOriginalFilename());
+        String name = Optional.ofNullable(file.getOriginalFilename()).orElse("").toLowerCase();
+        String ct = name.endsWith(".vtt") ? "text/vtt"
+                : name.endsWith(".srt") ? "application/x-subrip"
+                : "text/vtt";
+        PutObjectRequest put = PutObjectRequest.builder()
+                .bucket(bucketName).key(key).contentType(ct).build();
+        s3Client.putObject(put, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        return buildPublicUrl(key);
+    }
 }

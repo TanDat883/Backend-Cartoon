@@ -6,6 +6,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortKey;
 
 import java.time.Instant;
+import java.util.List;
 
 @DynamoDbBean
 public class Episode {
@@ -23,6 +24,9 @@ public class Episode {
     private Instant releaseDate;      // (khuyến nghị) ngày phát hành tập
     private Instant createdAt;        // chuẩn hóa Instant
     private Instant updatedAt;
+
+    //phụ đề phim
+    private List<SubtitleTrack> subtitles;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("seasonId")
@@ -61,4 +65,9 @@ public class Episode {
     @DynamoDbAttribute("updatedAt")
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    @DynamoDbAttribute("subtitles")
+    public List<SubtitleTrack> getSubtitles(){ return subtitles; }
+    public void setSubtitles(List<SubtitleTrack> s){ this.subtitles = s; }
+
 }
