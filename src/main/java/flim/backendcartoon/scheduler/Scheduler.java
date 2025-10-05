@@ -56,15 +56,14 @@ public class Scheduler {
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Ho_Chi_Minh")
     public void expireOldPriceLists() { pricingService.expireOutdatedPriceLists(); }
 
-    @Scheduled(cron = "0 * * * * *", zone = "Asia/Ho_Chi_Minh")
-    public void autoFlipInactivePriceListsStartingToday() {
-        try {
-            pricingService.autoFlipInactiveListsStartingToday();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-    }
-
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Ho_Chi_Minh")
+//    public void autoFlipInactivePriceListsStartingToday() {
+//        try {
+//            pricingService.autoFlipInactiveListsStartingToday();
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+//    }
 
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Ho_Chi_Minh")
     public void autoActivateDaily() {

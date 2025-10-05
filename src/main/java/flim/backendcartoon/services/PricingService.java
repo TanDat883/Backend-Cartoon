@@ -29,7 +29,7 @@ public interface PricingService {
     void updatePriceList(String priceListId, CreatePriceListRequest priceListRequest);
     List<PriceList> getPriceListsByStatusAndStartDate(String status, LocalDate startDate);
     int expireOutdatedPriceLists();
-    int autoFlipInactiveListsStartingToday();
+//    int autoFlipInactiveListsStartingToday();
     PriceList getPriceListById(String priceListId);
     void createPriceItem(PriceItem priceItem);
     void addPrice(AddPriceRequest addPriceRequest);
