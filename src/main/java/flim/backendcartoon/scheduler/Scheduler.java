@@ -31,12 +31,14 @@ public class Scheduler {
     private final VipSubscriptionService vipSubscriptionService;
     private final PromotionService promotionService;
     private final PricingService pricingService;
+    private final PromotionLineService promotionLineService;
     @Autowired
     public Scheduler(VipSubscriptionService vipSubscriptionService,
-                     PromotionService promotionService, PricingService pricingService) {
+                     PromotionService promotionService, PricingService pricingService, PromotionLineService promotionLineService) {
         this.vipSubscriptionService = vipSubscriptionService;
         this.promotionService = promotionService;
         this.pricingService = pricingService;
+        this.promotionLineService = promotionLineService;
     }
 
     // Chạy vào 2 giờ sáng mỗi ngày
@@ -49,7 +51,19 @@ public class Scheduler {
     public void expireOldPromotions() { promotionService.expireOutdatedPromotions(); }
 
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Ho_Chi_Minh")
+    public void expireOldPromotionLines() { promotionLineService.expireOutdatedPromotionLines(); }
+
+    @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Ho_Chi_Minh")
     public void expireOldPriceLists() { pricingService.expireOutdatedPriceLists(); }
+
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Ho_Chi_Minh")
+//    public void autoFlipInactivePriceListsStartingToday() {
+//        try {
+//            pricingService.autoFlipInactiveListsStartingToday();
+//        } catch (Exception ex) {
+//            ex.printStackTrace();
+//        }
+//    }
 
     @Scheduled(cron = "0 0 0 * * *", zone = "Asia/Ho_Chi_Minh")
     public void autoActivateDaily() {

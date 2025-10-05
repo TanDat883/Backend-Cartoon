@@ -24,7 +24,13 @@ import java.time.LocalDate;
 public class CreatePriceListRequest {
 
     @NotBlank
+    private String id;
+
+    @NotBlank
     private String name;
+
+    @NotBlank
+    private String status; // e.g., "DRAFT", "ACTIVE", "EXPIRED"
 
     @NotNull
     @JsonFormat(pattern = "yyyy-MM-dd")

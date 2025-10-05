@@ -26,15 +26,15 @@ public interface PricingService {
     PriceView getPriceForPackage(String packageId);
     List<PriceList> getAllPriceLists();
     void createPriceList(CreatePriceListRequest priceListRequest);
+    void updatePriceList(String priceListId, CreatePriceListRequest priceListRequest);
     List<PriceList> getPriceListsByStatusAndStartDate(String status, LocalDate startDate);
     int expireOutdatedPriceLists();
+//    int autoFlipInactiveListsStartingToday();
     PriceList getPriceListById(String priceListId);
     void createPriceItem(PriceItem priceItem);
     void addPrice(AddPriceRequest addPriceRequest);
     int activatePriceList(String priceListId);
     List<PriceItem> getPriceItemsByPriceListId(String priceListId);
-    void updateEffectiveEndOfCurrentPriceItem(String priceListId, String packageId, LocalDate newEndDate);
-    void extendPriceListEnd(String priceListId, LocalDate newEndDate, boolean carryForwardMissing);
 }
 
     

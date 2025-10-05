@@ -17,10 +17,13 @@ import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
 import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
 import flim.backendcartoon.entities.DiscountType;
+import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionDetail;
+import flim.backendcartoon.entities.PromotionLine;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.PromotionDetailRepository;
+import flim.backendcartoon.repositories.PromotionLineRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,13 +33,17 @@ import java.util.List;
 
 @Service
 public class PromotionDetailServiceImpl implements PromotionDetailService {
-    private final PromotionRepository promotionRepository;
     private final PromotionDetailRepository promotionDetailRepository;
+    private final PromotionRepository promotionRepository;
+    private final PromotionLineRepository promotionLineRepository;
 
     @Autowired
-    public PromotionDetailServiceImpl(PromotionRepository promotionRepository, PromotionDetailRepository promotionDetailRepository) {
-        this.promotionRepository = promotionRepository;
+    public PromotionDetailServiceImpl(PromotionDetailRepository promotionDetailRepository,
+                                      PromotionRepository promotionRepository,
+                                      PromotionLineRepository promotionLineRepository) {
         this.promotionDetailRepository = promotionDetailRepository;
+        this.promotionRepository = promotionRepository;
+        this.promotionLineRepository = promotionLineRepository;
     }
     // ====== Prmotion Voucher ====== //
     @Override
@@ -46,6 +53,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
         });
         PromotionDetail d = PromotionDetail.newVoucher(
                 request.getPromotionId(),
+                request.getPromotionLineId(),
                 request.getVoucherCode(),
                 request.getDiscountType(),
                 request.getDiscountValue(),
@@ -54,35 +62,61 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
                 request.getMaxUsagePerUser(),
                 request.getMaxDiscountAmount()
         );
-        d.setStatus("ACTIVE");
         promotionDetailRepository.save(d);
     }
 
     @Override
     public ApplyVoucherResponse applyVoucher(ApplyVoucherRequest request) {
         PromotionDetail promotionVoucher = promotionDetailRepository.findByVoucherCode(request.getVoucherCode());
-        // Check if the voucher is applicable for the package price
-//        if (request.getPackagePrice() < promotionVoucher.getMinPackagePrice()) {
-//            throw new BaseException("Voucher is not applicable for the selected package");
-//        }
-        // Check if the order amount meets the minimum requirement
-        if (request.getOrderAmount() < promotionVoucher.getMinOrderAmount()) {
+        if (promotionVoucher == null) {
+            throw new ResourceNotFoundException("Voucher không tồn tại hoặc đã hết hiệu lực");
+        }
+
+        String promotionId    = promotionVoucher.getPromotionId();
+        String promotionLineId= promotionVoucher.getPromotionLineId();
+
+        PromotionLine line = promotionLineRepository
+                .findById(promotionId, promotionLineId)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion line không tồn tại"));
+
+        Promotion promotion = promotionRepository.findById(promotionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Promotion không tồn tại"));
+
+        // 1) Min order
+        double minOrder = promotionVoucher.getMinOrderAmount() == null ? 0.0 : promotionVoucher.getMinOrderAmount();
+        if (request.getOrderAmount() < minOrder) {
             throw new BaseException("Order amount does not meet the minimum requirement for this voucher");
         }
-        // Calculate discount amount
+
+        // 2) Promotion ACTIVE + trong khoảng thời gian
+        if (!promotionRepository.isPromotionActive(promotion.getPromotionId())) {
+            throw new BaseException("Promotion is not active");
+        }
+
+        // 3) Line phải là VOUCHER + ACTIVE + trong khoảng thời gian
+        if (!"VOUCHER".equalsIgnoreCase(String.valueOf(line.getPromotionLineType()))) {
+            throw new BaseException("Promotion line is not type VOUCHER");
+        }
+        if (!promotionLineRepository.isPromotionLineActive(promotionId, promotionLineId)) {
+            // (hoặc dùng hàm private isActiveLine(line) nếu muốn tránh query lại)
+            throw new BaseException("Promotion line is not active");
+        }
+
+        // 4) Tính discount
         double discountAmount = 0.0;
         if (promotionVoucher.getDiscountType() == DiscountType.PERCENTAGE) {
-            discountAmount = request.getOrderAmount() * promotionVoucher.getDiscountValue() / 100;
-            if (discountAmount > promotionVoucher.getMaxDiscountAmount()) {
-                discountAmount = promotionVoucher.getMaxDiscountAmount();
-            }
+            discountAmount = request.getOrderAmount() * promotionVoucher.getDiscountValue() / 100.0;
         } else if (promotionVoucher.getDiscountType() == DiscountType.FIXED_AMOUNT) {
             discountAmount = promotionVoucher.getDiscountValue();
-            if (discountAmount > promotionVoucher.getMaxDiscountAmount()) {
-                discountAmount = promotionVoucher.getMaxDiscountAmount();
-            }
         }
+
+        Long maxCap = promotionVoucher.getMaxDiscountAmount();
+        if (maxCap != null && maxCap > 0 && discountAmount > maxCap) {
+            discountAmount = maxCap;
+        }
+
         double finalAmount = Math.max(0.0, request.getOrderAmount() - discountAmount);
+
         return new ApplyVoucherResponse(
                 promotionVoucher.getPromotionId(),
                 promotionVoucher.getVoucherCode(),
@@ -91,6 +125,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
                 finalAmount
         );
     }
+
 
     @Override
     public PromotionDetail findByVoucherCode(String voucherCode) {
@@ -110,8 +145,8 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     }
 
     @Override
-    public List<PromotionDetail> getAllPromotionVoucher(String promotionId) {
-        return promotionDetailRepository.listByPromotionVoucher(promotionId);
+    public List<PromotionDetail> getAllPromotionVoucher(String promotionLineId) {
+        return promotionDetailRepository.listByPromotionVoucher(promotionLineId);
     }
 
     @Override
@@ -136,13 +171,12 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
 
     // ====== Prmotion Package ====== //
     @Override
-    public void createPromotionPackage(String promotionId, List<String> packageId, int discountPercent) {
+    public void createPromotionPackage(String promotionId, String promotionLineId, List<String> packageId, int discountPercent) {
         validatePercent(discountPercent);
         promotionDetailRepository.getPackage(promotionId, packageId).ifPresent(x -> {
             throw new BaseException("Promotion package already exists");
         });
-        PromotionDetail promotionPackage = PromotionDetail.newPackage(promotionId, packageId, discountPercent);
-        promotionPackage.setStatus("ACTIVE");
+        PromotionDetail promotionPackage = PromotionDetail.newPackage(promotionId, promotionLineId, packageId, discountPercent);
         promotionDetailRepository.save(promotionPackage);
     }
 
@@ -153,8 +187,8 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     }
 
     @Override
-    public List<PromotionDetail> getAllPromotionPackages(String promotionId) {
-        return promotionDetailRepository.listByPromotionPackage(promotionId);
+    public List<PromotionDetail> getAllPromotionPackages(String promotionLineId) {
+        return promotionDetailRepository.listByPromotionPackage(promotionLineId);
     }
 
     @Override

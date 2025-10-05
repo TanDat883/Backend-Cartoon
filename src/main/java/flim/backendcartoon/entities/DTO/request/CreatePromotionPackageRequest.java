@@ -19,6 +19,7 @@ import java.util.List;
 @Data
 public class CreatePromotionPackageRequest {
     private String promotionId;
+    private String promotionLineId;
     private List<String> packageId;
     private Integer discountPercent;
 }

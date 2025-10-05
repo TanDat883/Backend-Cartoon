@@ -7,6 +7,7 @@
 package flim.backendcartoon.entities.DTO.request;
 
 import flim.backendcartoon.entities.PromotionType;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -19,8 +20,10 @@ import java.time.LocalDate;
  */
 @Data
 public class CreatePromotionRequest {
+    @NotBlank
+    private String promotionId;
     private String promotionName;
-    private PromotionType promotionType; // VOUCHER | DISCOUNT
+    private String status;
     private String description;
     private LocalDate startDate;
     private LocalDate endDate;

@@ -27,4 +27,5 @@ public class AddPriceRequest {
     @NotNull
     @Min(0)
     private Double amount;
+
 }
