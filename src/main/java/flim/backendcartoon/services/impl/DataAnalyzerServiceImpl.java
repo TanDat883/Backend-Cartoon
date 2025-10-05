@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.WeekFields;
 import java.util.*;
@@ -495,17 +496,21 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
         switch (groupBy) {
             case WEEK -> {
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM");
                 LocalDate ptr = start.with(DayOfWeek.MONDAY);
                 while (!ptr.isAfter(end)) {
-                    String key = "W" + ptr.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    LocalDate mon = ptr;
+                    LocalDate sun = mon.plusDays(6);
+                    String key = mon.format(fmt) + "–" + sun.format(fmt);
                     bucket.put(key, 0.0);
                     ptr = ptr.plusWeeks(1);
                 }
                 for (var o : orders) {
-                    LocalDate d = o.getCreatedAt(); // nếu là Instant -> convert về LocalDate theo Z
+                    LocalDate d = o.getCreatedAt();
                     if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
-                    LocalDate monday = d.with(DayOfWeek.MONDAY);
-                    String k = "W" + monday.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    LocalDate mon = d.with(DayOfWeek.MONDAY);
+                    LocalDate sun = mon.plusDays(6);
+                    String k = mon.format(fmt) + "–" + sun.format(fmt);
                     bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
                 }
             }
@@ -552,7 +557,7 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         double totalRange = paid.stream()
                 .filter(o -> {
                     LocalDate d = o.getCreatedAt();
-                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                    return d != null && !d.isBefore(s) && !d.isAfter(e);
                 })
                 .mapToDouble(PaymentOrder::getFinalAmount)
                 .sum();
@@ -560,9 +565,10 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         long txRange = paid.stream()
                 .filter(o -> {
                     LocalDate d = o.getCreatedAt();
-                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                    return d != null && !d.isBefore(s) && !d.isAfter(e);
                 })
                 .count();
+
 
         // Ánh xạ: monthlyRevenue = revenue trong range; monthlyTransactions = số GD trong range
         return new RevenueSummaryResponse(totalAll, totalRange, txAll, txRange);
@@ -623,9 +629,12 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
         switch (groupBy) {
             case WEEK -> {
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM");
                 LocalDate ptr = start.with(DayOfWeek.MONDAY);
                 while (!ptr.isAfter(end)) {
-                    String key = "W" + ptr.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    LocalDate mon = ptr;
+                    LocalDate sun = mon.plusDays(6);
+                    String key = mon.format(fmt) + "–" + sun.format(fmt);
                     bucket.put(key, 0L);
                     ptr = ptr.plusWeeks(1);
                 }
@@ -633,8 +642,9 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                     if (m.getCreatedAt() == null) continue;
                     LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), Z).toLocalDate();
                     if (d.isBefore(start) || d.isAfter(end)) continue;
-                    LocalDate monday = d.with(DayOfWeek.MONDAY);
-                    String k = "W" + monday.get(WeekFields.ISO.weekOfWeekBasedYear());
+                    LocalDate mon = d.with(DayOfWeek.MONDAY);
+                    LocalDate sun = mon.plusDays(6);
+                    String k = mon.format(fmt) + "–" + sun.format(fmt);   // <-- KHỚP format
                     bucket.computeIfPresent(k, (kk, v) -> v + 1);
                 }
             }

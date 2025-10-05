@@ -6,6 +6,7 @@
 
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.DTO.response.GroupByDataAnalzerResponse;
 import flim.backendcartoon.services.ExportDashboardService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,9 +37,14 @@ public class ExportController {
     public void exportDashboard(HttpServletResponse response,
                                 @RequestParam(required = false) Integer year,
                                 @RequestParam(required = false) Integer month) throws IOException {
-        LocalDate now = LocalDate.now();
+        var now = LocalDate.now();
         int y = (year != null) ? year : now.getYear();
         int m = (month != null) ? month : now.getMonthValue();
-        exportDashboardService.exportDashboard(response, y, m);
+
+        var start = java.time.YearMonth.of(y, m).atDay(1);
+        var end   = java.time.YearMonth.of(y, m).atEndOfMonth();
+
+        exportDashboardService.exportDashboardRange(response, start, end, GroupByDataAnalzerResponse.DAY,
+                null, null); // companyName, companyAddress nếu có
     }
 }

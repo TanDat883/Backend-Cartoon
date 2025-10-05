@@ -8,11 +8,14 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.response.*;
 import flim.backendcartoon.services.DataAnalyzerService;
+import flim.backendcartoon.services.ExportDashboardService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.time.LocalDate;
 
 /*
@@ -28,6 +31,8 @@ public class DataAnalyzerController {
 
     @Autowired
     private final DataAnalyzerService revenueService;
+    @Autowired
+    private final ExportDashboardService exportDashboardService;
 
     // tổng quan doanh thu
     @GetMapping("/revenue/summary")
@@ -195,6 +200,39 @@ public class DataAnalyzerController {
     ) {
         return revenueService.getMovieSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
     }
+
+    // ====== EXPORT EXCEL ======
+    // Xuất theo year/month (giống file mẫu)
+    @GetMapping("/export/dashboard.xlsx")
+    public void exportDashboardYM(
+            HttpServletResponse response,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) throws IOException {
+        var now = LocalDate.now();
+        int y = (year != null) ? year : now.getYear();
+        int m = (month != null) ? month : now.getMonthValue();
+
+        var start = java.time.YearMonth.of(y, m).atDay(1);
+        var end   = java.time.YearMonth.of(y, m).atEndOfMonth();
+
+        exportDashboardService.exportDashboardRange(response, start, end, GroupByDataAnalzerResponse.DAY,
+                null, null); // companyName, companyAddress nếu có
+    }
+
+    // Xuất theo khoảng ngày + groupBy (DAY|WEEK|MONTH)
+    @GetMapping("/export/dashboard-range.xlsx")
+    public void exportDashboardRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy,
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) String companyAddress,
+            HttpServletResponse response) throws Exception {
+        var s = LocalDate.parse(startDate);
+        var e = LocalDate.parse(endDate);
+        exportDashboardService.exportDashboardRange(response, s, e, groupBy, companyName, companyAddress);
+    }
+
 }
 
 
