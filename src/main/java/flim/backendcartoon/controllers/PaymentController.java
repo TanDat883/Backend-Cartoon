@@ -13,11 +13,11 @@ package flim.backendcartoon.controllers;
  * @created: 09-July-2025 12:33 PM
  */
 
-import flim.backendcartoon.entities.*;
 import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
 import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
+import flim.backendcartoon.entities.*;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,7 +26,10 @@ import org.springframework.web.bind.annotation.*;
 import vn.payos.type.CheckoutResponseData;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,12 +38,15 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
-    private final PaymentOrderService paymentOrderService;
     private final SubscriptionPackageService subscriptionPackageService;
     private final UserService userService;
-    private final OrderService orderService;
     private final VipSubscriptionService vipSubscriptionService;
     private final PromotionDetailService promotionVoucherService;
+
+    @GetMapping
+    public ResponseEntity<List<Payment>> getAllPayments() {
+        return ResponseEntity.ok(paymentService.getAllPayments());
+    }
 
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody CreatePaymentRequest req) throws Exception {
@@ -54,18 +60,15 @@ public class PaymentController {
             return ResponseEntity.badRequest().body("Không tìm thấy gói");
         }
 
-        // Tạo đơn hàng Order trước
-        Order order = orderService.createOrder(req.getUserId(), req.getPackageId());
-
         // Tạo dữ liệu đơn hàng từ subscriptionPackage
         PackageType vip = subscriptionPackage.getApplicablePackageType();
         String productName = "Gói  " + vip.name();
         String description = "thời hạn " + subscriptionPackage.getDurationInDays() + " ngày";
 
         // 2) Tính tiền: giá gốc và giá sau giảm của gói
-        int originalAmount = subscriptionPackage.getAmount().intValue();
-        int discountAmount = subscriptionPackage.getDiscountedAmount().intValue();
-        int finalAmount = discountAmount;
+        Long originalAmount = subscriptionPackage.getAmount();
+        Long discountAmount = subscriptionPackage.getDiscountedAmount();
+        Long finalAmount = discountAmount;
 
         // 3) Preview voucher nếu có
         String appliedVoucher = null;
@@ -76,7 +79,7 @@ public class PaymentController {
             voucherRequest.setVoucherCode(req.getVoucherCode());
             voucherRequest.setUserId(req.getUserId());
             voucherRequest.setPackageId(req.getPackageId());
-            voucherRequest.setOrderAmount((double) finalAmount);
+            voucherRequest.setOrderAmount(finalAmount);
             promotionVoucherService.applyVoucher(voucherRequest);
 
             ApplyVoucherResponse voucherResponse = promotionVoucherService.applyVoucher(voucherRequest);
@@ -87,72 +90,65 @@ public class PaymentController {
 
         // Gọi PayOS để tạo link thanh toán
         CheckoutResponseData data = paymentService.createPaymentLink(
-                productName, description, finalAmount,
+                productName, description, Math.toIntExact(finalAmount),
                 req.getReturnUrl(), req.getCancelUrl()
         );
 
-        // Lưu thông tin PaymentOrder
-        PaymentOrder paymentOrder = new PaymentOrder();
-        paymentOrder.setOrderCode(data.getOrderCode());
-        paymentOrder.setOrderId(order.getOrderId());
-        paymentOrder.setOriginalAmount((double) originalAmount);
-        paymentOrder.setDiscountAmount((double) discountAmount);
-        paymentOrder.setFinalAmount((double) finalAmount);
-        paymentOrder.setPromotionId(promotionId);
-        paymentOrder.setVoucherCode(appliedVoucher);
-        paymentOrder.setStatus("PENDING");
-        paymentOrder.setCreatedAt(LocalDate.now());
-        paymentOrderService.savePaymentOrder(paymentOrder);
+        // Lưu thông tin Payment
+        Payment payment = paymentService.createPayment(req.getUserId(), req.getPackageId(), data.getOrderCode(), finalAmount);
+
+        // Lưu thông tin PaymentDetail
+        PaymentDetail paymentDetail = new PaymentDetail();
+        paymentDetail.setPaymentCode(data.getOrderCode());
+        paymentDetail.setPaymentId(payment.getPaymentId());
+        paymentDetail.setOriginalAmount(originalAmount);
+        paymentDetail.setDiscountAmount(discountAmount);
+        paymentDetail.setFinalAmount(finalAmount);
+        paymentDetail.setPromotionId(promotionId);
+        paymentDetail.setVoucherCode(appliedVoucher);
+        paymentService.savePaymentDetail(paymentDetail);
 
         return ResponseEntity.ok(data);
     }
 
     @GetMapping("/payment/status")
-    public ResponseEntity<?> getPaymentStatus(@RequestParam Long orderCode) {
-        PaymentOrder order = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
-        if (order == null) {
+    public ResponseEntity<?> getPaymentStatus(@RequestParam Long paymentCode) {
+        Payment payment = paymentService.findPaymentByPaymentCode(paymentCode);
+        if (payment == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy đơn hàng");
         }
-        return ResponseEntity.ok(Map.of("status", order.getStatus()));
+        return ResponseEntity.ok(payment.getStatus());
     }
 
 
-    @PutMapping("/cancel/{orderCode}")
-    public ResponseEntity<?> cancel(@PathVariable long orderCode) throws Exception {
-        PaymentOrder paymentOrder = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
-        if (paymentOrder == null) {
+    @PutMapping("/cancel/{paymentCode}")
+    public ResponseEntity<?> cancel(@PathVariable long paymentCode) throws Exception {
+        Payment payment = paymentService.findPaymentByPaymentCode(paymentCode);
+        if (payment == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Không tìm thấy đơn hàng thanh toán");
         }
 
         // Kiểm tra trạng thái đơn hàng
-        if (!"PENDING".equalsIgnoreCase(paymentOrder.getStatus())) {
+        if (!"PENDING".equalsIgnoreCase(payment.getStatus())) {
             return ResponseEntity.badRequest().body("Chỉ có thể hủy đơn hàng đang chờ thanh toán");
         }
 
         // Gọi PayOS để hủy đơn hàng
         try {
-            paymentService.cancelOrder(paymentOrder.getOrderCode());
+            paymentService.cancelPayment(payment.getPaymentCode());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi hủy đơn hàng: " + e.getMessage());
         }
 
-        // Cập nhật trạng thái đơn hàng
-        paymentOrder.setStatus("CANCELED");
-        paymentOrderService.updatePaymentOrder(paymentOrder);
-
-        // Cập nhật trạng thái Order liên kết
-        Order order = orderService.findOrderById(paymentOrder.getOrderId());
-        if (order != null) {
-            orderService.updateOrderStatus(order.getOrderId(), "FAILED");
-        }
+        paymentService.updatePaymentStatus(payment.getPaymentId(), "CANCELED");
 
         return ResponseEntity.ok("Đơn hàng đã được hủy thành công");
     }
 
-    @GetMapping("/{orderCode}")
-    public ResponseEntity<?> getOrder(@PathVariable Long orderCode) {
+    @GetMapping("/{paymentCode}")
+    public ResponseEntity<?> getOrder(@PathVariable Long paymentCode) {
         try {
-            return ResponseEntity.ok(paymentService.getOrder(orderCode));
+            return ResponseEntity.ok(paymentService.getPayment(paymentCode));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi lấy thông tin đơn hàng: " + e.getMessage());
         }
@@ -164,34 +160,34 @@ public class PaymentController {
             String status = (String) payload.get("status");
             Long orderCode = ((Number) payload.get("orderCode")).longValue();
 
-            PaymentOrder paymentOrder = paymentOrderService.findPaymentOrderByOrderCode(orderCode);
-            if (paymentOrder == null) {
+            PaymentDetail paymentDetail = paymentService.findPaymentDetailByPaymentCode(orderCode);
+            if (paymentDetail == null) {
                 return ResponseEntity.badRequest().body("Không tìm thấy đơn hàng thanh toán");
             }
 
-            // Tìm Order gốc
-            Order order = orderService.findOrderById(paymentOrder.getOrderId());
-            if (order == null) {
-                return ResponseEntity.badRequest().body("Không tìm thấy Order liên kết");
+            // Tìm Payment gốc
+            Payment payment = paymentService.findPaymentById(paymentDetail.getPaymentId());
+            if (payment == null) {
+                return ResponseEntity.badRequest().body("Không tìm thấy Payment liên kết");
             }
 
             if ("PAID".equalsIgnoreCase(status)) {
-                // Đánh dấu đơn hàng đã thanh toán
-                paymentOrder.setStatus("PAID");
-                paymentOrderService.updatePaymentOrder(paymentOrder);
 
-                orderService.updateOrderStatus(order.getOrderId(), "SUCCESS");
+                String paidIso = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+                        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                paymentService.updatePaymentPaidAt(payment.getPaymentId(), paidIso);
+                paymentService.updatePaymentStatus(payment.getPaymentId(), "SUCCESS");
 
-                if (paymentOrder.getVoucherCode() != null) {
-                    String promotionId = paymentOrder.getPromotionId();
+                if (paymentDetail.getVoucherCode() != null) {
+                    String promotionId = paymentDetail.getPromotionId();
                     if (promotionId != null) {
-                        promotionVoucherService.confirmVoucherUsage(promotionId, paymentOrder.getVoucherCode());
+                        promotionVoucherService.confirmVoucherUsage(promotionId, paymentDetail.getVoucherCode());
                     }
                 }
 
                 // Cập nhật thông tin VIP
-                User user = userService.findUserById(order.getUserId());
-                SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(order.getPackageId());
+                User user = userService.findUserById(payment.getUserId());
+                SubscriptionPackageResponse subscriptionPackage = subscriptionPackageService.findSubscriptionPackageById(payment.getPackageId());
                 PackageType packageType = subscriptionPackage.getApplicablePackageType();
                 LocalDate startDate = LocalDate.now();
 
@@ -212,7 +208,7 @@ public class PaymentController {
 
                 // Tạo đối tượng VipSubscription mới
                 VipSubscription vipSub = new VipSubscription();
-                vipSub.setVipId(paymentOrder.getOrderId());
+                vipSub.setVipId(paymentDetail.getPaymentId());
                 vipSub.setUserId(user.getUserId());
                 vipSub.setPackageId(subscriptionPackage.getPackageId());
                 vipSub.setPackageType(packageType);
@@ -223,9 +219,7 @@ public class PaymentController {
                 vipSubscriptionService.saveVipSubscription(vipSub);
 
             } else if ("CANCELED".equalsIgnoreCase(status)) {
-                paymentOrder.setStatus("CANCELED");
-                paymentOrderService.updatePaymentOrder(paymentOrder);
-                orderService.updateOrderStatus(order.getOrderId(), "FAILED");
+                paymentService.updatePaymentStatus(payment.getPaymentId(), "CANCELED");
             } else {
                 return ResponseEntity.badRequest().body("Trạng thái không hợp lệ");
             }

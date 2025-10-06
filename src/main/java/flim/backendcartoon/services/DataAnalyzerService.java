@@ -28,12 +28,12 @@ import java.util.List;
  * @created: 15-September-2025 4:35 PM
  */
 public interface DataAnalyzerService {
-    RevenueChartResponse getRevenueByDay(int year, int month);
-    RevenueChartResponse getRevenueByMonth(int year);
-    RevenueChartResponse getRevenueByYear(int from, int to);
-    RevenueSummaryResponse getSummary(int year, int month);
-    QuickStatsResponse getQuickStats();
-    List<RecentTransactionResponse> getRecentTransactions(int limit);
+//    RevenueChartResponse getRevenueByDay(int year, int month);
+//    RevenueChartResponse getRevenueByMonth(int year);
+//    RevenueChartResponse getRevenueByYear(int from, int to);
+//    RevenueSummaryResponse getSummary(int year, int month);
+//    QuickStatsResponse getQuickStats();
+//    List<RecentTransactionResponse> getRecentTransactions(int limit);
 
     // ======= THỐNG KÊ PHIM =======
     MovieStatsSummaryResponse getMovieSummary(int year, int month);
@@ -50,9 +50,9 @@ public interface DataAnalyzerService {
 
 
     // ===== MỚI (range) =====
-    RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
-    RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end);
-    PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end);
+//    RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
+//    RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end);
+//    PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end);
 
     CountChartResponse getNewMoviesByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
     MovieStatsSummaryResponse getMovieSummaryByRange(LocalDate start, LocalDate end);

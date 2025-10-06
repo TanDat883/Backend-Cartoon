@@ -44,21 +44,25 @@ public class DataAnalyzerController {
         int y = (year != null) ? year : now.getYear();
         int m = (month != null) ? month : now.getMonthValue();
 
-        return ResponseEntity.ok(revenueService.getSummary(y, m));
+//        return ResponseEntity.ok(revenueService.getSummary(y, m));
+        return ResponseEntity.ok(null);
     }
+
 
     // Doanh thu theo ngày trong 1 tháng
     @GetMapping("/revenue/day")
     public RevenueChartResponse getRevenueByDay(
             @RequestParam int year,
             @RequestParam int month) {
-        return revenueService.getRevenueByDay(year, month);
+//        return revenueService.getRevenueByDay(year, month);
+        return null;
     }
 
     // Doanh thu theo 12 tháng trong 1 năm
     @GetMapping("/revenue/month")
     public RevenueChartResponse getRevenueByMonth(@RequestParam int year) {
-        return revenueService.getRevenueByMonth(year);
+//        return revenueService.getRevenueByMonth(year);
+        return null;
     }
 
     // Doanh thu theo nhiều năm (from → to)
@@ -66,18 +70,21 @@ public class DataAnalyzerController {
     public RevenueChartResponse getRevenueByYear(
             @RequestParam int from,
             @RequestParam int to) {
-        return revenueService.getRevenueByYear(from, to);
+//        return revenueService.getRevenueByYear(from, to);
+        return null;
     }
 
     // thống kê nhanh
     @GetMapping("/revenue/quick-stats")
     public ResponseEntity<?> getQuickStats() {
-        return ResponseEntity.ok(revenueService.getQuickStats());
+//        return ResponseEntity.ok(revenueService.getQuickStats());
+        return ResponseEntity.ok(null);
     }
     //giao dịch gần đây
     @GetMapping("/revenue/recent-transactions")
     public ResponseEntity<?> getRecentTransaction() {
-        return ResponseEntity.ok(revenueService.getRecentTransactions(5));
+//        return ResponseEntity.ok(revenueService.getRecentTransactions(5));
+        return ResponseEntity.ok(null);
     }
 
     // ===== Revenue (date range + groupBy) =====
@@ -87,7 +94,8 @@ public class DataAnalyzerController {
             @RequestParam String endDate,     // yyyy-MM-dd
             @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy // DAY|WEEK|MONTH
     ) {
-        return revenueService.getRevenueByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
+//        return revenueService.getRevenueByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
+        return null;
     }
 
     @GetMapping("/revenue/range/summary")
@@ -95,7 +103,8 @@ public class DataAnalyzerController {
             @RequestParam String startDate,
             @RequestParam String endDate
     ) {
-        return revenueService.getRevenueSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
+//        return revenueService.getRevenueSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
+        return null;
     }
 
     // Recent transactions có phân trang + (optional) range filter
@@ -108,7 +117,8 @@ public class DataAnalyzerController {
     ) {
         LocalDate s = (startDate == null || startDate.isBlank()) ? null : LocalDate.parse(startDate);
         LocalDate e = (endDate == null || endDate.isBlank()) ? null : LocalDate.parse(endDate);
-        return revenueService.getRecentTransactionsPaged(page, size, s, e);
+//        return revenueService.getRecentTransactionsPaged(page, size, s, e);
+        return null;
     }
 
 

@@ -19,10 +19,10 @@ public class ApplyVoucherResponse {
     private String promotionId;
     private String voucherCode;
     private String message;
-    private Double discountAmount;
-    private Double finalAmount;
+    private Long discountAmount;
+    private Long finalAmount;
 
-    public ApplyVoucherResponse(String promotionId, String voucherCode, String message, Double discountAmount, Double finalAmount) {
+    public ApplyVoucherResponse(String promotionId, String voucherCode, String message, Long discountAmount, Long finalAmount) {
         this.promotionId = promotionId;
         this.voucherCode = voucherCode;
         this.message = message;

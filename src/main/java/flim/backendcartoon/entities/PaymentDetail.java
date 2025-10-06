@@ -20,79 +20,51 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 import java.time.LocalDate;
 
 @DynamoDbBean
-public class PaymentOrder {
-    private Long orderCode;
-    private String orderId;
-    private String status; // PENDING, PAID, FAILED, REFUNDED
-    private Double originalAmount;  // giá trước giảm
-    private Double discountAmount;  // số tiền giảm
-    private Double finalAmount;
-    private LocalDate createdAt;
+public class PaymentDetail {
+    private String paymentId;
+    private Long paymentCode;
     private String promotionId;
     private String voucherCode;
+    private Long originalAmount;
+    private Long discountAmount;
+    private Long finalAmount;
 
     @DynamoDbPartitionKey
-    @DynamoDbAttribute("orderCode")
-    public Long getOrderCode() {
-        return orderCode;
+    @DynamoDbAttribute("paymentId")
+    public String getPaymentId() {
+        return paymentId;
     }
-
-    public void setOrderCode(Long orderCode) {
-        this.orderCode = orderCode;
+    public void setPaymentId(String paymentId) {
+        this.paymentId = paymentId;
     }
-
-    @DynamoDbAttribute("orderId")
-    public String getOrderId() {
-        return orderId;
+    @DynamoDbAttribute("paymentCode")
+    public Long getPaymentCode() {
+        return paymentCode;
     }
-
-    public void setOrderId(String orderId) {
-        this.orderId = orderId;
-    }
-
-    @DynamoDbAttribute("status")
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
+    public void setPaymentCode(Long paymentCode) {
+        this.paymentCode = paymentCode;
     }
 
     @DynamoDbAttribute("originalAmount")
-    public Double getOriginalAmount() {
+    public Long getOriginalAmount() {
         return originalAmount;
     }
-
-    public void setOriginalAmount(Double originalAmount) {
+    public void setOriginalAmount(Long originalAmount) {
         this.originalAmount = originalAmount;
     }
-
     @DynamoDbAttribute("discountAmount")
-    public Double getDiscountAmount() {
+    public Long getDiscountAmount() {
         return discountAmount;
     }
-
-    public void setDiscountAmount(Double discountAmount) {
+    public void setDiscountAmount(Long discountAmount) {
         this.discountAmount = discountAmount;
     }
-
     @DynamoDbAttribute("finalAmount")
-    public Double getFinalAmount() {
+    public Long getFinalAmount() {
         return finalAmount;
     }
-
-    public void setFinalAmount(Double finalAmount) {
+    public void setFinalAmount(Long finalAmount) {
         this.finalAmount = finalAmount;
-    }
-
-    @DynamoDbAttribute("createdAt")
-    public LocalDate getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDate createdAt) {
-        this.createdAt = createdAt;
     }
 
     @DynamoDbAttribute("promotionId")
@@ -107,7 +79,6 @@ public class PaymentOrder {
     public String getVoucherCode() {
         return voucherCode;
     }
-
     public void setVoucherCode(String voucherCode) {
         this.voucherCode = voucherCode;
     }

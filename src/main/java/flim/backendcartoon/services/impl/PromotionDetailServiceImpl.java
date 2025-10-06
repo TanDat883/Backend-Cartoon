@@ -85,7 +85,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
         // 1) Min order
         double minOrder = promotionVoucher.getMinOrderAmount() == null ? 0.0 : promotionVoucher.getMinOrderAmount();
         if (request.getOrderAmount() < minOrder) {
-            throw new BaseException("Order amount does not meet the minimum requirement for this voucher");
+            throw new BaseException("Payment amount does not meet the minimum requirement for this voucher");
         }
 
         // 2) Promotion ACTIVE + trong khoảng thời gian
@@ -103,9 +103,9 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
         }
 
         // 4) Tính discount
-        double discountAmount = 0.0;
+        long discountAmount = 0;
         if (promotionVoucher.getDiscountType() == DiscountType.PERCENTAGE) {
-            discountAmount = request.getOrderAmount() * promotionVoucher.getDiscountValue() / 100.0;
+            discountAmount = Math.round(request.getOrderAmount() * promotionVoucher.getDiscountValue() / 100.0);
         } else if (promotionVoucher.getDiscountType() == DiscountType.FIXED_AMOUNT) {
             discountAmount = promotionVoucher.getDiscountValue();
         }
@@ -115,7 +115,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
             discountAmount = maxCap;
         }
 
-        double finalAmount = Math.max(0.0, request.getOrderAmount() - discountAmount);
+        long finalAmount = request.getOrderAmount() - discountAmount;
 
         return new ApplyVoucherResponse(
                 promotionVoucher.getPromotionId(),

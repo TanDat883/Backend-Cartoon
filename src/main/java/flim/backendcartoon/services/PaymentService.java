@@ -7,8 +7,12 @@
 package flim.backendcartoon.services;
 
 
+import flim.backendcartoon.entities.Payment;
+import flim.backendcartoon.entities.PaymentDetail;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.PaymentLinkData;
+
+import java.util.List;
 
 /*
  * @description
@@ -18,8 +22,20 @@ import vn.payos.type.PaymentLinkData;
  */
 public interface PaymentService {
     CheckoutResponseData createPaymentLink(String productName, String description, int amount, String returnUrl, String cancelUrl) throws Exception;
-    PaymentLinkData getOrder(long orderCode) throws Exception;
-    PaymentLinkData cancelOrder(long orderCode) throws Exception;
+    PaymentLinkData getPayment(long paymentCode) throws Exception;
+    PaymentLinkData cancelPayment(long paymentCode) throws Exception;
+
+    Payment createPayment(String userId, String packageId, Long paymentCode, Long finalAmount);
+    void updatePaymentStatus(String paymentId, String newStatus);
+    void updatePaymentPaidAt(String paymentId, String paidAt);
+    Payment findPaymentById(String paymentId);
+    List<Payment> getAllPayments();
+    Payment findPaymentByPaymentCode(Long paymentCode);
+
+    void savePaymentDetail(PaymentDetail paymentDetail);
+    void updatePaymentDetail(PaymentDetail paymentDetail);
+    PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode);
+    String getStatusByPaymentId(String paymentId);
 }
 
     

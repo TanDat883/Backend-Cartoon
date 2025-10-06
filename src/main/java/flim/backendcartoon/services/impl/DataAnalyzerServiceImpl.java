@@ -21,11 +21,11 @@ import flim.backendcartoon.entities.DTO.response.QuickStatsResponse;
 import flim.backendcartoon.entities.DTO.response.RecentTransactionResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueChartResponse;
 import flim.backendcartoon.entities.DTO.response.RevenueSummaryResponse;
-import flim.backendcartoon.entities.Order;
-import flim.backendcartoon.entities.PaymentOrder;
+import flim.backendcartoon.entities.Payment;
+import flim.backendcartoon.entities.PaymentDetail;
 import flim.backendcartoon.entities.User;
-import flim.backendcartoon.repositories.OrderRepository;
-import flim.backendcartoon.repositories.PaymentOrderRepository;
+import flim.backendcartoon.repositories.PaymentRepository;
+import flim.backendcartoon.repositories.PaymentDetailRepository;
 import flim.backendcartoon.repositories.UserReponsitory;
 
 import flim.backendcartoon.services.DataAnalyzerService;
@@ -42,8 +42,8 @@ import java.util.stream.Collectors;
 @Service
 public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
-    private final PaymentOrderRepository paymentOrderRepository;
-    private final OrderRepository orderRepository;
+    private final PaymentDetailRepository paymentDetailRepository;
+    private final PaymentRepository paymentRepository;
     private final UserReponsitory userRepository;
     private static final ZoneId Z = ZoneId.of("Asia/Bangkok");
 
@@ -53,11 +53,11 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
     private final EpisodeRepository episodeRepository;
 
     @Autowired
-    public DataAnalyzerServiceImpl(PaymentOrderRepository paymentOrderRepository
-            , OrderRepository orderRepository, MovieRepository movieRepository, SeasonRepository seasonRepository, EpisodeRepository episodeRepository,
+    public DataAnalyzerServiceImpl(PaymentDetailRepository paymentDetailRepository
+            , PaymentRepository paymentRepository, MovieRepository movieRepository, SeasonRepository seasonRepository, EpisodeRepository episodeRepository,
                                    UserReponsitory userRepository) {
-        this.paymentOrderRepository = paymentOrderRepository;
-        this.orderRepository = orderRepository;
+        this.paymentDetailRepository = paymentDetailRepository;
+        this.paymentRepository = paymentRepository;
         this.movieRepository = movieRepository;
         this.seasonRepository = seasonRepository;
         this.episodeRepository = episodeRepository;
@@ -65,177 +65,177 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
     }
 
 
-        @Override
-        public RevenueChartResponse getRevenueByDay ( int year, int month){
-            List<PaymentOrder> orders = paymentOrderRepository.findAllPaid().stream()
-                    .filter(o -> o.getCreatedAt().getYear() == year && o.getCreatedAt().getMonthValue() == month)
-                    .toList();
-
-            int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
-            Map<Integer, Double> grouped = orders.stream()
-                    .collect(Collectors.groupingBy(
-                            o -> o.getCreatedAt().getDayOfMonth(),
-                            Collectors.summingDouble(PaymentOrder::getFinalAmount)
-                    ));
-
-            List<String> labels = new ArrayList<>();
-            List<Double> data = new ArrayList<>();
-            for (int d = 1; d <= daysInMonth; d++) {
-                labels.add(String.format("%02d/%02d", d, month));
-                data.add(grouped.getOrDefault(d, 0.0));
-            }
-
-            return new RevenueChartResponse(labels, data);
-        }
-
-        @Override
-        public RevenueChartResponse getRevenueByMonth ( int year){
-            List<PaymentOrder> orders = paymentOrderRepository.findAllPaid().stream()
-                    .filter(o -> o.getCreatedAt().getYear() == year)
-                    .toList();
-
-            Map<Integer, Double> grouped = orders.stream()
-                    .collect(Collectors.groupingBy(
-                            o -> o.getCreatedAt().getMonthValue(),
-                            Collectors.summingDouble(PaymentOrder::getFinalAmount)
-                    ));
-
-            List<String> labels = new ArrayList<>();
-            List<Double> data = new ArrayList<>();
-            for (int m = 1; m <= 12; m++) {
-                labels.add("Th" + m);
-                data.add(grouped.getOrDefault(m, 0.0));
-            }
-
-            return new RevenueChartResponse(labels, data);
-        }
-
-        @Override
-        public RevenueChartResponse getRevenueByYear ( int from, int to){
-            List<PaymentOrder> orders = paymentOrderRepository.findAllPaid();
-
-            Map<Integer, Double> grouped = orders.stream()
-                    .collect(Collectors.groupingBy(
-                            o -> o.getCreatedAt().getYear(),
-                            Collectors.summingDouble(PaymentOrder::getFinalAmount)
-                    ));
-
-            List<String> labels = new ArrayList<>();
-            List<Double> data = new ArrayList<>();
-            for (int y = from; y <= to; y++) {
-                labels.add(String.valueOf(y));
-                data.add(grouped.getOrDefault(y, 0.0));
-            }
-
-            return new RevenueChartResponse(labels, data);
-        }
-
-        @Override
-        public RevenueSummaryResponse getSummary ( int year, int month){
-            List<PaymentOrder> allPaid = paymentOrderRepository.findAllPaid();
-
-            // Tổng doanh thu
-            Double totalRevenue = allPaid.stream()
-                    .mapToDouble(PaymentOrder::getFinalAmount)
-                    .sum();
-
-            // Doanh thu tháng hiện tại
-            Double monthlyRevenue = allPaid.stream()
-                    .filter(o -> o.getCreatedAt().getYear() == year
-                            && o.getCreatedAt().getMonthValue() == month)
-                    .mapToDouble(PaymentOrder::getFinalAmount)
-                    .sum();
-
-            // Tổng số giao dịch
-            Long totalTransactions = (long) allPaid.size();
-
-            // Số giao dịch trong tháng hiện tại
-            Long monthlyTransactions = allPaid.stream()
-                    .filter(o -> o.getCreatedAt().getYear() == year
-                            && o.getCreatedAt().getMonthValue() == month)
-                    .count();
-
-            return new RevenueSummaryResponse(totalRevenue, monthlyRevenue,
-                    totalTransactions, monthlyTransactions);
-        }
-
-        @Override
-        public QuickStatsResponse getQuickStats () {
-            List<PaymentOrder> allPaid = paymentOrderRepository.findAllPaid();
-            LocalDate today = LocalDate.now();
-
-            // Doanh thu hôm nay
-            Double todayRevenue = allPaid.stream()
-                    .filter(o -> o.getCreatedAt().isEqual(today))
-                    .mapToDouble(PaymentOrder::getFinalAmount)
-                    .sum();
-
-            // Doanh thu tuần (tính từ thứ 2 tới CN hiện tại)
-            LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
-            Double weekRevenue = allPaid.stream()
-                    .filter(o -> {
-                        LocalDate d = o.getCreatedAt();
-                        return !d.isBefore(startOfWeek) && !d.isAfter(today);
-                    })
-                    .mapToDouble(PaymentOrder::getFinalAmount)
-                    .sum();
-
-            // Tăng trưởng = (tuần này - tuần trước) / tuần trước * 100
-            LocalDate startPrevWeek = startOfWeek.minusWeeks(1);
-            LocalDate endPrevWeek = startOfWeek.minusDays(1);
-            Double prevWeekRevenue = allPaid.stream()
-                    .filter(o -> {
-                        LocalDate d = o.getCreatedAt();
-                        return !d.isBefore(startPrevWeek) && !d.isAfter(endPrevWeek);
-                    })
-                    .mapToDouble(PaymentOrder::getFinalAmount)
-                    .sum();
-
-            double growthPercent = (prevWeekRevenue == 0) ? 100
-                    : ((weekRevenue - prevWeekRevenue) / prevWeekRevenue) * 100;
-
-            Map<String, Long> packageCount = allPaid.stream()
-                    .map(po -> orderRepository.findByOrderId(po.getOrderId()))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.groupingBy(Order::getPackageId, Collectors.counting()));
-
-            String popularPackage = packageCount.entrySet().stream()
-                    .max(Map.Entry.comparingByValue())
-                    .map(Map.Entry::getKey)
-                    .orElse("N/A");
-
-            return new QuickStatsResponse(todayRevenue, weekRevenue, growthPercent, popularPackage);
-        }
-
-        @Override
-        public List<RecentTransactionResponse> getRecentTransactions ( int limit){
-            return paymentOrderRepository.findTop5ByOrderByCreatedAtDesc().stream()
-                    .map(po -> {
-                        Order order = orderRepository.findByOrderId(po.getOrderId());
-                        String userName = "Ẩn danh";
-                        String packageId = "N/A";
-
-                        if (order != null) {
-                            packageId = order.getPackageId();
-
-                            User user = userRepository.findById(order.getUserId());
-                            if (user != null) {
-                                userName = user.getUserName();
-                            }
-                        }
-
-                        return new RecentTransactionResponse(
-                                po.getOrderId(),
-                                userName,
-                                packageId,
-                                po.getFinalAmount(),
-                                po.getCreatedAt(),
-                                po.getStatus()
-                        );
-                    })
-                    .limit(limit)
-                    .toList();
-        }
+//        @Override
+//        public RevenueChartResponse getRevenueByDay ( int year, int month){
+//            List<PaymentDetail> orders = paymentDetailRepository.findAllPaid().stream()
+//                    .filter(o -> o.getCreatedAt().getYear() == year && o.getCreatedAt().getMonthValue() == month)
+//                    .toList();
+//
+//            int daysInMonth = YearMonth.of(year, month).lengthOfMonth();
+//            Map<Integer, Double> grouped = orders.stream()
+//                    .collect(Collectors.groupingBy(
+//                            o -> o.getCreatedAt().getDayOfMonth(),
+//                            Collectors.summingDouble(PaymentDetail::getFinalAmount)
+//                    ));
+//
+//            List<String> labels = new ArrayList<>();
+//            List<Double> data = new ArrayList<>();
+//            for (int d = 1; d <= daysInMonth; d++) {
+//                labels.add(String.format("%02d/%02d", d, month));
+//                data.add(grouped.getOrDefault(d, 0.0));
+//            }
+//
+//            return new RevenueChartResponse(labels, data);
+//        }
+//
+//        @Override
+//        public RevenueChartResponse getRevenueByMonth ( int year){
+//            List<PaymentDetail> orders = paymentDetailRepository.findAllPaid().stream()
+//                    .filter(o -> o.getCreatedAt().getYear() == year)
+//                    .toList();
+//
+//            Map<Integer, Double> grouped = orders.stream()
+//                    .collect(Collectors.groupingBy(
+//                            o -> o.getCreatedAt().getMonthValue(),
+//                            Collectors.summingDouble(PaymentDetail::getFinalAmount)
+//                    ));
+//
+//            List<String> labels = new ArrayList<>();
+//            List<Double> data = new ArrayList<>();
+//            for (int m = 1; m <= 12; m++) {
+//                labels.add("Th" + m);
+//                data.add(grouped.getOrDefault(m, 0.0));
+//            }
+//
+//            return new RevenueChartResponse(labels, data);
+//        }
+//
+//        @Override
+//        public RevenueChartResponse getRevenueByYear ( int from, int to){
+//            List<PaymentDetail> orders = paymentDetailRepository.findAllPaid();
+//
+//            Map<Integer, Double> grouped = orders.stream()
+//                    .collect(Collectors.groupingBy(
+//                            o -> o.getCreatedAt().getYear(),
+//                            Collectors.summingDouble(PaymentDetail::getFinalAmount)
+//                    ));
+//
+//            List<String> labels = new ArrayList<>();
+//            List<Double> data = new ArrayList<>();
+//            for (int y = from; y <= to; y++) {
+//                labels.add(String.valueOf(y));
+//                data.add(grouped.getOrDefault(y, 0.0));
+//            }
+//
+//            return new RevenueChartResponse(labels, data);
+//        }
+//
+//        @Override
+//        public RevenueSummaryResponse getSummary ( int year, int month){
+//            List<PaymentDetail> allPaid = paymentDetailRepository.findAllPaid();
+//
+//            // Tổng doanh thu
+//            Double totalRevenue = allPaid.stream()
+//                    .mapToDouble(PaymentDetail::getFinalAmount)
+//                    .sum();
+//
+//            // Doanh thu tháng hiện tại
+//            Double monthlyRevenue = allPaid.stream()
+//                    .filter(o -> o.getCreatedAt().getYear() == year
+//                            && o.getCreatedAt().getMonthValue() == month)
+//                    .mapToDouble(PaymentDetail::getFinalAmount0)
+//                    .sum();
+//
+//            // Tổng số giao dịch
+//            Long totalTransactions = (long) allPaid.size();
+//
+//            // Số giao dịch trong tháng hiện tại
+//            Long monthlyTransactions = allPaid.stream()
+//                    .filter(o -> o.getCreatedAt().getYear() == year
+//                            && o.getCreatedAt().getMonthValue() == month)
+//                    .count();
+//
+//            return new RevenueSummaryResponse(totalRevenue, monthlyRevenue,
+//                    totalTransactions, monthlyTransactions);
+//        }
+//
+//        @Override
+//        public QuickStatsResponse getQuickStats () {
+//            List<PaymentDetail> allPaid = paymentDetailRepository.findAllPaid();
+//            LocalDate today = LocalDate.now();
+//
+//            // Doanh thu hôm nay
+//            Double todayRevenue = allPaid.stream()
+//                    .filter(o -> o.getCreatedAt().isEqual(today))
+//                    .mapToDouble(PaymentDetail::getFinalAmount)
+//                    .sum();
+//
+//            // Doanh thu tuần (tính từ thứ 2 tới CN hiện tại)
+//            LocalDate startOfWeek = today.with(DayOfWeek.MONDAY);
+//            Double weekRevenue = allPaid.stream()
+//                    .filter(o -> {
+//                        LocalDate d = o.getCreatedAt();
+//                        return !d.isBefore(startOfWeek) && !d.isAfter(today);
+//                    })
+//                    .mapToDouble(PaymentDetail::getFinalAmount)
+//                    .sum();
+//
+//            // Tăng trưởng = (tuần này - tuần trước) / tuần trước * 100
+//            LocalDate startPrevWeek = startOfWeek.minusWeeks(1);
+//            LocalDate endPrevWeek = startOfWeek.minusDays(1);
+//            Double prevWeekRevenue = allPaid.stream()
+//                    .filter(o -> {
+//                        LocalDate d = o.getCreatedAt();
+//                        return !d.isBefore(startPrevWeek) && !d.isAfter(endPrevWeek);
+//                    })
+//                    .mapToDouble(PaymentDetail::getFinalAmount)
+//                    .sum();
+//
+//            double growthPercent = (prevWeekRevenue == 0) ? 100
+//                    : ((weekRevenue - prevWeekRevenue) / prevWeekRevenue) * 100;
+//
+//            Map<String, Long> packageCount = allPaid.stream()
+//                    .map(po -> paymentRepository.findByOrderId(po.getOrderId()))
+//                    .filter(Objects::nonNull)
+//                    .collect(Collectors.groupingBy(Payment::getPackageId, Collectors.counting()));
+//
+//            String popularPackage = packageCount.entrySet().stream()
+//                    .max(Map.Entry.comparingByValue())
+//                    .map(Map.Entry::getKey)
+//                    .orElse("N/A");
+//
+//            return new QuickStatsResponse(todayRevenue, weekRevenue, growthPercent, popularPackage);
+//        }
+//
+//        @Override
+//        public List<RecentTransactionResponse> getRecentTransactions ( int limit){
+//            return paymentDetailRepository.findTop5ByOrderByCreatedAtDesc().stream()
+//                    .map(po -> {
+//                        Payment payment = paymentRepository.findByOrderId(po.getOrderId());
+//                        String userName = "Ẩn danh";
+//                        String packageId = "N/A";
+//
+//                        if (payment != null) {
+//                            packageId = payment.getPackageId();
+//
+//                            User user = userRepository.findById(payment.getUserId());
+//                            if (user != null) {
+//                                userName = user.getUserName();
+//                            }
+//                        }
+//
+//                        return new RecentTransactionResponse(
+//                                po.getOrderId(),
+//                                userName,
+//                                packageId,
+//                                po.getFinalAmount(),
+//                                po.getCreatedAt(),
+//                                po.getStatus()
+//                        );
+//                    })
+//                    .limit(limit)
+//                    .toList();
+//        }
 
     // ===========================
     // ===== THỐNG KÊ PHIM ======
@@ -483,138 +483,138 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
     }
 
     // ====== Revenue (range) ======
-    @Override
-    public RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy) {
-        if (end.isBefore(start)) { var t = start; start = end; end = t; }
-
-        // Nếu range quá dài mà groupBy=DAY, ép lên WEEK để tránh label quá nhiều
-        long days = ChronoUnit.DAYS.between(start, end) + 1;
-        if (days > 366 && groupBy == GroupByDataAnalzerResponse.DAY) groupBy = GroupByDataAnalzerResponse.WEEK;
-
-        var orders = paymentOrderRepository.findAllPaid(); // TODO: tối ưu bằng query theo range ở repo
-        Map<String, Double> bucket = new LinkedHashMap<>();
-
-        switch (groupBy) {
-            case WEEK -> {
-                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM");
-                LocalDate ptr = start.with(DayOfWeek.MONDAY);
-                while (!ptr.isAfter(end)) {
-                    LocalDate mon = ptr;
-                    LocalDate sun = mon.plusDays(6);
-                    String key = mon.format(fmt) + "–" + sun.format(fmt);
-                    bucket.put(key, 0.0);
-                    ptr = ptr.plusWeeks(1);
-                }
-                for (var o : orders) {
-                    LocalDate d = o.getCreatedAt();
-                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
-                    LocalDate mon = d.with(DayOfWeek.MONDAY);
-                    LocalDate sun = mon.plusDays(6);
-                    String k = mon.format(fmt) + "–" + sun.format(fmt);
-                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
-                }
-            }
-            case MONTH -> {
-                YearMonth ym = YearMonth.from(start);
-                YearMonth ymEnd = YearMonth.from(end);
-                while (!ym.isAfter(ymEnd)) {
-                    String key = ym.getYear() + "-" + String.format("%02d", ym.getMonthValue());
-                    bucket.put(key, 0.0);
-                    ym = ym.plusMonths(1);
-                }
-                for (var o : orders) {
-                    LocalDate d = o.getCreatedAt();
-                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
-                    YearMonth ymo = YearMonth.from(d);
-                    String k = ymo.getYear() + "-" + String.format("%02d", ymo.getMonthValue());
-                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
-                }
-            }
-            case DAY -> {
-                for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) bucket.put(d.toString(), 0.0);
-                for (var o : orders) {
-                    LocalDate d = o.getCreatedAt();
-                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
-                    bucket.computeIfPresent(d.toString(), (kk, v) -> v + o.getFinalAmount());
-                }
-            }
-        }
-
-        var labels = new ArrayList<>(bucket.keySet());
-        var data = labels.stream().map(bucket::get).toList();
-        return new RevenueChartResponse(labels, data);
-    }
-
-    @Override
-    public RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end) {
-        final LocalDate s = start.isAfter(end) ? end : start;
-        final LocalDate e = start.isAfter(end) ? start : end;
-
-        var paid = paymentOrderRepository.findAllPaid();
-        double totalAll = paid.stream().mapToDouble(PaymentOrder::getFinalAmount).sum();
-        long txAll = paid.size();
-
-        double totalRange = paid.stream()
-                .filter(o -> {
-                    LocalDate d = o.getCreatedAt();
-                    return d != null && !d.isBefore(s) && !d.isAfter(e);
-                })
-                .mapToDouble(PaymentOrder::getFinalAmount)
-                .sum();
-
-        long txRange = paid.stream()
-                .filter(o -> {
-                    LocalDate d = o.getCreatedAt();
-                    return d != null && !d.isBefore(s) && !d.isAfter(e);
-                })
-                .count();
-
-
-        // Ánh xạ: monthlyRevenue = revenue trong range; monthlyTransactions = số GD trong range
-        return new RevenueSummaryResponse(totalAll, totalRange, txAll, txRange);
-    }
-
-    @Override
-    public PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end) {
-        if (page < 1) page = 1;
-        if (size < 1) size = 10;
-
-        var all = paymentOrderRepository.findAllPaid();
-
-        var filtered = all.stream()
-                .filter(po -> {
-                    if (start == null || end == null) return true;
-                    LocalDate d = po.getCreatedAt();
-                    return d != null && !d.isBefore(start) && !d.isAfter(end);
-                })
-                .sorted(Comparator.comparing(PaymentOrder::getCreatedAt).reversed())
-                .toList();
-
-        int from = Math.max(0, (page - 1) * size);
-        int to = Math.min(filtered.size(), from + size);
-        var slice = from >= filtered.size() ? List.<PaymentOrder>of() : filtered.subList(from, to);
-
-        var items = slice.stream().map(po -> {
-            Order order = orderRepository.findByOrderId(po.getOrderId());
-            String userName = "Ẩn danh";
-            String packageId = "N/A";
-            if (order != null) {
-                packageId = order.getPackageId();
-                User user = userRepository.findById(order.getUserId());
-                if (user != null) userName = user.getUserName();
-            }
-            return new RecentTransactionResponse(
-                    po.getOrderId(),
-                    userName,
-                    packageId,
-                    po.getFinalAmount(),
-                    po.getCreatedAt(),
-                    po.getStatus()
-            );
-        }).toList();
-
-        return new PagedResponse<>(page, size, filtered.size(), items);
-    }
+//    @Override
+//    public RevenueChartResponse getRevenueByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy) {
+//        if (end.isBefore(start)) { var t = start; start = end; end = t; }
+//
+//        // Nếu range quá dài mà groupBy=DAY, ép lên WEEK để tránh label quá nhiều
+//        long days = ChronoUnit.DAYS.between(start, end) + 1;
+//        if (days > 366 && groupBy == GroupByDataAnalzerResponse.DAY) groupBy = GroupByDataAnalzerResponse.WEEK;
+//
+//        var orders = paymentDetailRepository.findAllPaid(); // TODO: tối ưu bằng query theo range ở repo
+//        Map<String, Double> bucket = new LinkedHashMap<>();
+//
+//        switch (groupBy) {
+//            case WEEK -> {
+//                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM");
+//                LocalDate ptr = start.with(DayOfWeek.MONDAY);
+//                while (!ptr.isAfter(end)) {
+//                    LocalDate mon = ptr;
+//                    LocalDate sun = mon.plusDays(6);
+//                    String key = mon.format(fmt) + "–" + sun.format(fmt);
+//                    bucket.put(key, 0.0);
+//                    ptr = ptr.plusWeeks(1);
+//                }
+//                for (var o : orders) {
+//                    LocalDate d = o.getCreatedAt();
+//                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+//                    LocalDate mon = d.with(DayOfWeek.MONDAY);
+//                    LocalDate sun = mon.plusDays(6);
+//                    String k = mon.format(fmt) + "–" + sun.format(fmt);
+//                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
+//                }
+//            }
+//            case MONTH -> {
+//                YearMonth ym = YearMonth.from(start);
+//                YearMonth ymEnd = YearMonth.from(end);
+//                while (!ym.isAfter(ymEnd)) {
+//                    String key = ym.getYear() + "-" + String.format("%02d", ym.getMonthValue());
+//                    bucket.put(key, 0.0);
+//                    ym = ym.plusMonths(1);
+//                }
+//                for (var o : orders) {
+//                    LocalDate d = o.getCre0atedAt();
+//                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+//                    YearMonth ymo = YearMonth.from(d);
+//                    String k = ymo.getYear() + "-" + String.format("%02d", ymo.getMonthValue());
+//                    bucket.computeIfPresent(k, (kk, v) -> v + o.getFinalAmount());
+//                }
+//            }
+//            case DAY -> {
+//                for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) bucket.put(d.toString(), 0.0);
+//                for (var o : orders) {
+//                    LocalDate d = o.getCreatedAt();
+//                    if (d == null || d.isBefore(start) || d.isAfter(end)) continue;
+//                    bucket.computeIfPresent(d.toString(), (kk, v) -> v + o.getFinalAmount());
+//                }
+//            }
+//        }
+//
+//        var labels = new ArrayList<>(bucket.keySet());
+//        var data = labels.stream().map(bucket::get).toList();
+//        return new RevenueChartResponse(labels, data);
+//    }
+//
+//    @Override
+//    public RevenueSummaryResponse getRevenueSummaryByRange(LocalDate start, LocalDate end) {
+//        final LocalDate s = start.isAfter(end) ? end : start;
+//        final LocalDate e = start.isAfter(end) ? start : end;
+//
+//        var paid = paymentDetailRepository.findAllPaid();
+//        double totalAll = paid.stream().mapToDouble(PaymentDetail::getFinalAmount).sum();
+//        long txAll = paid.size();
+//
+//        double totalRange = paid.stream()
+//                .filter(o -> {
+//                    LocalDate d = o.getCreatedAt();
+//                    return d != null && !d.isBefore(s) && !d.isAfter(e);
+//                })
+//                .mapToDouble(PaymentDetail::getFinalAmount)
+//                .sum();
+//
+//        long txRange = paid.stream()
+//                .filter(o -> {
+//                    LocalDate d = o.getCreatedAt();
+//                    return d != null && !d.isBefore(s) && !d.isAfter(e);
+//                })
+//                .count();
+//
+//
+//        // Ánh xạ: monthlyRevenue = revenue trong range; monthlyTransactions = số GD trong range
+//        return new RevenueSummaryResponse(totalAll, totalRange, txAll, txRange);
+//    }
+//
+//    @Override
+//    public PagedResponse<RecentTransactionResponse> getRecentTransactionsPaged(int page, int size, LocalDate start, LocalDate end) {
+//        if (page < 1) page = 1;
+//        if (size < 1) size = 10;
+//
+//        var all = paymentDetailRepository.findAllPaid();
+//
+//        var filtered = all.stream()
+//                .filter(po -> {
+//                    if (start == null || end == null) return true;
+//                    LocalDate d = po.getCreatedAt();
+//                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+//                })
+//                .sorted(Comparator.comparing(PaymentDetail::getCreatedAt).reversed())
+//                .toList();
+//
+//        int from = Math.max(0, (page - 1) * size);
+//        int to = Math.min(filtered.size(), from + size);
+//        var slice = from >= filtered.size() ? List.<PaymentDetail>of() : filtered.subList(from, to);
+//
+//        var items = slice.stream().map(po -> {
+//            Payment payment = paymentRepository.findByOrderId(po.getOrderId());
+//            String userName = "Ẩn danh";
+//            String packageId = "N/A";
+//            if (payment != null) {
+//                packageId = payment.getPackageId();
+//                User user = userRepository.findById(payment.getUserId());
+//                if (user != null) userName = user.getUserName();
+//            }
+//            return new RecentTransactionResponse(
+//                    po.getOrderId(),
+//                    userName,
+//                    packageId,
+//                    po.getFinalAmount(),
+//                    po.getCreatedAt(),
+//                    po.getStatus()
+//            );
+//        }).toList();
+//
+//        return new PagedResponse<>(page, size, filtered.size(), items);
+//    }
 
     // ====== Movies (range) ======
     @Override

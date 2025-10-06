@@ -20,5 +20,5 @@ public class ApplyVoucherRequest {
     private String voucherCode;
     private String userId;
     private String packageId;
-    private Double orderAmount;
+    private Long orderAmount;
 }

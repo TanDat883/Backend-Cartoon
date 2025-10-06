@@ -78,7 +78,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
         return packages.stream()
                 .map(pkg -> {
                     // --- LẤY GIÁ GỐC THEO PriceList/PriceItem ---
-                    double base = getBasePriceFromCurrentPriceList(pkg);
+                    long base = Math.round(getBasePriceFromCurrentPriceList(pkg));
 
                     // --- ÁP KHUYẾN MÃI  ---
                     List<String> ids = normalizeIdsFromString(pkg.getPackageId());
@@ -88,7 +88,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
                     PromotionDetail best = pickBestPromotion(promos);
 
                     int percent = (best == null || best.getDiscountPercent() == null) ? 0 : best.getDiscountPercent();
-                    double effective = calcPrice(base, percent);
+                    long effective = Math.round(calcPrice(base, percent));
 
                     SubscriptionPackageResponse dto = new SubscriptionPackageResponse();
                     dto.setPackageId(pkg.getPackageId());

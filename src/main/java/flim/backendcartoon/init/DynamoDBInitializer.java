@@ -26,8 +26,8 @@ public class DynamoDBInitializer implements CommandLineRunner {
         createTableIfNotExists(Episode.class, "Episode");
         createTableIfNotExists(SubscriptionPackage.class, "SubscriptionPackage");
         createTableIfNotExists(VipSubscription.class, "VipSubscription");
-        createTableIfNotExists(Order.class, "Order");
-        createTableIfNotExists(PaymentOrder.class, "PaymentOrder");
+        createTableIfNotExists(Payment.class, "Payment");
+        createTableIfNotExists(PaymentDetail.class, "PaymentDetail");
         createTableIfNotExists(Promotion.class, "Promotion");
         createTableIfNotExists(PromotionDetail.class, "PromotionDetail");
         createTableIfNotExists(PromotionLine.class, "PromotionLine");

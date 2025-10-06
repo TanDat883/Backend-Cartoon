@@ -20,8 +20,8 @@ import java.util.List;
 @Data
 public class SubscriptionPackageResponse {
     private String packageId;
-    private Double amount;
-    private Double discountedAmount;
+    private Long amount;
+    private Long discountedAmount;
     private PackageType applicablePackageType;
     private Integer durationInDays;
     private List<String> features;

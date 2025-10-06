@@ -2,7 +2,7 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.User;
 import flim.backendcartoon.entities.VipSubscription;
-import flim.backendcartoon.repositories.PaymentOrderRepository;
+import flim.backendcartoon.repositories.PaymentDetailRepository;
 import flim.backendcartoon.services.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -29,7 +29,7 @@ public class UserController {
 
     @Autowired
     public UserController(UserService userService, VipSubscriptionService vipSubscriptionService,
-                          PaymentService paymentService, PaymentOrderRepository paymentOrderRepository
+                          PaymentService paymentService, PaymentDetailRepository paymentDetailRepository
                             , S3Service s3Service) {
         this.s3Service = s3Service;
         this.userService = userService;
