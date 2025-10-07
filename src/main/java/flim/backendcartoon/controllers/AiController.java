@@ -28,7 +28,8 @@ public class AiController {
 
     private final UserService userService;
     private final PromotionService promotionService;
-//    private final PromotionVoucherService voucherService;
+    private final PromotionLineService promotionLineService;
+    private final PromotionDetailService promotionDetailService;
     private final RecommendationService recService;
     private final SeasonService seasonService;
     private final EpisodeService episodeService;
@@ -82,11 +83,11 @@ public class AiController {
                 : memory.history(convId, HISTORY_LIMIT);
 
         // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
-//        if (wantsPromo) {
-//            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
-//            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
-//            return ResponseEntity.ok(promoResp);
-//        }
+        if (wantsPromo) {
+            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
+            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
+            return ResponseEntity.ok(promoResp);
+        }
 
         // Gọi AI với đầy đủ context (phim hiện tại + phim được nhắc)
         List<Map<String, ?>> mentionedInfos = mentioned.stream()
@@ -103,9 +104,11 @@ public class AiController {
         extras.put("currentMovie", toMovieInfo(current)); // chỗ này cũng phải try/catch nếu vẫn throws
         extras.put("mentionedMovies", mentionedInfos);
 
+        // === NEW: gom khuyến mãi nếu user hỏi ===
+        List<PromoSuggestionDTO> promos = wantsPromo ? collectActivePromos() : List.of();
 
         ChatResponse resp = aiService.composeAnswer(
-                user.userName, candidates, rawQ, prev, wantsRec, false, List.of(), extras
+                user.userName, candidates, rawQ, prev, wantsRec, wantsPromo, promos, extras
         );
 
         // Lưu lịch sử + danh sách đề xuất đã hiển thị (để hiểu “hai phim đó” ở lượt sau)
@@ -165,48 +168,125 @@ public class AiController {
         return new UserCtx(uid, name);
     }
 
-//    private ChatResponse buildPromoResponse(boolean wantsRec, List<MovieSuggestionDTO> candidates) {
-//        LocalDate today = LocalDate.now();
-//        var activePromos = promotionService.listAll().stream()
-//                .filter(p -> "ACTIVE".equalsIgnoreCase(p.getStatus())
-//                        && (p.getEndDate() == null || !p.getEndDate().isBefore(today)))
-//                .toList();
-//
-//        List<PromoSuggestionDTO> promoCards = new ArrayList<>();
-//        for (var p : activePromos) {
-//            if (p.getPromotionType() == PromotionType.VOUCHER) {
-//                for (PromotionVoucher v : voucherService.getAllPromotionVoucher(p.getPromotionId())) {
-//                    Integer percent = (v.getDiscountType() == DiscountType.PERCENTAGE) ? v.getDiscountValue() : null;
-//                    Integer maxAmt  = v.getMaxDiscountAmount();
-//                    String note = (v.getDiscountType() == DiscountType.PERCENTAGE)
-//                            ? ("Giảm " + v.getDiscountValue() + "%, tối đa " + maxAmt)
-//                            : ("Giảm " + v.getDiscountValue() + ", tối đa " + maxAmt);
-//                    promoCards.add(new PromoSuggestionDTO(
-//                            p.getPromotionId(), p.getPromotionName(), "VOUCHER",
-//                            percent, v.getVoucherCode(), maxAmt,
-//                            p.getStartDate(), p.getEndDate(), p.getStatus(), note
-//                    ));
-//                }
-//            } else if (p.getPromotionType() == PromotionType.PACKAGE) {
-//                promoCards.add(new PromoSuggestionDTO(
-//                        p.getPromotionId(), p.getPromotionName(), "PACKAGE",
-//                        null, null, null, p.getStartDate(), p.getEndDate(), p.getStatus(), p.getDescription()
-//                ));
-//            }
-//        }
-//
-//        String answer = promoCards.isEmpty()
-//                ? "Hiện chưa có khuyến mãi/voucher đang hoạt động."
-//                : "Đây là các khuyến mãi/voucher đang hoạt động. Bấm vào để sao chép mã và dùng khi thanh toán:";
-//
-//        return ChatResponse.builder()
-//                .answer(answer)
-//                .suggestions(wantsRec ? candidates : List.of())
-//                .showSuggestions(wantsRec && !candidates.isEmpty())
-//                .promos(promoCards)
-//                .showPromos(!promoCards.isEmpty())
-//                .build();
-//    }
+    // Chuẩn hoá trạng thái để không lệ thuộc đúng chữ "ACTIVE"
+    private static String normStatus(String s) {
+        if (s == null) return "";
+        s = s.trim().toLowerCase();
+        return switch (s) {
+            case "hoạt động", "active" -> "ACTIVE";
+            case "tạm dừng", "paused" -> "PAUSED";
+            case "hết hạn", "expired" -> "EXPIRED";
+            case "sắp diễn ra", "upcoming" -> "UPCOMING";
+            case "nháp", "draft" -> "DRAFT";
+            default -> s.toUpperCase();
+        };
+    }
+
+    /** Phiên bản mới: build promo từ Promotion + PromotionLine + PromotionDetail */
+    private ChatResponse buildPromoResponse(boolean wantsRec, List<MovieSuggestionDTO> candidates) {
+        var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        // 1) Lọc Promotion đang hoạt động trong khung ngày
+        var activePromos = promotionService.listAll().stream()
+                .filter(p -> {
+                    String st = normStatus(p.getStatus());
+                    boolean okStatus = "ACTIVE".equals(st) || st.isBlank();
+                    boolean okStart  = (p.getStartDate() == null) || !today.isBefore(p.getStartDate());
+                    boolean okEnd    = (p.getEndDate()   == null) || !today.isAfter(p.getEndDate());
+                    return okStatus && okStart && okEnd;
+                })
+                .toList();
+
+        var promoCards = new java.util.ArrayList<PromoSuggestionDTO>();
+
+        for (var p : activePromos) {
+            // 2) Lấy các Line của promotion và lọc theo trạng thái + ngày
+            var lines = promotionLineService.getPromotionLinesByPromotion(p.getPromotionId());
+            for (var line : lines) {
+                String lst = normStatus(line.getStatus());
+                boolean inWindow =
+                        (line.getStartDate() == null || !today.isBefore(line.getStartDate())) &&
+                                (line.getEndDate()   == null || !today.isAfter(line.getEndDate())) &&
+                                ("ACTIVE".equals(lst) || lst.isBlank());
+                if (!inWindow) continue;
+
+                switch (line.getPromotionLineType()) {
+                    case VOUCHER -> {
+                        // 3a) Lấy các voucher thuộc line
+                        var vouchers = promotionDetailService.getAllPromotionVoucher(line.getPromotionLineId());
+                        for (var v : vouchers) {
+                            Integer percent = null;
+                            String note = "Ưu đãi voucher";
+                            if (v.getDiscountType() != null && v.getDiscountValue() != null) {
+                                switch (v.getDiscountType()) {
+                                    case PERCENTAGE -> {
+                                        percent = v.getDiscountValue();
+                                        Long cap = v.getMaxDiscountAmount();
+                                        note = (cap != null && cap > 0)
+                                                ? ("Giảm " + percent + "%, tối đa " + cap)
+                                                : ("Giảm " + percent + "%");
+                                    }
+                                    case FIXED_AMOUNT -> {
+                                        note = "Giảm " + v.getDiscountValue() +
+                                                ((v.getMaxDiscountAmount()!=null && v.getMaxDiscountAmount()>0)
+                                                        ? (" (tối đa " + v.getMaxDiscountAmount() + ")") : "");
+                                    }
+                                    default -> {}
+                                }
+                            }
+                            promoCards.add(new PromoSuggestionDTO(
+                                    p.getPromotionId(),
+                                    p.getPromotionName(),              // -> map vào field 'title' của DTO
+                                    "VOUCHER",
+                                    percent,
+                                    v.getVoucherCode(),
+                                    v.getMaxDiscountAmount() == null ? null : v.getMaxDiscountAmount().intValue(),
+                                    p.getStartDate(),
+                                    p.getEndDate(),
+                                    p.getStatus(),
+                                    note
+                            ));
+                        }
+                    }
+                    case PACKAGE -> {
+                        // 3b) Lấy các ưu đãi theo gói
+                        var packs = promotionDetailService.getAllPromotionPackages(line.getPromotionLineId());
+                        for (var g : packs) {
+                            Integer percent = g.getDiscountPercent();
+                            String note = (g.getPackageId()!=null && !g.getPackageId().isEmpty())
+                                    ? ("Giảm " + percent + "% cho gói: " + String.join(", ", g.getPackageId()))
+                                    : ("Giảm " + percent + "% cho các gói áp dụng");
+                            promoCards.add(new PromoSuggestionDTO(
+                                    p.getPromotionId(),
+                                    p.getPromotionName(),
+                                    "PACKAGE",
+                                    percent,
+                                    null,
+                                    g.getMaxDiscountAmount() == null ? null : g.getMaxDiscountAmount().intValue(),
+                                    p.getStartDate(),
+                                    p.getEndDate(),
+                                    p.getStatus(),
+                                    note
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        String answer = promoCards.isEmpty()
+                ? "Hiện chưa có khuyến mãi/voucher đang hoạt động."
+                : "Đây là các khuyến mãi/voucher đang hoạt động. Bấm vào để sao chép mã và dùng khi thanh toán:";
+
+        return ChatResponse.builder()
+                .answer(answer)
+                .suggestions(wantsRec ? (candidates == null ? java.util.List.of() : candidates) : java.util.List.of())
+                .showSuggestions(wantsRec && candidates != null && !candidates.isEmpty())
+                .promos(promoCards)
+                .showPromos(!promoCards.isEmpty())
+                .build();
+    }
+
 
     private void persistMemory(String convId, String userMsg, String aiAnswer,
                                List<MovieSuggestionDTO> shownSuggestions, boolean wantsRec) {
@@ -280,6 +360,97 @@ public class AiController {
                 })
                 .limit(5)
                 .collect(Collectors.toList());
+    }
+
+
+    private List<PromoSuggestionDTO> collectActivePromos() {
+        var today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        // 1) Lấy promotions đang ACTIVE và chưa hết hạn
+        var activePromos = promotionService.listAll().stream()
+                .filter(p -> "ACTIVE".equalsIgnoreCase(p.getStatus()))
+                .filter(p -> p.getEndDate() == null || !p.getEndDate().isBefore(today))
+                .toList();
+
+        var cards = new ArrayList<PromoSuggestionDTO>();
+        for (var p : activePromos) {
+            // 2) Lines thuộc promotion
+            List<PromotionLine> lines = promotionLineService.getPromotionLinesByPromotion(p.getPromotionId());
+            for (var line : lines) {
+                // line phải ACTIVE + trong khoảng ngày (repo đã có validate; nhưng ở service ta đã filter status)
+                boolean inWindow =
+                        (line.getStartDate() == null || !today.isBefore(line.getStartDate())) &&
+                                (line.getEndDate()   == null || !today.isAfter(line.getEndDate())) &&
+                                "ACTIVE".equalsIgnoreCase(line.getStatus());
+                if (!inWindow) continue;
+
+                switch (line.getPromotionLineType()) {
+                    case VOUCHER -> {
+                        // 3a) VOUCHER details
+                        var vouchers = promotionDetailService.getAllPromotionVoucher(line.getPromotionLineId());
+                        for (var v : vouchers) {
+                            Integer percent = null;
+                            String note;
+                            if (v.getDiscountType() != null && v.getDiscountValue() != null) {
+                                // enum dự án đang dùng PERCENTAGE / FIXED_AMOUNT
+                                switch (v.getDiscountType()) {
+                                    case PERCENTAGE -> {
+                                        percent = v.getDiscountValue();
+                                        Long cap = v.getMaxDiscountAmount();
+                                        note = (cap != null && cap > 0)
+                                                ? ("Giảm " + percent + "%, tối đa " + cap)
+                                                : ("Giảm " + percent + "%");
+                                    }
+                                    case FIXED_AMOUNT -> {
+                                        note = "Giảm " + v.getDiscountValue() +
+                                                ((v.getMaxDiscountAmount()!=null && v.getMaxDiscountAmount()>0)
+                                                        ? (" (tối đa " + v.getMaxDiscountAmount() + ")") : "");
+                                    }
+                                    default -> note = "Ưu đãi voucher";
+                                }
+                            } else {
+                                note = "Ưu đãi voucher";
+                            }
+
+                            cards.add(new PromoSuggestionDTO(
+                                    p.getPromotionId(),
+                                    p.getPromotionName(),
+                                    "VOUCHER",
+                                    percent,                               // discountPercent (có thể null)
+                                    v.getVoucherCode(),                    // voucherCode
+                                    v.getMaxDiscountAmount()==null? null : v.getMaxDiscountAmount().intValue(),
+                                    p.getStartDate(),
+                                    p.getEndDate(),
+                                    p.getStatus(),
+                                    note
+                            ));
+                        }
+                    }
+                    case PACKAGE -> {
+                        // 3b) PACKAGE details
+                        var packs = promotionDetailService.getAllPromotionPackages(line.getPromotionLineId());
+                        for (var g : packs) {
+                            Integer percent = g.getDiscountPercent();
+                            String note = (g.getPackageId()!=null && !g.getPackageId().isEmpty())
+                                    ? ("Giảm " + percent + "% cho gói: " + String.join(", ", g.getPackageId()))
+                                    : ("Giảm " + percent + "% cho các gói áp dụng");
+                            cards.add(new PromoSuggestionDTO(
+                                    p.getPromotionId(),
+                                    p.getPromotionName(),
+                                    "PACKAGE",
+                                    percent,                   // discountPercent
+                                    null,                      // voucherCode
+                                    g.getMaxDiscountAmount()==null? null : g.getMaxDiscountAmount().intValue(),
+                                    p.getStartDate(),
+                                    p.getEndDate(),
+                                    p.getStatus(),
+                                    note
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        return cards;
     }
 
     /* ============================ UTIL ============================ */
