@@ -12,6 +12,8 @@ import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePromotionVoucherRequest;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionType;
+import flim.backendcartoon.entities.User;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -25,7 +27,8 @@ import java.util.List;
 public interface PromotionService {
     void createPromotion(CreatePromotionRequest request);
     void updatePromotion(String promotionId, CreatePromotionRequest request);
-    List<Promotion> listAll();
+//    List<Promotion> listAll();
+    Page<Promotion> listAll(int page, int size, String keyword);
     void expireOutdatedPromotions();
 }
 

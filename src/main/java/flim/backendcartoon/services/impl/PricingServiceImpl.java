@@ -19,11 +19,13 @@ import flim.backendcartoon.entities.DTO.request.PriceView;
 import flim.backendcartoon.entities.PriceItem;
 import flim.backendcartoon.entities.PriceList;
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.PriceItemRepository;
 import flim.backendcartoon.repositories.PriceListRepository;
 import flim.backendcartoon.repositories.SubscriptionPackageRepository;
 import flim.backendcartoon.services.PricingService;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,8 +88,20 @@ public class PricingServiceImpl implements PricingService {
     }
 
     @Override
-    public List<PriceList> getAllPriceLists() {
-        return priceListRepository.getAll();
+    public Page<PriceList> getAllPriceLists(int page, int size, String keyword) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        List<PriceList> priceList;
+        long total;
+
+        if (keyword != null && !keyword.isEmpty()) {
+            priceList = priceListRepository.findByKeyword(keyword, pageable);
+            total = priceListRepository.countByKeyword(keyword);
+        } else {
+            priceList = priceListRepository.findAllPriceList(pageable);
+            total = priceListRepository.countAllPriceList();
+        }
+
+        return new PageImpl<>(priceList, pageable, total);
     }
 
     @Override

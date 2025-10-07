@@ -20,6 +20,8 @@ import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.*;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,8 +46,37 @@ public class PaymentController {
     private final PromotionDetailService promotionVoucherService;
 
     @GetMapping
-    public ResponseEntity<List<Payment>> getAllPayments() {
-        return ResponseEntity.ok(paymentService.getAllPayments());
+    public ResponseEntity<List<Payment>> getAllPayments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Page<Payment> payments = paymentService.findAllPayments(page, size, keyword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(payments.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(payments.getContent());
+    }
+
+    @GetMapping("/info/{paymentId}")
+    public ResponseEntity<Payment> getPaymentById(@PathVariable String paymentId) {
+        Payment payment = paymentService.findPaymentById(paymentId);
+        if (payment == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        return ResponseEntity.ok(payment);
+    }
+
+    @GetMapping("/details/{paymentId}")
+    public ResponseEntity<PaymentDetail> getPaymentDetail(@PathVariable String paymentId) {
+        PaymentDetail paymentDetail = paymentService.findPaymentDetailByPaymentId(paymentId);
+        if (paymentDetail == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        return ResponseEntity.ok(paymentDetail);
     }
 
     @PostMapping("/create")
@@ -68,6 +99,7 @@ public class PaymentController {
         // 2) Tính tiền: giá gốc và giá sau giảm của gói
         Long originalAmount = subscriptionPackage.getAmount();
         Long discountAmount = subscriptionPackage.getDiscountedAmount();
+        String packagePromotionId = subscriptionPackage.getAppliedPromotionId();
         Long finalAmount = discountAmount;
 
         // 3) Preview voucher nếu có
@@ -80,7 +112,6 @@ public class PaymentController {
             voucherRequest.setUserId(req.getUserId());
             voucherRequest.setPackageId(req.getPackageId());
             voucherRequest.setOrderAmount(finalAmount);
-            promotionVoucherService.applyVoucher(voucherRequest);
 
             ApplyVoucherResponse voucherResponse = promotionVoucherService.applyVoucher(voucherRequest);
             appliedVoucher = voucherResponse.getVoucherCode();
@@ -99,12 +130,12 @@ public class PaymentController {
 
         // Lưu thông tin PaymentDetail
         PaymentDetail paymentDetail = new PaymentDetail();
-        paymentDetail.setPaymentCode(data.getOrderCode());
         paymentDetail.setPaymentId(payment.getPaymentId());
+        paymentDetail.setPaymentCode(data.getOrderCode());
         paymentDetail.setOriginalAmount(originalAmount);
         paymentDetail.setDiscountAmount(discountAmount);
         paymentDetail.setFinalAmount(finalAmount);
-        paymentDetail.setPromotionId(promotionId);
+        paymentDetail.setPromotionId(packagePromotionId);
         paymentDetail.setVoucherCode(appliedVoucher);
         paymentService.savePaymentDetail(paymentDetail);
 

@@ -9,6 +9,8 @@ package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Payment;
 import flim.backendcartoon.entities.PaymentDetail;
+import flim.backendcartoon.entities.User;
+import org.springframework.data.domain.Page;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.PaymentLinkData;
 
@@ -29,13 +31,12 @@ public interface PaymentService {
     void updatePaymentStatus(String paymentId, String newStatus);
     void updatePaymentPaidAt(String paymentId, String paidAt);
     Payment findPaymentById(String paymentId);
-    List<Payment> getAllPayments();
+    Page<Payment> findAllPayments(int page, int size, String keyword);
     Payment findPaymentByPaymentCode(Long paymentCode);
 
     void savePaymentDetail(PaymentDetail paymentDetail);
-    void updatePaymentDetail(PaymentDetail paymentDetail);
+    PaymentDetail findPaymentDetailByPaymentId(String paymentId);
     PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode);
-    String getStatusByPaymentId(String paymentId);
 }
 
     

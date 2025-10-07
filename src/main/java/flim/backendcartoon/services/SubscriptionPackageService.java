@@ -10,6 +10,8 @@ package flim.backendcartoon.services;
 import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.entities.User;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -23,7 +25,7 @@ public interface SubscriptionPackageService {
     void saveSubscriptionPackage(SubscriptionPackageRequest subscriptionPackage);
     SubscriptionPackageResponse findSubscriptionPackageById(String packageId);
     List<SubscriptionPackageResponse> findAllSubscriptionPackages();
-    List<SubscriptionPackage> getAll();
+    Page<SubscriptionPackage> findAllPackages(int page, int size, String keyword);
     void deleteSubscriptionPackage(String packageId);
     void updateSubscriptionPackage(String packageId, SubscriptionPackageRequest subscriptionPackage);
 }

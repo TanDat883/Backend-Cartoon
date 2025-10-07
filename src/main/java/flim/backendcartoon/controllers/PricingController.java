@@ -11,8 +11,11 @@ import flim.backendcartoon.entities.DTO.request.CreatePriceListRequest;
 import flim.backendcartoon.entities.DTO.request.ExtendPriceListEndRequest;
 import flim.backendcartoon.entities.PriceItem;
 import flim.backendcartoon.entities.PriceList;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.services.PricingService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,9 +38,19 @@ public class PricingController {
 
     //================== Price List =================//
     @GetMapping("/all-price-lists")
-    public ResponseEntity<List<PriceList>> getAllPriceLists() {
-            List<PriceList> priceList = pricingService.getAllPriceLists();
-            return ResponseEntity.ok(priceList);
+    public ResponseEntity<List<PriceList>> getAllPriceLists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Page<PriceList> priceList = pricingService.getAllPriceLists(page, size, keyword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(priceList.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(priceList.getContent());
     }
 
     @PostMapping("/create-price-list")

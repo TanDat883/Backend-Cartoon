@@ -18,9 +18,11 @@ import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.PromotionDetail;
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.*;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -108,8 +110,20 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
     }
 
     @Override
-    public List<SubscriptionPackage> getAll() {
-        return subscriptionPackageRepository.findAll();
+    public Page<SubscriptionPackage> findAllPackages(int page, int size, String keyword) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        List<SubscriptionPackage> packages;
+        long total;
+
+        if (keyword != null && !keyword.isEmpty()) {
+            packages = subscriptionPackageRepository.findByKeyword(keyword, pageable);
+            total = subscriptionPackageRepository.countByKeyword(keyword);
+        } else {
+            packages = subscriptionPackageRepository.findAllPackages(pageable);
+            total = subscriptionPackageRepository.countAllPackages();
+        }
+
+        return new PageImpl<>(packages, pageable, total);
     }
 
     @Override
