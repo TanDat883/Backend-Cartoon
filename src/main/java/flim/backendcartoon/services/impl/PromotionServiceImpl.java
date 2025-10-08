@@ -69,6 +69,11 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
+    public List<Promotion> listAll() {
+        return promotionRepository.findAll();
+    }
+
+    @Override
     public Page<Promotion> listAll(int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         List<Promotion> promotions;

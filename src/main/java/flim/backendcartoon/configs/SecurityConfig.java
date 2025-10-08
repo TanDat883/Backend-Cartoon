@@ -34,7 +34,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/export/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/data-analyzer/revenue/**").authenticated()
 
-//                        .requestMatchers("/payment/**").authenticated()
+                        .requestMatchers("/payment/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/feedback/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/wishlist/add").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/wishlist/remove").authenticated()

@@ -748,17 +748,17 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         long totalRedemptions = withAnyPromotion.size();
         long uniqueUsers = withAnyPromotion.stream().map(Payment::getUserId).filter(Objects::nonNull).distinct().count();
         long totalDiscountGranted = withAnyPromotion.stream()
-                .map(payment -> paymentDetailRepository.findByPaymentId(payment.getPaymentId()))
+                .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
                 .filter(Objects::nonNull)
                 .mapToLong(pd -> L(pd.getDiscountAmount())).sum();
 
         long totalOriginalAmount = withAnyPromotion.stream()
-        .map(payment -> paymentDetailRepository.findByPaymentId(payment.getPaymentId()))
+        .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
                 .filter(Objects::nonNull)
                 .mapToLong(pd -> L(pd.getOriginalAmount())).sum();
 
         long totalFinalAmount = withAnyPromotion.stream()
-            .map(payment -> paymentDetailRepository.findByPaymentId(payment.getPaymentId()))
+            .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
                 .filter(Objects::nonNull)
                 .mapToLong(pd -> L(pd.getFinalAmount())).sum();
 
@@ -1110,7 +1110,7 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
     // DataAnalyzerServiceImpl
     private PaymentDetail getPD(Payment p) {
-        PaymentDetail pd = paymentDetailRepository.findByPaymentId(p.getPaymentId());
+        PaymentDetail pd = paymentDetailRepository.findById(p.getPaymentId());
         if (pd == null && p.getPaymentCode() != null) {
             // fallback nếu bảng đang khóa theo paymentCode
             try { pd = paymentDetailRepository.findByPaymentCode(p.getPaymentCode()); } catch (Throwable ignore) {}

@@ -90,4 +90,8 @@ public class PaymentRepository {
                 .orElse(null);
     }
 
+    //find all payment
+    public List<Payment> findAll() {
+        return table.scan().items().stream().collect(Collectors.toList());
+    }
 }
