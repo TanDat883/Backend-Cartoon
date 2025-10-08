@@ -7,7 +7,9 @@
 package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.Payment;
+import flim.backendcartoon.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -44,8 +46,41 @@ public class PaymentRepository {
         return table.getItem(r -> r.key(k -> k.partitionValue(paymentId)));
     }
 
-    public List<Payment> findAll() {
-        return table.scan().items().stream().collect(Collectors.toList());
+    public List<Payment> findAllPayments(Pageable pageable) {
+        return table.scan().items().stream()
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public List<Payment> findByKeyword(String keyword, Pageable pageable) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(payment -> (payment.getUserId() != null && payment.getUserId().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getPaymentId() != null && payment.getPaymentId().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getStatus() != null && payment.getStatus().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getPackageId() != null && payment.getPackageId().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getPaymentCode() != null && payment.getPaymentCode().toString().toLowerCase().contains(lowerKeyword))||
+                        (payment.getCreatedAt() != null && payment.getCreatedAt().toLowerCase().contains(lowerKeyword)))
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public long countAllPayments() {
+        return table.scan().items().stream().count();
+    }
+
+    public long countByKeyword(String keyword) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(payment -> (payment.getUserId() != null && payment.getUserId().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getPaymentId() != null && payment.getPaymentId().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getStatus() != null && payment.getStatus().toLowerCase().contains(lowerKeyword)) ||
+                        (payment.getPackageId() != null && payment.getPackageId().toLowerCase().contains(lowerKeyword))||
+                        (payment.getPaymentCode() != null && payment.getPaymentCode().toString().toLowerCase().contains(lowerKeyword))||
+                        (payment.getCreatedAt() != null && payment.getCreatedAt().toLowerCase().contains(lowerKeyword)))
+                .count();
     }
 
     public Payment findByPaymentCode(Long paymentCode) {

@@ -12,6 +12,8 @@ import flim.backendcartoon.entities.DTO.request.CreatePriceListRequest;
 import flim.backendcartoon.entities.DTO.request.PriceView;
 import flim.backendcartoon.entities.PriceItem;
 import flim.backendcartoon.entities.PriceList;
+import flim.backendcartoon.entities.User;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -24,12 +26,11 @@ import java.util.List;
  */
 public interface PricingService {
     PriceView getPriceForPackage(String packageId);
-    List<PriceList> getAllPriceLists();
+    Page<PriceList> getAllPriceLists(int page, int size, String keyword);
     void createPriceList(CreatePriceListRequest priceListRequest);
     void updatePriceList(String priceListId, CreatePriceListRequest priceListRequest);
     List<PriceList> getPriceListsByStatusAndStartDate(String status, LocalDate startDate);
     int expireOutdatedPriceLists();
-//    int autoFlipInactiveListsStartingToday();
     PriceList getPriceListById(String priceListId);
     void createPriceItem(PriceItem priceItem);
     void addPrice(AddPriceRequest addPriceRequest);

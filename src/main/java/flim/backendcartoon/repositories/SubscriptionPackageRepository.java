@@ -7,7 +7,9 @@
 package flim.backendcartoon.repositories;
 
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
@@ -16,6 +18,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /*
  * @description
@@ -44,6 +47,37 @@ public class SubscriptionPackageRepository {
 
     public List<SubscriptionPackage> findAll() {
         return table.scan().items().stream().toList();
+    }
+
+    public List<SubscriptionPackage> findAllPackages(Pageable pageable) {
+        return table.scan().items().stream()
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public List<SubscriptionPackage> findByKeyword(String keyword, Pageable pageable) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(pkg -> (pkg.getPackageName() != null && pkg.getPackageName().toLowerCase().contains(lowerKeyword)) ||
+                        (pkg.getPackageId() != null && pkg.getPackageId().toLowerCase().contains(lowerKeyword)) ||
+                        (pkg.getApplicablePackageType() != null && pkg.getApplicablePackageType().toString().toLowerCase().contains(lowerKeyword)))
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public long countAllPackages() {
+        return table.scan().items().stream().count();
+    }
+
+    public long countByKeyword(String keyword) {
+        String lowerKeyword = keyword.toLowerCase();
+        return table.scan().items().stream()
+                .filter(pkg -> (pkg.getPackageName() != null && pkg.getPackageName().toLowerCase().contains(lowerKeyword)) ||
+                        (pkg.getPackageId() != null && pkg.getPackageId().toLowerCase().contains(lowerKeyword)) ||
+                        (pkg.getApplicablePackageType() != null && pkg.getApplicablePackageType().toString().toLowerCase().contains(lowerKeyword)))
+                .count();
     }
 
     public List<SubscriptionPackage> findByCurrentPriceListId(String priceListId) {

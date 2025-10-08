@@ -14,6 +14,8 @@ package flim.backendcartoon.repositories;
  */
 
 import flim.backendcartoon.entities.Promotion;
+import flim.backendcartoon.entities.User;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
@@ -56,6 +58,39 @@ public class PromotionRepository {
 
     public List<Promotion> findAll() {
         return promotionTable.scan().items().stream().collect(Collectors.toList());
+    }
+
+    public List<Promotion> findAllPromotions(Pageable pageable) {
+        return promotionTable.scan().items().stream()
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public List<Promotion> findByKeyword(String keyword, Pageable pageable) {
+        String lowerKeyword = keyword.toLowerCase();
+        return promotionTable.scan().items().stream()
+                .filter(promotion -> (promotion.getPromotionName() != null && promotion.getPromotionName().toLowerCase().contains(lowerKeyword)) ||
+                        (promotion.getDescription() != null && promotion.getDescription().toLowerCase().contains(lowerKeyword))||
+                        (promotion.getStatus() != null && promotion.getStatus().toLowerCase().contains(lowerKeyword))||
+                        (promotion.getPromotionId() != null && promotion.getPromotionId().toLowerCase().contains(lowerKeyword)))
+                .skip(pageable.getPageNumber() * pageable.getPageSize())
+                .limit(pageable.getPageSize())
+                .collect(Collectors.toList());
+    }
+
+    public long countAllPromotions() {
+        return promotionTable.scan().items().stream().count();
+    }
+
+    public long countByKeyword(String keyword) {
+        String lowerKeyword = keyword.toLowerCase();
+        return promotionTable.scan().items().stream()
+                .filter(promotion -> (promotion.getPromotionName() != null && promotion.getPromotionName().toLowerCase().contains(lowerKeyword)) ||
+                        (promotion.getDescription() != null && promotion.getDescription().toLowerCase().contains(lowerKeyword))||
+                        (promotion.getStatus() != null && promotion.getStatus().toLowerCase().contains(lowerKeyword))||
+                        (promotion.getPromotionId() != null && promotion.getPromotionId().toLowerCase().contains(lowerKeyword)))
+                .count();
     }
 
     public boolean isPromotionActive(String promotionId) {

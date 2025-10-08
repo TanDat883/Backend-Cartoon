@@ -15,9 +15,11 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.Promotion;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -67,8 +69,20 @@ public class PromotionServiceImpl implements PromotionService {
     }
 
     @Override
-    public List<Promotion> listAll() {
-        return promotionRepository.findAll();
+    public Page<Promotion> listAll(int page, int size, String keyword) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        List<Promotion> promotions;
+        long total;
+
+        if (keyword != null && !keyword.isEmpty()) {
+            promotions = promotionRepository.findByKeyword(keyword, pageable);
+            total = promotionRepository.countByKeyword(keyword);
+        } else {
+            promotions = promotionRepository.findAllPromotions(pageable);
+            total = promotionRepository.countAllPromotions();
+        }
+
+        return new PageImpl<>(promotions, pageable, total);
     }
 
     @Override

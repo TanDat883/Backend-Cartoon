@@ -15,11 +15,13 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Payment;
 import flim.backendcartoon.entities.PaymentDetail;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.PaymentDetailRepository;
 import flim.backendcartoon.repositories.PaymentRepository;
 import flim.backendcartoon.services.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import vn.payos.PayOS;
 import vn.payos.type.CheckoutResponseData;
@@ -97,6 +99,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public Payment createPayment(String userId, String packageId, Long paymentCode, Long finalAmount) {
         Payment payment = new Payment();
+        // 1750088588999
         payment.setPaymentId(UUID.randomUUID().toString());
         payment.setUserId(userId);
         payment.setPackageId(packageId);
@@ -146,8 +149,20 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public List<Payment> getAllPayments() {
-        return paymentRepository.findAll();
+    public Page<Payment> findAllPayments(int page, int size, String keyword) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        List<Payment> payments;
+        long total;
+
+        if (keyword != null && !keyword.isEmpty()) {
+            payments = paymentRepository.findByKeyword(keyword, pageable);
+            total = paymentRepository.countByKeyword(keyword);
+        } else {
+            payments = paymentRepository.findAllPayments(pageable);
+            total = paymentRepository.countAllPayments();
+        }
+
+        return new PageImpl<>(payments, pageable, total);
     }
 
     @Override
@@ -161,36 +176,13 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public void updatePaymentDetail(PaymentDetail paymentDetail) {
-        paymentDetailRepository.update(paymentDetail);
+    public PaymentDetail findPaymentDetailByPaymentId(String paymentId) {
+        return paymentDetailRepository.findById(paymentId);
     }
+
 
     @Override
     public PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode) {
         return paymentDetailRepository.findByPaymentCode(paymentCode);
     }
-
-    @Override
-    public String getStatusByPaymentId(String paymentId) {
-        Payment payment = paymentRepository.findByPaymentId(paymentId);
-        if (payment != null) {
-            return payment.getStatus();
-        } else {
-            throw new BaseException("Payment not found with ID: " + paymentId);
-        }
-    }
-
-//    @Override
-//    public void updatePaymentDetailStatus(String paymentId, String status) {
-//        PaymentDetail paymentDetail = paymentDetailRepository.findByPaymentId(paymentId);
-//        if (paymentDetail != null) {
-//            paymentDetail.setStatus(status);
-//            paymentDetailRepository.update(paymentDetail);
-//            System.out.println("Updated payment order status for order ID: " + paymentId + " to status: " + status);
-//        } else {
-//            throw new RuntimeException("Payment order not found for order ID: " + paymentId);
-//        }
-//    }
-
-
 }

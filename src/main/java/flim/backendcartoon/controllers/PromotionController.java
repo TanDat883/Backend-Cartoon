@@ -18,6 +18,8 @@ import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.services.PromotionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,9 +42,19 @@ public class PromotionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Promotion>> getAllPromotions() {
-        List<Promotion> promotions = promotionService.listAll();
-        return ResponseEntity.ok(promotions);
+    public ResponseEntity<List<Promotion>> getAllPromotions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Page<Promotion> promotions = promotionService.listAll(page, size, keyword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(promotions.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(promotions.getContent());
     }
 
     @PutMapping("/{promotionId}")

@@ -10,12 +10,15 @@ import flim.backendcartoon.entities.DTO.request.PriceView;
 import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.services.PricingService;
 import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.SubscriptionPackageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.ILoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,17 +41,19 @@ public class SubscriptionPackageController {
     private final S3Service s3Service;
 
     @GetMapping
-    public ResponseEntity<List<SubscriptionPackage>> getAll() {
-        try {
-            List<SubscriptionPackage> subscriptionPackages = subscriptionPackageService.getAll();
-            if (subscriptionPackages.isEmpty()) {
-                return ResponseEntity.status(404).body(List.of());
-            }
-            return ResponseEntity.ok(subscriptionPackages);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(List.of());
-        }
+    public ResponseEntity<List<SubscriptionPackage>> getAllPackages(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+
+        Page<SubscriptionPackage> packages = subscriptionPackageService.findAllPackages(page, size, keyword);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("X-Total-Count", String.valueOf(packages.getTotalElements()));
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(packages.getContent());
     }
 
     @GetMapping("/all")
