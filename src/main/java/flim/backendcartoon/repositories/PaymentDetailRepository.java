@@ -14,6 +14,7 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
 import java.util.List;
+import java.util.Objects;
 
 /*
  * @description
@@ -40,7 +41,10 @@ public class PaymentDetailRepository {
     }
 
     public PaymentDetail findByPaymentCode(Long code) {
-        return table.getItem(r -> r.key(k -> k.partitionValue(code)));
+        if (code == null) return null;
+        return table.scan().items().stream()
+                .filter(pd -> Objects.equals(pd.getPaymentCode(), code))
+                .findFirst().orElse(null);
     }
 
     public PaymentDetail findByPaymentId(String paymentId) {

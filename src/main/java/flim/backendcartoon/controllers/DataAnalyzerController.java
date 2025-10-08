@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.List;
 
 /*
  * @description
@@ -39,72 +40,54 @@ public class DataAnalyzerController {
     public ResponseEntity<RevenueSummaryResponse> getSummary(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
-
         LocalDate now = LocalDate.now();
         int y = (year != null) ? year : now.getYear();
         int m = (month != null) ? month : now.getMonthValue();
-
-//        return ResponseEntity.ok(revenueService.getSummary(y, m));
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok(revenueService.getSummary(y, m));
     }
 
 
     // Doanh thu theo ngày trong 1 tháng
     @GetMapping("/revenue/day")
-    public RevenueChartResponse getRevenueByDay(
-            @RequestParam int year,
-            @RequestParam int month) {
-//        return revenueService.getRevenueByDay(year, month);
-        return null;
+    public RevenueChartResponse getRevenueByDay(@RequestParam int year, @RequestParam int month) {
+        return revenueService.getRevenueByDay(year, month);
     }
 
-    // Doanh thu theo 12 tháng trong 1 năm
     @GetMapping("/revenue/month")
     public RevenueChartResponse getRevenueByMonth(@RequestParam int year) {
-//        return revenueService.getRevenueByMonth(year);
-        return null;
+        return revenueService.getRevenueByMonth(year);
     }
 
-    // Doanh thu theo nhiều năm (from → to)
     @GetMapping("/revenue/year")
-    public RevenueChartResponse getRevenueByYear(
-            @RequestParam int from,
-            @RequestParam int to) {
-//        return revenueService.getRevenueByYear(from, to);
-        return null;
+    public RevenueChartResponse getRevenueByYear(@RequestParam int from, @RequestParam int to) {
+        return revenueService.getRevenueByYear(from, to);
     }
 
     // thống kê nhanh
     @GetMapping("/revenue/quick-stats")
-    public ResponseEntity<?> getQuickStats() {
-//        return ResponseEntity.ok(revenueService.getQuickStats());
-        return ResponseEntity.ok(null);
+    public ResponseEntity<QuickStatsResponse> getQuickStats() {
+        return ResponseEntity.ok(revenueService.getQuickStats());
     }
     //giao dịch gần đây
     @GetMapping("/revenue/recent-transactions")
     public ResponseEntity<?> getRecentTransaction() {
-//        return ResponseEntity.ok(revenueService.getRecentTransactions(5));
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok(revenueService.getRecentTransactions(5));
     }
 
     // ===== Revenue (date range + groupBy) =====
     @GetMapping("/revenue/range")
     public RevenueChartResponse getRevenueByRange(
-            @RequestParam String startDate,   // yyyy-MM-dd
-            @RequestParam String endDate,     // yyyy-MM-dd
-            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy // DAY|WEEK|MONTH
-    ) {
-//        return revenueService.getRevenueByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
-        return null;
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy) {
+        return revenueService.getRevenueByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
     }
 
     @GetMapping("/revenue/range/summary")
     public RevenueSummaryResponse getRevenueSummaryByRange(
             @RequestParam String startDate,
-            @RequestParam String endDate
-    ) {
-//        return revenueService.getRevenueSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
-        return null;
+            @RequestParam String endDate) {
+        return revenueService.getRevenueSummaryByRange(LocalDate.parse(startDate), LocalDate.parse(endDate));
     }
 
     // Recent transactions có phân trang + (optional) range filter
@@ -113,12 +96,10 @@ public class DataAnalyzerController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate
-    ) {
+            @RequestParam(required = false) String endDate) {
         LocalDate s = (startDate == null || startDate.isBlank()) ? null : LocalDate.parse(startDate);
         LocalDate e = (endDate == null || endDate.isBlank()) ? null : LocalDate.parse(endDate);
-//        return revenueService.getRecentTransactionsPaged(page, size, s, e);
-        return null;
+        return revenueService.getRecentTransactionsPaged(page, size, s, e);
     }
 
 
@@ -229,6 +210,54 @@ public class DataAnalyzerController {
                 null, null); // companyName, companyAddress nếu có
     }
 
+    // =========================
+    // ===== PROMOTIONS ========
+    // =========================
+
+    // 1) Tổng quan khuyến mãi trong khoảng ngày
+    @GetMapping("/promotions/summary")
+    public PromoStatsSummaryResponse getPromotionSummary(
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        return revenueService.getPromotionSummary(LocalDate.parse(startDate), LocalDate.parse(endDate));
+    }
+
+    // 2) BXH voucher (top N)
+    @GetMapping("/promotions/vouchers/leaderboard")
+    public List<VoucherUsageItemResponse> getVoucherLeaderboard(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "10") int limit) {
+        return revenueService.getVoucherLeaderboard(LocalDate.parse(startDate), LocalDate.parse(endDate), limit);
+    }
+
+    // 3) Stats theo promotion line (có thể lọc theo promotionId)
+    @GetMapping("/promotions/lines")
+    public List<PromotionLineStatsResponse> getPromotionLineStats(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(required = false) String promotionId) {
+        return revenueService.getPromotionLineStats(LocalDate.parse(startDate), LocalDate.parse(endDate), promotionId);
+    }
+
+    // 4) Biểu đồ usage theo khoảng thời gian
+    @GetMapping("/promotions/usage")
+    public PromotionRangeChartResponse getPromotionUsageByRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy) {
+        return revenueService.getPromotionUsageByRange(LocalDate.parse(startDate), LocalDate.parse(endDate), groupBy);
+    }
+
+    // 5) Chi tiết voucher theo promotionId
+    @GetMapping("/promotions/{promotionId}/vouchers")
+    public List<VoucherUsageItemResponse> getVoucherDetailByPromotion(
+            @PathVariable String promotionId,
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        return revenueService.getVoucherDetailByPromotion(promotionId, LocalDate.parse(startDate), LocalDate.parse(endDate));
+    }
+
     // Xuất theo khoảng ngày + groupBy (DAY|WEEK|MONTH)
     @GetMapping("/export/dashboard-range.xlsx")
     public void exportDashboardRange(
@@ -242,6 +271,8 @@ public class DataAnalyzerController {
         var e = LocalDate.parse(endDate);
         exportDashboardService.exportDashboardRange(response, s, e, groupBy, companyName, companyAddress);
     }
+
+
 
 }
 

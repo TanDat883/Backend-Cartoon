@@ -20,6 +20,8 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -57,7 +59,11 @@ public class PromotionRepository {
     }
 
     public boolean isPromotionActive(String promotionId) {
-        Optional<Promotion> promotionOpt = findById(promotionId);
-        return promotionOpt.map(promotion -> promotion.getStatus().equals("ACTIVE")).orElse(false);
+        return findById(promotionId).map(p -> {
+            if (p.getStatus()==null || !p.getStatus().equalsIgnoreCase("ACTIVE")) return false;
+            LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+            return (p.getStartDate()==null || !today.isBefore(p.getStartDate()))
+                    && (p.getEndDate()==null   || !today.isAfter(p.getEndDate()));
+        }).orElse(false);
     }
 }

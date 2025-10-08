@@ -84,19 +84,33 @@ public class PromotionLineRepository {
     }
 
     private boolean isActiveLine(PromotionLine line) {
-        // Trạng thái
-        if (!"ACTIVE".equals(line.getStatus())) return false;
-
-        // Cửa sổ thời gian (inclusive): today ∈ [startDate, endDate]
+        if (line.getStatus()==null || !line.getStatus().equalsIgnoreCase("ACTIVE")) return false;
         ZoneId vn = ZoneId.of("Asia/Ho_Chi_Minh");
         LocalDate today = LocalDate.now(vn);
-
-        LocalDate start = line.getStartDate(); // map sang LocalDate từ Dynamo
-        LocalDate end   = line.getEndDate();
-
+        LocalDate start = line.getStartDate(), end = line.getEndDate();
         if (start != null && today.isBefore(start)) return false;
         if (end   != null && today.isAfter(end))   return false;
-
         return true;
+    }
+
+
+
+    /**
+     * Tìm 1 line theo promotionLineId (không biết promotionId).
+     * Tạm thời scan toàn bảng. Nếu data lớn, cân nhắc tạo GSI cho promotionLineId.
+     */
+    public PromotionLine findByPromotionLineId(String promotionLineId) {
+        if (promotionLineId == null || promotionLineId.isBlank()) return null;
+        for (PromotionLine it : promotionLineDynamoDbTable.scan().items()) {
+            if (promotionLineId.equals(it.getPromotionLineId())) {
+                return it;
+            }
+        }
+        return null;
+    }
+
+    /** Bản Optional nếu bạn thích dùng Optional ở nơi khác */
+    public Optional<PromotionLine> findOptionalByPromotionLineId(String promotionLineId) {
+        return Optional.ofNullable(findByPromotionLineId(promotionLineId));
     }
 }
