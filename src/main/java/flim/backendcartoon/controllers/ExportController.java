@@ -36,7 +36,9 @@ public class ExportController {
     @GetMapping("/dashboard")
     public void exportDashboard(HttpServletResponse response,
                                 @RequestParam(required = false) Integer year,
-                                @RequestParam(required = false) Integer month) throws IOException {
+                                @RequestParam(required = false) Integer month,
+                                @RequestParam(defaultValue = "false") boolean includePromotions,
+                                @RequestParam(defaultValue = "10") int topVoucherLimit) throws IOException {
         var now = LocalDate.now();
         int y = (year != null) ? year : now.getYear();
         int m = (month != null) ? month : now.getMonthValue();
@@ -44,7 +46,23 @@ public class ExportController {
         var start = java.time.YearMonth.of(y, m).atDay(1);
         var end   = java.time.YearMonth.of(y, m).atEndOfMonth();
 
-        exportDashboardService.exportDashboardRange(response, start, end, GroupByDataAnalzerResponse.DAY,
-                null, null); // companyName, companyAddress nếu có
+        exportDashboardService.exportDashboardRange(
+                response, start, end, GroupByDataAnalzerResponse.DAY,
+                null, null,
+                includePromotions, topVoucherLimit
+        );
     }
+
+
+//    @GetMapping("/promotions-range.xlsx")
+//    public void exportPromotions(HttpServletResponse response,
+//                                 @RequestParam String startDate,
+//                                 @RequestParam String endDate,
+//                                 @RequestParam(defaultValue = "10") int topVoucherLimit) throws IOException {
+//        var s = LocalDate.parse(startDate);
+//        var e = LocalDate.parse(endDate);
+//        exportDashboardService.exportPromotionReportRange(response, s, e, topVoucherLimit,
+//                null, null);
+//    }
+
 }

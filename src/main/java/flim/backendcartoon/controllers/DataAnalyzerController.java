@@ -195,10 +195,11 @@ public class DataAnalyzerController {
     // ====== EXPORT EXCEL ======
     // Xuất theo year/month (giống file mẫu)
     @GetMapping("/export/dashboard.xlsx")
-    public void exportDashboardYM(
-            HttpServletResponse response,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month) throws IOException {
+    public void exportDashboardYM(HttpServletResponse response,
+                                  @RequestParam(required = false) Integer year,
+                                  @RequestParam(required = false) Integer month,
+                                  @RequestParam(defaultValue = "false") boolean includePromotions,
+                                  @RequestParam(defaultValue = "10") int topVoucherLimit) throws IOException {
         var now = LocalDate.now();
         int y = (year != null) ? year : now.getYear();
         int m = (month != null) ? month : now.getMonthValue();
@@ -206,9 +207,13 @@ public class DataAnalyzerController {
         var start = java.time.YearMonth.of(y, m).atDay(1);
         var end   = java.time.YearMonth.of(y, m).atEndOfMonth();
 
-        exportDashboardService.exportDashboardRange(response, start, end, GroupByDataAnalzerResponse.DAY,
-                null, null); // companyName, companyAddress nếu có
+        exportDashboardService.exportDashboardRange(
+                response, start, end, GroupByDataAnalzerResponse.DAY,
+                null, null,
+                includePromotions, topVoucherLimit
+        );
     }
+
 
     // =========================
     // ===== PROMOTIONS ========
@@ -266,11 +271,20 @@ public class DataAnalyzerController {
             @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy,
             @RequestParam(required = false) String companyName,
             @RequestParam(required = false) String companyAddress,
+            @RequestParam(defaultValue = "false") boolean includePromotions,
+            @RequestParam(defaultValue = "10") int topVoucherLimit,
             HttpServletResponse response) throws Exception {
-        var s = LocalDate.parse(startDate);
-        var e = LocalDate.parse(endDate);
-        exportDashboardService.exportDashboardRange(response, s, e, groupBy, companyName, companyAddress);
+
+        LocalDate s = LocalDate.parse(startDate); // ISO yyyy-MM-dd
+        LocalDate e = LocalDate.parse(endDate);
+
+        exportDashboardService.exportDashboardRange(
+                response, s, e, groupBy,
+                companyName, companyAddress,
+                includePromotions, topVoucherLimit
+        );
     }
+
 
 
 

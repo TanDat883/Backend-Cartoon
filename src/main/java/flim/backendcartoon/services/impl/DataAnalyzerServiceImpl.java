@@ -769,11 +769,17 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         LocalDate last  = dates.isEmpty() ? null : dates.get(dates.size() - 1);
 
         // top voucher
+        // thay toàn bộ khối byVoucher trong getPromotionSummary(...) bằng:
         Map<String, List<Payment>> byVoucher = withAnyPromotion.stream()
-        .collect(Collectors.groupingBy(p -> {
-            var pd = getPD(p);
-            return pd != null ? pd.getVoucherCode() : null;
-        }));
+                .map(p -> Map.entry(p, getPD(p)))
+                .filter(e -> e.getValue() != null
+                        && e.getValue().getVoucherCode() != null
+                        && !e.getValue().getVoucherCode().isBlank())
+                .collect(Collectors.groupingBy(
+                        e -> e.getValue().getVoucherCode(),
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toList())
+                ));
+
 
         VoucherUsageItemResponse topVoucher = byVoucher.entrySet().stream()
                 .filter(e -> e.getKey() != null)
@@ -1120,9 +1126,10 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
     private boolean isPaid(Payment p) {
         String s = p.getStatus();
-        return s != null && (
-                s.equalsIgnoreCase("PAID") || s.equalsIgnoreCase("COMPLETED")
-        );
+        return s.equalsIgnoreCase("SUCCESS")
+                || s.equalsIgnoreCase("PAID")
+                || s.equalsIgnoreCase("COMPLETED")
+                || s.equalsIgnoreCase("CAPTURED");
     }
 
 
