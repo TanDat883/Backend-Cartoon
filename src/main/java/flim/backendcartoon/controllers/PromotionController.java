@@ -63,4 +63,10 @@ public class PromotionController {
         return ResponseEntity.ok("Promotion updated successfully");
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<Promotion>> getAllPromotionsNoPage() {
+        List<Promotion> promotions = promotionService.listAll();
+        return ResponseEntity.ok(promotions);
+    }
+
 }
