@@ -440,234 +440,182 @@ public class ExportDashboardService {
     }
 
 
+    public void exportMovieReportRange(HttpServletResponse response,
+                                       LocalDate start,
+                                       LocalDate end,
+                                       GroupByDataAnalzerResponse groupBy,
+                                       String companyName,
+                                       String companyAddress) throws IOException {
+        // --- Lấy dữ liệu từ DataAnalyzerService ---
+        MovieStatsSummaryResponse summary = dataAnalyzerService.getMovieSummaryByRange(start, end);
+        CountChartResponse newMovies = dataAnalyzerService.getNewMoviesByRange(start, end, groupBy);
+        List<CategoryCountItemResponse> byGenre   = dataAnalyzerService.getCountByGenre(20);
+        List<CategoryCountItemResponse> byCountry = dataAnalyzerService.getCountByCountry(20);
+        List<CategoryCountItemResponse> byStatus  = dataAnalyzerService.getStatusBreakdown();
+        List<CategoryCountItemResponse> byType    = dataAnalyzerService.getTypeBreakdown();
+        List<TopMovieDTOResponse> topViews  = dataAnalyzerService.getTopMoviesByViewsInRange(start, end, 10);
+        List<TopMovieDTOResponse> topRating = dataAnalyzerService.getTopMoviesByRatingInRange(start, end, 10, 5);
 
+        // fallback: nếu khoảng ngày không có phim nào, rỗng thì hiển thị all-time cho đỡ trống
+        if (topViews.isEmpty())  topViews  = dataAnalyzerService.getTopMoviesByViews(10);
+        if (topRating.isEmpty()) topRating = dataAnalyzerService.getTopMoviesByRating(10, 1); // có hạ ngưỡng
 
-    // ================= PROMOTION EXPORT =================
-
-    /** Xuất Excel báo cáo khuyến mãi theo khoảng ngày */
-    public void exportPromotionReportRange(HttpServletResponse response,
-                                           LocalDate start,
-                                           LocalDate end,
-                                           int topVoucherLimit,
-                                           String companyName,
-                                           String companyAddress) throws IOException {
-
-        // ---- Lấy dữ liệu BE đã sẵn có ----
-        PromoStatsSummaryResponse summary = dataAnalyzerService.getPromotionSummary(start, end);
-        List<PromotionLineStatsResponse> lineStats =
-                dataAnalyzerService.getPromotionLineStats(start, end, null);
-        List<VoucherUsageItemResponse> topVouchers =
-                dataAnalyzerService.getVoucherLeaderboard(start, end, Math.max(1, topVoucherLimit));
-        PromotionRangeChartResponse usageChart =
-                dataAnalyzerService.getPromotionUsageByRange(start, end, GroupByDataAnalzerResponse.DAY);
-
-        String fileName = "BaoCao_CTKM_" + start + "_" + end + ".xlsx";
+        String fileName = "BaoCao_Phim_" + start + "_" + end + "_" + groupBy + ".xlsx";
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Styles st = new Styles(wb);
 
-            // ===== SHEET 1: Tổng kết CTKM =====
-            XSSFSheet sheet = wb.createSheet("Báo cáo CTKM");
-            sheet.setDisplayGridlines(false);
-            sheet.setPrintGridlines(false);
-            PrintSetup ps = sheet.getPrintSetup();
-            ps.setLandscape(true);
-            ps.setPaperSize(PrintSetup.A4_PAPERSIZE);
-            sheet.setMargin(Sheet.LeftMargin, 0.4);
-            sheet.setMargin(Sheet.RightMargin, 0.4);
-            sheet.setMargin(Sheet.TopMargin, 0.6);
-            sheet.setMargin(Sheet.BottomMargin, 0.6);
+            // ===== SHEET 1: Tóm tắt =====
+            XSSFSheet sh = wb.createSheet("Tổng quan phim");
+            sh.setDisplayGridlines(false); sh.setPrintGridlines(false);
+            var ps = sh.getPrintSetup(); ps.setLandscape(true); ps.setPaperSize(PrintSetup.A4_PAPERSIZE);
+            sh.setMargin(Sheet.LeftMargin, 0.4); sh.setMargin(Sheet.RightMargin, 0.4);
+            sh.setMargin(Sheet.TopMargin, 0.6);  sh.setMargin(Sheet.BottomMargin, 0.6);
 
             int r = 0;
-            // Header công ty
-            Row r1 = sheet.createRow(r++);
-            set(sheet, r1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
-            sheet.addMergedRegion(new CellRangeAddress(0,0,0,11));
+            Row r1 = sh.createRow(r++); set(sh, r1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+            sh.addMergedRegion(new CellRangeAddress(0,0,0,8));
+            Row r2 = sh.createRow(r++); set(sh, r2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+            sh.addMergedRegion(new CellRangeAddress(1,1,0,8));
+            Row r3 = sh.createRow(r++); set(sh, r3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+            sh.addMergedRegion(new CellRangeAddress(2,2,0,8));
 
-            Row r2 = sheet.createRow(r++);
-            set(sheet, r2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
-            sheet.addMergedRegion(new CellRangeAddress(1,1,0,11));
-
-            Row r3 = sheet.createRow(r++);
-            set(sheet, r3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
-            sheet.addMergedRegion(new CellRangeAddress(2,2,0,11));
-
-            // Title + Range
             r++;
-            Row title = sheet.createRow(r++);
-            set(sheet, title, 0, "BÁO CÁO TỔNG KẾT CTKM", st.title);
-            sheet.addMergedRegion(new CellRangeAddress(title.getRowNum(), title.getRowNum(), 0, 11));
-
-            Row range = sheet.createRow(r++);
-            set(sheet, range, 0,
-                    "Thời gian: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                            + " → " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
-                    st.centerGrey);
-            sheet.addMergedRegion(new CellRangeAddress(range.getRowNum(), range.getRowNum(), 0, 11));
+            Row title = sh.createRow(r++); set(sh, title, 0, "BÁO CÁO THỐNG KÊ PHIM", st.title);
+            sh.addMergedRegion(new CellRangeAddress(title.getRowNum(), title.getRowNum(), 0, 8));
+            Row rg = sh.createRow(r++); set(sh, rg, 0,
+                    "Từ: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                            + "  Đến: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                            + "  (Nhóm theo: " + groupBy + ")", st.centerGrey);
+            sh.addMergedRegion(new CellRangeAddress(rg.getRowNum(), rg.getRowNum(), 0, 8));
             r++;
 
-            // ===== Thẻ tóm tắt (4 hàng) =====
-            Row s1 = sheet.createRow(r++);
-            set(sheet, s1, 0, "Tổng lượt áp dụng (redemptions)", st.th);
-            setNum(sheet, s1, 1, nz(summary.getTotalRedemptions()), st.tdRight);
-
-            Row s2 = sheet.createRow(r++);
-            set(sheet, s2, 0, "Số user dùng CTKM (unique)", st.th);
-            setNum(sheet, s2, 1, nz(summary.getUniqueUsers()), st.tdRight);
-
-            Row s3 = sheet.createRow(r++);
-            set(sheet, s3, 0, "Tổng giảm giá (VND)", st.th);
-            setNum(sheet, s3, 1, nz(summary.getTotalDiscountGranted()), st.moneyRight);
-
-            Row s4 = sheet.createRow(r++);
-            set(sheet, s4, 0, "Doanh thu sau giảm (VND)", st.th);
-            setNum(sheet, s4, 1, nz(summary.getTotalFinalAmount()), st.moneyRight);
-
-            st.addBoxBorder(sheet, s1.getRowNum(), s4.getRowNum(), 0, 1);
+            // 4–8 thẻ số liệu
+            Row s1 = sh.createRow(r++); set(sh, s1, 0, "Tổng phim", st.th);                setNum(sh, s1, 1, summary.getTotalMovies(), st.tdRight);
+            Row s2 = sh.createRow(r++); set(sh, s2, 0, "Single / Series", st.th);          set(sh, s2, 1, summary.getTotalSingle()+" / "+summary.getTotalSeries(), st.tdRight);
+            Row s3 = sh.createRow(r++); set(sh, s3, 0, "Completed / Upcoming", st.th);     set(sh, s3, 1, summary.getCompletedCount()+" / "+summary.getUpcomingCount(), st.tdRight);
+            Row s4 = sh.createRow(r++); set(sh, s4, 0, "Seasons / Episodes", st.th);       set(sh, s4, 1, summary.getTotalSeasons()+" / "+summary.getTotalEpisodes(), st.tdRight);
+            Row s5 = sh.createRow(r++); set(sh, s5, 0, "Thêm mới trong khoảng", st.th);    setNum(sh, s5, 1, summary.getAddedThisMonth(), st.tdRight);
+            Row s6 = sh.createRow(r++); set(sh, s6, 0, "Điểm TB toàn hệ thống", st.th);    setNum(sh, s6, 1, summary.getAvgRatingAll(), st.tdRight);
+            st.addBoxBorder(sh, s1.getRowNum(), s6.getRowNum(), 0, 1);
             r++;
 
-            // ===== Bảng chi tiết theo Promotion Line =====
-            int headerRow = r;
-            Row head = sheet.createRow(r++);
-            set(sheet, head, 0,  "Promotion ID",      st.header);
-            set(sheet, head, 1,  "Line ID",           st.header);
-            set(sheet, head, 2,  "Tên Line",          st.header);
-            set(sheet, head, 3,  "Loại",              st.header); // VOUCHER/PACKAGE
-            set(sheet, head, 4,  "Lượt dùng",         st.header);
-            set(sheet, head, 5,  "Giảm giá (VND)",    st.header);
-            set(sheet, head, 6,  "Giá gốc (VND)",     st.header);
-            set(sheet, head, 7,  "Thu (sau giảm)",    st.header);
+            // Bảng “Top phim” (theo view + rating)
+            Row h = sh.createRow(r++);
+            set(sh, h, 0, "Top theo lượt xem", st.header);
+            set(sh, h, 4, "Top theo đánh giá ", st.header);
 
-            int startRow = r;
-            long totalRedem = 0, totalDisc = 0, totalOri = 0, totalFin = 0;
+            // merge 4 cột cho mỗi tiêu đề khối
+            sh.addMergedRegion(new CellRangeAddress(h.getRowNum(), h.getRowNum(), 0, 3));
+            sh.addMergedRegion(new CellRangeAddress(h.getRowNum(), h.getRowNum(), 4, 7));
 
-            for (PromotionLineStatsResponse s : lineStats) {
-                Row row = sheet.createRow(r++);
-                set(sheet, row, 0,  nvl(s.getPromotionId(), ""), st.td);
-                set(sheet, row, 1,  nvl(s.getPromotionLineId(), ""), st.td);
-                set(sheet, row, 2,  nvl(s.getPromotionLineName(), ""), st.td);
-                set(sheet, row, 3,  nvl(s.getType(), ""), st.tdCenter);
-                setNum(sheet, row, 4, nz(s.getRedemptions()), st.tdRight);
-                setNum(sheet, row, 5, nz(s.getTotalDiscount()), st.moneyRight);
-                setNum(sheet, row, 6, nz(s.getTotalOriginal()), st.moneyRight);
-                setNum(sheet, row, 7, nz(s.getTotalFinal()), st.moneyRight);
+            // dòng header con
+            Row sub = sh.createRow(r++);
+            set(sh, sub, 0, "STT",       st.header);
+            set(sh, sub, 1, "Tên phim",  st.header);
+            set(sh, sub, 2, "Lượt xem",  st.header);
+            set(sh, sub, 3, "Điểm TB",   st.header);
 
-                totalRedem += (s.getRedemptions()==null?0:s.getRedemptions());
-                totalDisc  += (s.getTotalDiscount()==null?0:s.getTotalDiscount());
-                totalOri   += (s.getTotalOriginal()==null?0:s.getTotalOriginal());
-                totalFin   += (s.getTotalFinal()==null?0:s.getTotalFinal());
-            }
+            set(sh, sub, 4, "STT",         st.header);
+            set(sh, sub, 5, "Tên phim",    st.header);
+            set(sh, sub, 6, "Điểm TB",     st.header);
+            set(sh, sub, 7, "Số đánh giá", st.header);
 
-            // Hàng tổng
-            Row total = sheet.createRow(r++);
-            set(sheet, total, 2, "TỔNG CỘNG:", st.totalLeft);
-            setNum(sheet, total, 4, totalRedem, st.totalRight);
-            setNum(sheet, total, 5, totalDisc,  st.totalRight);
-            setNum(sheet, total, 6, totalOri,   st.totalRight);
-            setNum(sheet, total, 7, totalFin,   st.totalRight);
+            int hdrStart = h.getRowNum();  // dùng để kẻ khung luôn cả tiêu đề + subheader
 
-            st.addBoxBorder(sheet, headerRow, r-1, 0, 7);
-
-            // Width
-            sheet.setColumnWidth(0, 20*256);
-            sheet.setColumnWidth(1, 24*256);
-            sheet.setColumnWidth(2, 26*256);
-            sheet.setColumnWidth(3, 12*256);
-            sheet.setColumnWidth(4, 12*256);
-            sheet.setColumnWidth(5, 16*256);
-            sheet.setColumnWidth(6, 16*256);
-            sheet.setColumnWidth(7, 16*256);
-
-            // ===== SHEET 2: Top Voucher =====
-            XSSFSheet s2Sheet = wb.createSheet("Top Voucher");
-            Row h2 = s2Sheet.createRow(0);
-            set(s2Sheet, h2, 0, "Voucher",        st.header);
-            set(s2Sheet, h2, 1, "Promotion ID",   st.header);
-            set(s2Sheet, h2, 2, "Line ID",        st.header);
-            set(s2Sheet, h2, 3, "Lượt dùng",      st.header);
-            set(s2Sheet, h2, 4, "User duy nhất",  st.header);
-            set(s2Sheet, h2, 5, "Giảm giá (VND)", st.header);
-            set(s2Sheet, h2, 6, "Giá gốc",        st.header);
-            set(s2Sheet, h2, 7, "Thu sau giảm",   st.header);
-            set(s2Sheet, h2, 8, "Max usage",      st.header);
-            set(s2Sheet, h2, 9, "Đã dùng",        st.header);
-            set(s2Sheet, h2,10, "First use",      st.header);
-            set(s2Sheet, h2,11, "Last use",       st.header);
-
-            int rr = 1;
-            DateTimeFormatter dFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-            for (VoucherUsageItemResponse v : topVouchers) {
-                Row row = s2Sheet.createRow(rr++);
-                set(s2Sheet, row, 0, nvl(v.getVoucherCode(), ""), st.td);
-                set(s2Sheet, row, 1, nvl(v.getPromotionId(), ""), st.td);
-                set(s2Sheet, row, 2, nvl(v.getPromotionLineId(), ""), st.td);
-                setNum(s2Sheet, row, 3, nz(v.getUses()), st.tdRight);
-                setNum(s2Sheet, row, 4, nz(v.getUniqueUsers()), st.tdRight);
-                setNum(s2Sheet, row, 5, nz(v.getTotalDiscount()), st.moneyRight);
-                setNum(s2Sheet, row, 6, nz(v.getTotalOriginal()), st.moneyRight);
-                setNum(s2Sheet, row, 7, nz(v.getTotalFinal()), st.moneyRight);
-                setNum(s2Sheet, row, 8, nz(v.getMaxUsage()==null?0L:v.getMaxUsage().longValue()), st.tdRight);
-                setNum(s2Sheet, row, 9, nz(v.getUsedCount()==null?0L:v.getUsedCount().longValue()), st.tdRight);
-                set(s2Sheet, row,10, v.getFirstUse()==null? "" : v.getFirstUse().format(dFmt), st.tdCenter);
-                set(s2Sheet, row,11, v.getLastUse()==null ? "" : v.getLastUse().format(dFmt),  st.tdCenter);
-                if ((rr % 2) == 0) st.paintZebra(row, 0, 11);
-            }
-            for (int c = 0; c <= 11; c++) s2Sheet.setColumnWidth(c, (c<=2?22:14)*256);
-
-            // ===== SHEET 3: Usage Chart (lượt dùng & giảm giá) =====
-            if (usageChart != null && usageChart.getLabels()!=null && !usageChart.getLabels().isEmpty()) {
-                XSSFSheet sChart = wb.createSheet("CTKM Chart");
-                Row hd = sChart.createRow(0);
-                set(sChart, hd, 0, "Ngày/Nhóm",  st.header);
-                set(sChart, hd, 1, "Lượt dùng",  st.header);
-                set(sChart, hd, 2, "Giảm giá",   st.header);
-
-                for (int i = 0; i < usageChart.getLabels().size(); i++) {
-                    Row row = sChart.createRow(i + 1);
-                    set(sChart, row, 0, usageChart.getLabels().get(i), st.td);
-                    setNum(sChart, row, 1, nz(usageChart.getRedemptions().get(i)), st.tdRight);     // <== sửa
-                    setNum(sChart, row, 2, nz(usageChart.getDiscountAmounts().get(i)), st.moneyRight); // <== sửa
+            int n = Math.max(topViews.size(), topRating.size());
+            for (int i = 0; i < n; i++) {
+                Row rr = sh.createRow(r++);
+                if (i < topViews.size()) {
+                    var t = topViews.get(i);
+                    set(sh, rr, 0, String.valueOf(i + 1), st.tdCenter);
+                    set(sh, rr, 1, t.getTitle(),          st.td);
+                    setNum(sh, rr, 2, t.getViewCount()==null?0:t.getViewCount(), st.tdRight);
+                    setNum(sh, rr, 3, t.getAvgRating()==null?0:t.getAvgRating(), st.tdRight);
                 }
+                if (i < topRating.size()) {
+                    var t = topRating.get(i);
+                    set(sh, rr, 4, String.valueOf(i + 1), st.tdCenter);
+                    set(sh, rr, 5, t.getTitle(),          st.td);
+                    setNum(sh, rr, 6, t.getAvgRating()==null?0:t.getAvgRating(), st.tdRight);
+                    setNum(sh, rr, 7, t.getRatingCount()==null?0:t.getRatingCount(), st.tdRight);
+                }
+            }
+            // kẻ khung toàn khối
+            st.addBoxBorder(sh, hdrStart, r - 1, 0, 7);
 
+// chỉnh width cho cả 2 bảng (đủ 1 lần)
+            sh.setColumnWidth(0, 6*256);   sh.setColumnWidth(1, 30*256);
+            sh.setColumnWidth(2, 12*256);  sh.setColumnWidth(3, 12*256);
+            sh.setColumnWidth(4, 6*256);   sh.setColumnWidth(5, 30*256);
+            sh.setColumnWidth(6, 12*256);  sh.setColumnWidth(7, 12*256);
 
+            // ===== SHEET 2: New Movies Chart =====
+            if (newMovies.getLabels()!=null && !newMovies.getLabels().isEmpty()) {
+                XSSFSheet sChart = wb.createSheet("Phim mới theo " + groupBy);
+                Row hd = sChart.createRow(0);
+                set(sChart, hd, 0, "Nhóm", st.header);
+                set(sChart, hd, 1, "Số phim", st.header);
+                for (int i = 0; i < newMovies.getLabels().size(); i++) {
+                    Row row = sChart.createRow(i + 1);
+                    set(sChart, row, 0, newMovies.getLabels().get(i), st.td);
+                    setNum(sChart, row, 1, newMovies.getData().get(i), st.tdRight);
+                }
                 XSSFDrawing drawing = sChart.createDrawingPatriarch();
-                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0,4,1, 14, 22);
+                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0,3,1, 11, 24);
                 XSSFChart xssfChart = drawing.createChart(anchor);
-                xssfChart.setTitleText("Sử dụng CTKM theo ngày");
+                xssfChart.setTitleText("Phim mới theo " + groupBy);
                 xssfChart.getOrAddLegend().setPosition(LegendPosition.TOP_RIGHT);
-
                 XDDFCategoryAxis bottom = xssfChart.createCategoryAxis(AxisPosition.BOTTOM);
                 XDDFValueAxis left = xssfChart.createValueAxis(AxisPosition.LEFT);
-                bottom.crossAxis(left); left.crossAxis(bottom);
-
-                int last = usageChart.getLabels().size();
-                XDDFDataSource<String> xs = XDDFDataSourcesFactory.fromStringCellRange(
-                        sChart, new CellRangeAddress(1, last, 0, 0));
-                XDDFNumericalDataSource<Double> ys1 = XDDFDataSourcesFactory.fromNumericCellRange(
-                        sChart, new CellRangeAddress(1, last, 1, 1));
-                XDDFNumericalDataSource<Double> ys2 = XDDFDataSourcesFactory.fromNumericCellRange(
-                        sChart, new CellRangeAddress(1, last, 2, 2));
-
+                int last = newMovies.getLabels().size();
+                var xs = XDDFDataSourcesFactory.fromStringCellRange(sChart, new CellRangeAddress(1, last, 0, 0));
+                var ys = XDDFDataSourcesFactory.fromNumericCellRange(sChart, new CellRangeAddress(1, last, 1, 1));
                 XDDFChartData data = xssfChart.createData(ChartTypes.LINE, bottom, left);
-                data.addSeries(xs, ys1).setTitle("Lượt dùng", null);
-                data.addSeries(xs, ys2).setTitle("Giảm giá (VND)", null);
+                data.addSeries(xs, ys).setTitle("Số phim", null);
                 xssfChart.plot(data);
-
                 sChart.setDisplayGridlines(false);
-                sChart.setColumnWidth(0, 18*256);
-                sChart.setColumnWidth(1, 14*256);
-                sChart.setColumnWidth(2, 14*256);
+                sChart.setColumnWidth(0, 20*256); sChart.setColumnWidth(1, 14*256);
             }
 
-            // ===== HTTP Response =====
+            // ===== SHEET 3: Phân tích danh mục =====
+            XSSFSheet sCat = wb.createSheet("Phân rã danh mục");
+            int r0 = 0;
+            Row hh = sCat.createRow(r0++); set(sCat, hh, 0, "Top Thể loại", st.header); set(sCat, hh, 3, "Top Quốc gia", st.header);
+            // thể loại
+            Row h1 = sCat.createRow(r0++); set(sCat, h1, 0, "Thể loại", st.th); set(sCat, h1, 1, "Số phim", st.th);
+            int base = r0;
+            for (var it : byGenre) { Row row = sCat.createRow(r0++); set(sCat, row, 0, it.getKey(), st.td); setNum(sCat, row, 1, it.getCount(), st.tdRight); }
+            st.addBoxBorder(sCat, h1.getRowNum(), r0-1, 0, 1);
+
+            // quốc gia (cột bên phải)
+            int rR = base; Row h2 = sCat.getRow(h1.getRowNum()); set(sCat, h2, 3, "Quốc gia", st.th); set(sCat, h2, 4, "Số phim", st.th);
+            for (var it : byCountry) { Row row = sCat.getRow(rR); if (row==null) row = sCat.createRow(rR); set(sCat, row, 3, it.getKey(), st.td); setNum(sCat, row, 4, it.getCount(), st.tdRight); rR++; }
+            st.addBoxBorder(sCat, h1.getRowNum(), Math.max(r0-1, rR-1), 3, 4);
+
+            // status & type dưới cùng
+            int rB = Math.max(r0, rR) + 1;
+            Row h3 = sCat.createRow(rB++); set(sCat, h3, 0, "Trạng thái", st.header); set(sCat, h3, 3, "Loại phim", st.header);
+            Row h3a = sCat.createRow(rB++); set(sCat, h3a, 0, "Status", st.th); set(sCat, h3a, 1, "Số phim", st.th);
+            for (var it : byStatus) { Row row = sCat.createRow(rB++); set(sCat, row, 0, it.getKey(), st.td); setNum(sCat, row, 1, it.getCount(), st.tdRight); }
+            st.addBoxBorder(sCat, h3a.getRowNum(), rB-1, 0, 1);
+            int rT = h3a.getRowNum(); set(sCat, sCat.getRow(rT), 3, "Type", st.th); set(sCat, sCat.getRow(rT), 4, "Số phim", st.th);
+            int rT2 = rT+1;
+            for (var it : byType) { Row row = sCat.getRow(rT2); if (row==null) row = sCat.createRow(rT2); set(sCat, row, 3, it.getKey(), st.td); setNum(sCat, row, 4, it.getCount(), st.tdRight); rT2++; }
+            st.addBoxBorder(sCat, rT, rT2-1, 3, 4);
+            sCat.setColumnWidth(0, 24*256); sCat.setColumnWidth(1, 10*256);
+            sCat.setColumnWidth(3, 24*256); sCat.setColumnWidth(4, 10*256);
+
+            // ===== Xuất HTTP =====
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             String cd = "attachment; filename*=UTF-8''" + URLEncoder.encode(fileName, StandardCharsets.UTF_8);
             response.setHeader("Content-Disposition", cd);
-            try (ServletOutputStream out = response.getOutputStream()) {
-                wb.write(out);
-            }
+            try (ServletOutputStream out = response.getOutputStream()) { wb.write(out); }
         }
     }
+
+
+
 
 
     // ===== Helpers =====

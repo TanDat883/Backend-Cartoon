@@ -53,6 +53,19 @@ public class ExportController {
         );
     }
 
+    @GetMapping("/export/movies.xlsx")
+    public void exportMovies(HttpServletResponse response,
+                             @RequestParam String startDate,
+                             @RequestParam String endDate,
+                             @RequestParam(defaultValue = "DAY") GroupByDataAnalzerResponse groupBy,
+                             @RequestParam(required = false) String companyName,
+                             @RequestParam(required = false) String companyAddress) throws IOException {
+
+        LocalDate s = LocalDate.parse(startDate);
+        LocalDate e = LocalDate.parse(endDate);
+        exportDashboardService.exportMovieReportRange(response, s, e, groupBy, companyName, companyAddress);
+    }
+
 
 //    @GetMapping("/promotions-range.xlsx")
 //    public void exportPromotions(HttpServletResponse response,
