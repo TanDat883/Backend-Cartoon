@@ -141,6 +141,7 @@ public class SubscriptionPackageServiceImpl implements SubscriptionPackageServic
         SubscriptionPackage pkg = optionalPkg;
         pkg.setPackageName(subscriptionPackage.getPackageName());
         pkg.setApplicablePackageType(subscriptionPackage.getApplicablePackageType());
+        pkg.setImageUrl(subscriptionPackage.getImageUrl());
         pkg.setDurationInDays(subscriptionPackage.getDurationInDays());
         pkg.setFeatures(subscriptionPackage.getFeatures());
 

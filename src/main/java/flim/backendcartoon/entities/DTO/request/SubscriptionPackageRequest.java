@@ -7,6 +7,9 @@
 package flim.backendcartoon.entities.DTO.request;
 
 import flim.backendcartoon.entities.PackageType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Data;
 
 import java.util.List;
@@ -19,10 +22,15 @@ import java.util.List;
  */
 @Data
 public class SubscriptionPackageRequest {
+    @NotBlank
     private String packageId;
+    @NotBlank
     private String packageName;
     private String imageUrl;
+    @NotBlank
     private PackageType applicablePackageType;
+    @NotNull
+    @Positive
     private Integer durationInDays;
     private List<String> features;
 }
