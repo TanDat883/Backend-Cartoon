@@ -44,6 +44,7 @@ public class PaymentController {
     private final UserService userService;
     private final VipSubscriptionService vipSubscriptionService;
     private final PromotionDetailService promotionVoucherService;
+    private final EmailService emailService;
 
     @GetMapping
     public ResponseEntity<List<Payment>> getAllPayments(
@@ -248,6 +249,33 @@ public class PaymentController {
                 vipSub.setEndDate(endDate.toString());
 
                 vipSubscriptionService.saveVipSubscription(vipSub);
+
+                String toEmail = user.getEmail();
+                if (toEmail != null && !toEmail.trim().isEmpty()) {
+                    try {
+                        String pkgName = "Gói " + packageType.name();
+                        long duration = subscriptionPackage.getDurationInDays();
+                        long paidAmount = paymentDetail.getFinalAmount(); // số cuối cùng sau giảm
+
+                        // dùng userName nếu có, fallback rỗng để tránh null
+                        String receiverName = user.getUserName() != null ? user.getUserName() : "";
+
+                        emailService.sendPaymentSuccess(
+                                toEmail.trim(),
+                                receiverName,
+                                String.valueOf(payment.getPaymentCode()),
+                                pkgName,
+                                duration,
+                                paidAmount,
+                                vipSub.getStartDate(),
+                                vipSub.getEndDate()
+                        );
+                    } catch (Exception mailEx) {
+                        System.err.println("Lỗi gửi email xác nhận thanh toán: " + mailEx.getMessage());
+                    }
+                } else {
+                    System.out.println("User không có email, bỏ qua bước gửi email xác nhận thanh toán");
+                }
 
             } else if ("CANCELED".equalsIgnoreCase(status)) {
                 paymentService.updatePaymentStatus(payment.getPaymentId(), "CANCELED");
