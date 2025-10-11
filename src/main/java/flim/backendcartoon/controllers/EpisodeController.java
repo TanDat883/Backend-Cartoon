@@ -7,6 +7,7 @@ import flim.backendcartoon.services.CloudFrontService;
 import flim.backendcartoon.services.EpisodeService;
 import flim.backendcartoon.services.S3Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -219,5 +220,35 @@ public ResponseEntity<?> listSubtitles(
     return ResponseEntity.ok(out.getSubtitles()==null? List.of() : out.getSubtitles());
 }
 
+
+    @PutMapping(value="/{seasonId}/{episodeNumber}/subtitles/{lang}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateSubtitle(
+            @PathVariable String seasonId,
+            @PathVariable int episodeNumber,
+            @PathVariable String lang,
+            @RequestParam(required = false) String label,
+            @RequestParam(required = false, defaultValue = "subtitles") String kind,
+            @RequestParam(required = false, defaultValue = "false") boolean isDefault,
+            @RequestPart(required = false, value="file") MultipartFile file,
+            @RequestParam(required = false, value="url") String url
+    ) throws IOException {
+        if ((file == null || file.isEmpty()) && (url == null || url.isBlank())) {
+            return ResponseEntity.badRequest().body("file or url required");
+        }
+        String finalUrl = url;
+        if (file != null && !file.isEmpty()) {
+            finalUrl = s3Service.uploadSubtitle(file); // accept .vtt/.srt
+        }
+
+        SubtitleTrack track = new SubtitleTrack();
+        track.setLang(lang);
+        track.setLabel(label != null ? label : lang);
+        track.setKind(kind);
+        track.setIsDefault(isDefault);
+        track.setUrl(finalUrl);
+
+        Episode ep = episodeService.upsertSubtitle(seasonId, episodeNumber, track);
+        return ResponseEntity.ok(ep.getSubtitles());
+    }
 
 }

@@ -75,4 +75,18 @@ public class SeasonServiceImpl implements SeasonService {
         // Xóa Season
         seasonRepository.delete(movieId, seasonNumber);
     }
+
+    @Override
+    public void update(Season season) {
+        Season existing = seasonRepository.findOne(season.getMovieId(), season.getSeasonNumber());
+        if (existing == null) throw new RuntimeException("Season not found");
+
+        // Chặn đổi movieId, seasonNumber
+        if (!existing.getMovieId().equals(season.getMovieId()) ||
+            !existing.getSeasonNumber().equals(season.getSeasonNumber())) {
+            throw new RuntimeException("Không thể đổi movieId hoặc seasonNumber");
+        }
+
+        seasonRepository.update(season);
+    }
 }

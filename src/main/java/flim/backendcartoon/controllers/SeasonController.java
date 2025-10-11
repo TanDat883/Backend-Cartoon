@@ -68,4 +68,32 @@ public class SeasonController {
         seasonService.delete(movieId, seasonNumber);
         return ResponseEntity.ok("Deleted");
     }
+
+
+    // SeasonController.java
+    @PutMapping("/movie/{movieId}/number/{seasonNumber}")
+    public ResponseEntity<?> updateSeason(
+            @PathVariable String movieId,
+            @PathVariable int seasonNumber,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) Integer releaseYear
+    ) {
+        try {
+            Season s = seasonService.findOne(movieId, seasonNumber);
+            if (s == null) return ResponseEntity.status(404).body("Season not found");
+
+            if (title != null) s.setTitle(title);
+            if (description != null) s.setDescription(description);
+            if (releaseYear != null) s.setReleaseYear(releaseYear);
+            s.setLastUpdated(java.time.Instant.now());
+
+            seasonService.update(s);
+            return ResponseEntity.ok(s);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Failed to update season: " + e.getMessage());
+        }
+    }
+
 }

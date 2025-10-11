@@ -1,6 +1,7 @@
 package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Episode;
+import flim.backendcartoon.entities.SubtitleTrack;
 
 import java.util.List;
 
@@ -18,4 +19,7 @@ public interface EpisodeService {
     //find by id
     Episode findById(String episodeId);
 
+
+    //update subtitle
+    Episode upsertSubtitle(String seasonId, int episodeNumber, SubtitleTrack incoming);
 }
