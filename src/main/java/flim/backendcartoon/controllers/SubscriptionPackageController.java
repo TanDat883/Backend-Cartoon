@@ -6,6 +6,7 @@
 
 package flim.backendcartoon.controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import flim.backendcartoon.entities.DTO.request.PriceView;
 import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.ILoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,6 +41,7 @@ public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
     private final PricingService pricingService;
     private final S3Service s3Service;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public ResponseEntity<List<SubscriptionPackage>> getAllPackages(
@@ -80,13 +83,24 @@ public class SubscriptionPackageController {
         }
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<String> createSubscriptionPackage(
-            @Valid @RequestBody SubscriptionPackageRequest request
-            ) {
+            @RequestPart("data") @Valid String rawJson, // JSON text
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
         try {
+            SubscriptionPackageRequest request =
+                    objectMapper.readValue(rawJson, SubscriptionPackageRequest.class);
+
+            if (image != null && !image.isEmpty()) {
+                String url = s3Service.uploadAvatarUrl(image);
+                request.setImageUrl(url);
+            }
+
             subscriptionPackageService.saveSubscriptionPackage(request);
             return ResponseEntity.ok("Tạo gói đăng ký thành công");
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body("Lỗi dữ liệu: " + iae.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
@@ -98,12 +112,25 @@ public class SubscriptionPackageController {
         return pricingService.getPriceForPackage(packageId);
     }
 
-    @PutMapping("/{packageId}")
-    public ResponseEntity<String> updateSubscriptionPackage(@PathVariable String packageId,
-                                                            @Valid @RequestBody SubscriptionPackageRequest request) {
+    @PutMapping(value = "/{packageId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> updateSubscriptionPackage(
+            @PathVariable String packageId,
+            @RequestPart("data") @Valid String rawJson, // JSON text
+            @RequestPart(value = "image", required = false) MultipartFile image
+    ) {
         try {
+            SubscriptionPackageRequest request =
+                    objectMapper.readValue(rawJson, SubscriptionPackageRequest.class);
+
+            if (image != null && !image.isEmpty()) {
+                String url = s3Service.uploadAvatarUrl(image);
+                request.setImageUrl(url);
+            }
+
             subscriptionPackageService.updateSubscriptionPackage(packageId, request);
             return ResponseEntity.ok("Cập nhật gói đăng ký thành công");
+        } catch (IllegalArgumentException iae) {
+            return ResponseEntity.badRequest().body("Lỗi dữ liệu: " + iae.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
