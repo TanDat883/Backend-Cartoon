@@ -50,4 +50,7 @@ public class SeasonRepository {
                 .findFirst()
                 .orElse(null);
     }
+
+    //cập nhât
+    public void update(Season s) { table.updateItem(s); }
 }

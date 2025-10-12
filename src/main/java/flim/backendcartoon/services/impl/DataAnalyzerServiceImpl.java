@@ -327,6 +327,12 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         Optional<Movie> topRating = movies.stream()
                 .filter(m -> nullToZero(m.getRatingCount()) >= minRatings)
                 .max(Comparator.comparingDouble(m -> nullToZero(m.getAvgRating())));
+        // fallback nếu không có phim đủ 5 lượt
+        if (topRating.isEmpty()) {
+            topRating = movies.stream()
+                    .filter(m -> nullToZero(m.getRatingCount()) >= 1)
+                    .max(Comparator.comparingDouble(m -> nullToZero(m.getAvgRating())));
+        }
 
         MovieStatsSummaryResponse out = new MovieStatsSummaryResponse();
         out.setTotalMovies(totalMovies);
@@ -701,6 +707,40 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         base.setAddedThisMonth(addedRange);
         return base;
     }
+
+    @Override
+    public List<TopMovieDTOResponse> getTopMoviesByViewsInRange(LocalDate start, LocalDate end, int limit) {
+        var movies = movieRepository.findAllMovies();
+        return movies.stream()
+                .filter(m -> {
+                    if (m.getCreatedAt() == null) return false;
+                    LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), VN).toLocalDate();
+                    return !d.isBefore(start) && !d.isAfter(end);
+                })
+                .sorted(Comparator.comparingLong((Movie m) -> nullToZero(m.getViewCount())).reversed())
+                .limit(limit <= 0 ? 10 : limit)
+                .map(this::mapToTopMovieDTO)
+                .toList();
+    }
+
+    @Override
+    public List<TopMovieDTOResponse> getTopMoviesByRatingInRange(LocalDate start, LocalDate end, int limit, int minRatings) {
+        var movies = movieRepository.findAllMovies();
+        return movies.stream()
+                .filter(m -> {
+                    if (m.getCreatedAt() == null) return false;
+                    LocalDate d = LocalDateTime.ofInstant(m.getCreatedAt(), VN).toLocalDate();
+                    return !d.isBefore(start) && !d.isAfter(end);
+                })
+                .filter(m -> nullToZero(m.getRatingCount()) >= Math.max(minRatings, 1))
+                .sorted(Comparator.comparingDouble((Movie m) -> nullToZero(m.getAvgRating())).reversed())
+                .limit(limit <= 0 ? 10 : limit)
+                .map(this::mapToTopMovieDTO)
+                .toList();
+    }
+
+
+
     // ======= Helpers (tiền kiểu Long) =======
     private long L(Long v) { return v == null ? 0L : v; }
 
@@ -769,11 +809,17 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
         LocalDate last  = dates.isEmpty() ? null : dates.get(dates.size() - 1);
 
         // top voucher
+        // thay toàn bộ khối byVoucher trong getPromotionSummary(...) bằng:
         Map<String, List<Payment>> byVoucher = withAnyPromotion.stream()
-        .collect(Collectors.groupingBy(p -> {
-            var pd = getPD(p);
-            return pd != null ? pd.getVoucherCode() : null;
-        }));
+                .map(p -> Map.entry(p, getPD(p)))
+                .filter(e -> e.getValue() != null
+                        && e.getValue().getVoucherCode() != null
+                        && !e.getValue().getVoucherCode().isBlank())
+                .collect(Collectors.groupingBy(
+                        e -> e.getValue().getVoucherCode(),
+                        Collectors.mapping(Map.Entry::getKey, Collectors.toList())
+                ));
+
 
         VoucherUsageItemResponse topVoucher = byVoucher.entrySet().stream()
                 .filter(e -> e.getKey() != null)
@@ -1120,9 +1166,10 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
     private boolean isPaid(Payment p) {
         String s = p.getStatus();
-        return s != null && (
-                s.equalsIgnoreCase("PAID") || s.equalsIgnoreCase("COMPLETED")
-        );
+        return s.equalsIgnoreCase("SUCCESS")
+                || s.equalsIgnoreCase("PAID")
+                || s.equalsIgnoreCase("COMPLETED")
+                || s.equalsIgnoreCase("CAPTURED");
     }
 
 

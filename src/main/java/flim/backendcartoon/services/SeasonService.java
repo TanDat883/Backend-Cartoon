@@ -9,4 +9,6 @@ public interface SeasonService {
     Season findOne(String movieId, int seasonNumber);
     List<Season> findByMovieId(String movieId);
     void delete(String movieId, int seasonNumber);
+
+    void update(Season season);
 }

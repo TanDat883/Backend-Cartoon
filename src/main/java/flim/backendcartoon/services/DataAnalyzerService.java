@@ -47,6 +47,9 @@ public interface DataAnalyzerService {
     CountChartResponse getEpisodesPerSeason(String movieId);
     List<TopMovieDTOResponse> getTopMoviesByViews(int limit);
     List<TopMovieDTOResponse> getTopMoviesByRating(int limit, int minRatings);
+    // interface
+    List<TopMovieDTOResponse> getTopMoviesByViewsInRange(LocalDate start, LocalDate end, int limit);
+    List<TopMovieDTOResponse> getTopMoviesByRatingInRange(LocalDate start, LocalDate end, int limit, int minRatings);
 
 
     // ===== MỚI (range) =====
