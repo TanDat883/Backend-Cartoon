@@ -246,188 +246,203 @@ public class ExportDashboardService {
                 PromotionRangeChartResponse usageChart =
                         dataAnalyzerService.getPromotionUsageByRange(start, end, GroupByDataAnalzerResponse.DAY);
 
-                // ---- SHEET: Báo cáo CTKM ----
-                XSSFSheet ps1 = wb.createSheet("Báo cáo CTKM");
-                ps1.setDisplayGridlines(false);
-                ps1.setPrintGridlines(false);
-                PrintSetup psP = ps1.getPrintSetup();
-                psP.setLandscape(true);
-                psP.setPaperSize(PrintSetup.A4_PAPERSIZE);
-                ps1.setMargin(Sheet.LeftMargin, 0.4);
-                ps1.setMargin(Sheet.RightMargin, 0.4);
-                ps1.setMargin(Sheet.TopMargin, 0.6);
-                ps1.setMargin(Sheet.BottomMargin, 0.6);
+                // ---- ONE SHEET: CTKM (dọc) ----
+                XSSFSheet ctkmSheet  = wb.createSheet("CTKM");
+                ctkmSheet .setDisplayGridlines(false);
+                ctkmSheet .setPrintGridlines(false);
+                var psSetup = ctkmSheet .getPrintSetup();
+                psSetup.setLandscape(true);
+                psSetup.setPaperSize(PrintSetup.A4_PAPERSIZE);
+                ctkmSheet .setMargin(Sheet.LeftMargin, 0.4);
+                ctkmSheet .setMargin(Sheet.RightMargin, 0.4);
+                ctkmSheet .setMargin(Sheet.TopMargin, 0.6);
+                ctkmSheet .setMargin(Sheet.BottomMargin, 0.6);
 
-                int pr = 0;
-                Row pr1 = ps1.createRow(pr++);
-                set(ps1, pr1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
-                ps1.addMergedRegion(new CellRangeAddress(0,0,0,11));
+                int r0 = 0;
 
-                Row pr2 = ps1.createRow(pr++);
-                set(ps1, pr2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
-                ps1.addMergedRegion(new CellRangeAddress(1,1,0,11));
+                // Header chung
+                Row hr1 = ctkmSheet .createRow(r0++);
+                set(ctkmSheet, hr1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(0,0,0,11));
 
-                Row pr3 = ps1.createRow(pr++);
-                set(ps1, pr3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
-                ps1.addMergedRegion(new CellRangeAddress(2,2,0,11));
+                Row hr2 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, hr2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(1,1,0,11));
 
-                pr++;
-                Row ptitle = ps1.createRow(pr++);
-                set(ps1, ptitle, 0, "BÁO CÁO TỔNG KẾT CTKM", st.title);
-                ps1.addMergedRegion(new CellRangeAddress(ptitle.getRowNum(), ptitle.getRowNum(), 0, 11));
+                Row hr3 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, hr3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(2,2,0,11));
 
-                Row prange = ps1.createRow(pr++);
-                set(ps1, prange, 0,
+                r0++;
+                Row t1 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, t1, 0, "BÁO CÁO TỔNG KẾT CTKM", st.title);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(t1.getRowNum(), t1.getRowNum(), 0, 11));
+
+                Row rg = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, rg, 0,
                         "Thời gian: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                                 + " → " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.centerGrey);
-                ps1.addMergedRegion(new CellRangeAddress(prange.getRowNum(), prange.getRowNum(), 0, 11));
-                pr++;
+                ctkmSheet.addMergedRegion(new CellRangeAddress(rg.getRowNum(), rg.getRowNum(), 0, 11));
+                r0++;
 
-                Row ps1a = ps1.createRow(pr++);
-                set(ps1, ps1a, 0, "Tổng lượt áp dụng (redemptions)", st.th);
-                setNum(ps1, ps1a, 1, nz(pSummary.getTotalRedemptions()), st.tdRight);
+                Row sec1 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, sec1, 0, "I. TỔNG QUAN CTKM", st.section);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(sec1.getRowNum(), sec1.getRowNum(), 0, 11));
 
-                Row ps1b = ps1.createRow(pr++);
-                set(ps1, ps1b, 0, "Số user dùng CTKM (unique)", st.th);
-                setNum(ps1, ps1b, 1, nz(pSummary.getUniqueUsers()), st.tdRight);
+                // --- 1) SUMMARY BOX ---
+                Row sumA  = ctkmSheet.createRow(r0++); set(ctkmSheet, sumA, 0, "Tổng lượt áp dụng (redemptions)", st.th); setNum(ctkmSheet, sumA, 1, nz(pSummary.getTotalRedemptions()), st.tdRight);
+                Row sumB = ctkmSheet.createRow(r0++); set(ctkmSheet, sumB, 0, "Số user dùng CTKM (unique)",        st.th); setNum(ctkmSheet, sumB, 1, nz(pSummary.getUniqueUsers()),     st.tdRight);
+                Row sumC  = ctkmSheet.createRow(r0++); set(ctkmSheet, sumC, 0, "Tổng giảm giá (VND)",               st.th); setNum(ctkmSheet, sumC, 1, nz(pSummary.getTotalDiscountGranted()), st.moneyRight);
+                Row sumD  = ctkmSheet.createRow(r0++); set(ctkmSheet, sumD, 0, "Doanh thu sau giảm (VND)",          st.th); setNum(ctkmSheet, sumD, 1, nz(pSummary.getTotalFinalAmount()),     st.moneyRight);
+                st.addBoxBorder(ctkmSheet, sumA.getRowNum(), sumD.getRowNum(), 0, 1);
 
-                Row ps1c = ps1.createRow(pr++);
-                set(ps1, ps1c, 0, "Tổng giảm giá (VND)", st.th);
-                setNum(ps1, ps1c, 1, nz(pSummary.getTotalDiscountGranted()), st.moneyRight);
+                r0 += 2;
 
-                Row ps1d = ps1.createRow(pr++);
-                set(ps1, ps1d, 0, "Doanh thu sau giảm (VND)", st.th);
-                setNum(ps1, ps1d, 1, nz(pSummary.getTotalFinalAmount()), st.moneyRight);
 
-                st.addBoxBorder(ps1, ps1a.getRowNum(), ps1d.getRowNum(), 0, 1);
-                pr++;
+                r0++; // khoảng trắng
+                Row sec2 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, sec2, 0, "II. THỐNG KÊ THEO LINE", st.section);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(sec2.getRowNum(), sec2.getRowNum(), 0, 11));
 
-                int pHeaderRow = pr;
-                Row ph = ps1.createRow(pr++);
-                set(ps1, ph, 0, "Promotion ID", st.header);
-                set(ps1, ph, 1, "Line ID", st.header);
-                set(ps1, ph, 2, "Tên Line", st.header);
-                set(ps1, ph, 3, "Loại", st.header);
-                set(ps1, ph, 4, "Lượt dùng", st.header);
-                set(ps1, ph, 5, "Giảm giá (VND)", st.header);
-                set(ps1, ph, 6, "Giá gốc (VND)", st.header);
-                set(ps1, ph, 7, "Thu (sau giảm)", st.header);
+                // --- 2) BẢNG LINE STATS ---
+                Row ph = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, ph, 0, "Promotion ID", st.header);
+                set(ctkmSheet, ph, 1, "Line ID",      st.header);
+                set(ctkmSheet, ph, 2, "Tên Line",     st.header);
+                set(ctkmSheet, ph, 3, "Loại",         st.header);
+                set(ctkmSheet, ph, 4, "Lượt dùng",    st.header);
+                set(ctkmSheet, ph, 5, "Giảm giá (VND)", st.header);
+                set(ctkmSheet, ph, 6, "Giá gốc (VND)",  st.header);
+                set(ctkmSheet, ph, 7, "Thu (sau giảm)", st.header);
 
+                int lineStart = ph.getRowNum();
                 long totalRedem = 0, totalDisc = 0, totalOri = 0, totalFin = 0;
                 for (PromotionLineStatsResponse s : lineStats) {
-                    Row row = ps1.createRow(pr++);
-                    set(ps1, row, 0, nvl(s.getPromotionId(), ""), st.td);
-                    set(ps1, row, 1, nvl(s.getPromotionLineId(), ""), st.td);
-                    set(ps1, row, 2, nvl(s.getPromotionLineName(), ""), st.td);
-                    set(ps1, row, 3, nvl(s.getType(), ""), st.tdCenter);
-                    setNum(ps1, row, 4, nz(s.getRedemptions()), st.tdRight);
-                    setNum(ps1, row, 5, nz(s.getTotalDiscount()), st.moneyRight);
-                    setNum(ps1, row, 6, nz(s.getTotalOriginal()), st.moneyRight);
-                    setNum(ps1, row, 7, nz(s.getTotalFinal()), st.moneyRight);
+                    Row row = ctkmSheet.createRow(r0++);
+                    set(ctkmSheet, row, 0, nvl(s.getPromotionId(), ""),      st.td);
+                    set(ctkmSheet, row, 1, nvl(s.getPromotionLineId(), ""),  st.td);
+                    set(ctkmSheet, row, 2, nvl(s.getPromotionLineName(), ""),st.td);
+                    set(ctkmSheet, row, 3, nvl(s.getType(), ""),             st.tdCenter);
+                    setNum(ctkmSheet, row, 4, nz(s.getRedemptions()),        st.tdRight);
+                    setNum(ctkmSheet, row, 5, nz(s.getTotalDiscount()),      st.moneyRight);
+                    setNum(ctkmSheet, row, 6, nz(s.getTotalOriginal()),      st.moneyRight);
+                    setNum(ctkmSheet, row, 7, nz(s.getTotalFinal()),         st.moneyRight);
 
                     totalRedem += (s.getRedemptions()==null?0:s.getRedemptions());
                     totalDisc  += (s.getTotalDiscount()==null?0:s.getTotalDiscount());
                     totalOri   += (s.getTotalOriginal()==null?0:s.getTotalOriginal());
                     totalFin   += (s.getTotalFinal()==null?0:s.getTotalFinal());
                 }
-                Row ptotal = ps1.createRow(pr++);
-                set(ps1, ptotal, 2, "TỔNG CỘNG:", st.totalLeft);
-                setNum(ps1, ptotal, 4, totalRedem, st.totalRight);
-                setNum(ps1, ptotal, 5, totalDisc,  st.totalRight);
-                setNum(ps1, ptotal, 6, totalOri,   st.totalRight);
-                setNum(ps1, ptotal, 7, totalFin,   st.totalRight);
+                Row ptotal = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, ptotal, 2, "TỔNG CỘNG:", st.totalLeft);
+                setNum(ctkmSheet, ptotal, 4, totalRedem, st.totalRight);
+                setNum(ctkmSheet, ptotal, 5, totalDisc,  st.totalRight);
+                setNum(ctkmSheet, ptotal, 6, totalOri,   st.totalRight);
+                setNum(ctkmSheet, ptotal, 7, totalFin,   st.totalRight);
+                st.addBoxBorder(ctkmSheet, lineStart, r0-1, 0, 7);
 
-                st.addBoxBorder(ps1, pHeaderRow, pr-1, 0, 7);
+                r0 += 2;
 
-                ps1.setColumnWidth(0, 20*256);
-                ps1.setColumnWidth(1, 24*256);
-                ps1.setColumnWidth(2, 26*256);
-                ps1.setColumnWidth(3, 12*256);
-                ps1.setColumnWidth(4, 12*256);
-                ps1.setColumnWidth(5, 16*256);
-                ps1.setColumnWidth(6, 16*256);
-                ps1.setColumnWidth(7, 16*256);
 
-                // ---- SHEET: Top Voucher ----
-                XSSFSheet ps2 = wb.createSheet("Top Voucher");
-                Row h2 = ps2.createRow(0);
-                set(ps2, h2, 0, "Voucher", st.header);
-                set(ps2, h2, 1, "Promotion ID", st.header);
-                set(ps2, h2, 2, "Line ID", st.header);
-                set(ps2, h2, 3, "Lượt dùng", st.header);
-                set(ps2, h2, 4, "User duy nhất", st.header);
-                set(ps2, h2, 5, "Giảm giá (VND)", st.header);
-                set(ps2, h2, 6, "Giá gốc", st.header);
-                set(ps2, h2, 7, "Thu sau giảm", st.header);
-                set(ps2, h2, 8, "Max usage", st.header);
-                set(ps2, h2, 9, "Đã dùng", st.header);
-                set(ps2, h2,10, "First use", st.header);
-                set(ps2, h2,11, "Last use", st.header);
+                r0++; // khoảng trắng
+                Row sec3 = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, sec3, 0, "III. TOP VOUCHER", st.section);
+                ctkmSheet.addMergedRegion(new CellRangeAddress(sec3.getRowNum(), sec3.getRowNum(), 0, 11));
 
-                int rr = 1;
+                // --- 3) TOP VOUCHER (ngay bên dưới) ---
+                Row vh = ctkmSheet.createRow(r0++);
+                set(ctkmSheet, vh, 0, "Voucher",      st.header);
+                set(ctkmSheet, vh, 1, "Promotion ID", st.header);
+                set(ctkmSheet, vh, 2, "Line ID",      st.header);
+                set(ctkmSheet, vh, 3, "Lượt dùng",    st.header);
+                set(ctkmSheet, vh, 4, "User duy nhất",st.header);
+                set(ctkmSheet, vh, 5, "Giảm giá (VND)", st.header);
+                set(ctkmSheet, vh, 6, "Giá gốc",        st.header);
+                set(ctkmSheet, vh, 7, "Thu sau giảm",   st.header);
+                set(ctkmSheet, vh, 8, "Max usage",      st.header);
+                set(ctkmSheet, vh, 9, "Đã dùng",        st.header);
+                set(ctkmSheet, vh,10, "First use",      st.header);
+                set(ctkmSheet, vh,11, "Last use",       st.header);
+
+                int vStart = vh.getRowNum();
+                int rr = r0;
                 DateTimeFormatter dF = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 for (VoucherUsageItemResponse v : topVouchers) {
-                    Row row = ps2.createRow(rr++);
-                    set(ps2, row, 0, nvl(v.getVoucherCode(), ""), st.td);
-                    set(ps2, row, 1, nvl(v.getPromotionId(), ""), st.td);
-                    set(ps2, row, 2, nvl(v.getPromotionLineId(), ""), st.td);
-                    setNum(ps2, row, 3, nz(v.getUses()), st.tdRight);
-                    setNum(ps2, row, 4, nz(v.getUniqueUsers()), st.tdRight);
-                    setNum(ps2, row, 5, nz(v.getTotalDiscount()), st.moneyRight);
-                    setNum(ps2, row, 6, nz(v.getTotalOriginal()), st.moneyRight);
-                    setNum(ps2, row, 7, nz(v.getTotalFinal()), st.moneyRight);
-                    setNum(ps2, row, 8, nz(v.getMaxUsage()==null?0L:v.getMaxUsage().longValue()), st.tdRight);
-                    setNum(ps2, row, 9, nz(v.getUsedCount()==null?0L:v.getUsedCount().longValue()), st.tdRight);
-                    set(ps2, row,10, v.getFirstUse()==null? "" : v.getFirstUse().format(dF), st.tdCenter);
-                    set(ps2, row,11, v.getLastUse()==null ? "" : v.getLastUse().format(dF),  st.tdCenter);
-                    if ((rr % 2) == 0) st.paintZebra(row, 0, 11);
+                    Row row = ctkmSheet.createRow(rr++);
+                    set(ctkmSheet, row, 0, nvl(v.getVoucherCode(), ""),   st.td);
+                    set(ctkmSheet, row, 1, nvl(v.getPromotionId(), ""),   st.td);
+                    set(ctkmSheet, row, 2, nvl(v.getPromotionLineId(), ""), st.td);
+                    setNum(ctkmSheet, row, 3, nz(v.getUses()),           st.tdRight);
+                    setNum(ctkmSheet, row, 4, nz(v.getUniqueUsers()),    st.tdRight);
+                    setNum(ctkmSheet, row, 5, nz(v.getTotalDiscount()),  st.moneyRight);
+                    setNum(ctkmSheet, row, 6, nz(v.getTotalOriginal()),  st.moneyRight);
+                    setNum(ctkmSheet, row, 7, nz(v.getTotalFinal()),     st.moneyRight);
+                    setNum(ctkmSheet, row, 8, nz(v.getMaxUsage()==null?0L:v.getMaxUsage().longValue()), st.tdRight);
+                    setNum(ctkmSheet, row, 9, nz(v.getUsedCount()==null?0L:v.getUsedCount().longValue()), st.tdRight);
+                    set(ctkmSheet, row,10, v.getFirstUse()==null? "" : v.getFirstUse().format(dF), st.tdCenter);
+                    set(ctkmSheet, row,11, v.getLastUse()==null  ? "" : v.getLastUse().format(dF),  st.tdCenter);
+                    if (((rr - vStart) % 2) == 0) st.paintZebra(row, 0, 11);
                 }
-                for (int cc = 0; cc <= 11; cc++) ps2.setColumnWidth(cc, (cc<=2?22:14)*256);
+                r0 = rr;
+                st.addBoxBorder(ctkmSheet, vStart, r0-1, 0, 11);
 
-                // ---- SHEET: CTKM Chart ----
+                r0 += 2;
+
+
+
+                // --- 4) CTKM CHART (vẫn trên sheet này, neo bên dưới) ---
                 if (usageChart != null && usageChart.getLabels()!=null && !usageChart.getLabels().isEmpty()) {
-                    XSSFSheet ps3 = wb.createSheet("CTKM Chart");
-                    Row hd2 = ps3.createRow(0);
-                    set(ps3, hd2, 0, "Ngày/Nhóm",  st.header);
-                    set(ps3, hd2, 1, "Lượt dùng",  st.header);
-                    set(ps3, hd2, 2, "Giảm giá",   st.header);
+                    // tiêu đề nhỏ
+                    r0++; // khoảng trắng
+                    Row sec4 = ctkmSheet.createRow(r0++);
+                    set(ctkmSheet, sec4, 0, "IV. BIỂU ĐỒ SỬ DỤNG CTKM", st.section);
+                    ctkmSheet.addMergedRegion(new CellRangeAddress(sec4.getRowNum(), sec4.getRowNum(), 0, 11));
+
+                    // bảng dữ liệu nhỏ cho chart:
+                    int promoDataStart = r0;
+                    Row hd2 = ctkmSheet.createRow(r0++);
+                    set(ctkmSheet, hd2, 0, "Ngày/Nhóm", st.header);
+                    set(ctkmSheet, hd2, 1, "Lượt dùng", st.header);
+                    set(ctkmSheet, hd2, 2, "Giảm giá",  st.header);
+
 
                     for (int i = 0; i < usageChart.getLabels().size(); i++) {
-                        Row row = ps3.createRow(i + 1);
-                        set(ps3, row, 0, usageChart.getLabels().get(i), st.td);
-                        setNum(ps3, row, 1, nz(usageChart.getRedemptions().get(i)), st.tdRight);
-                        setNum(ps3, row, 2, nz(usageChart.getDiscountAmounts().get(i)), st.moneyRight);
+                        Row row = ctkmSheet.createRow(r0++);
+                        set(ctkmSheet, row, 0, usageChart.getLabels().get(i),            st.td);
+                        setNum(ctkmSheet, row, 1, nz(usageChart.getRedemptions().get(i)), st.tdRight);
+                        setNum(ctkmSheet, row, 2, nz(usageChart.getDiscountAmounts().get(i)), st.moneyRight);
                     }
+                    int dataEnd = r0 - 1;
 
-                    XSSFDrawing dr = ps3.createDrawingPatriarch();
-                    XSSFClientAnchor anchor = dr.createAnchor(0,0,0,0,4,1, 14, 22);
+                    // vẽ chart, anchor bên phải hoặc full-width tùy thích
+                    XSSFDrawing dr = ctkmSheet.createDrawingPatriarch();
+                    // neo: cột 0..11, hàng r0..r0+~20 (đặt dưới khối data ~1 hàng)
+                    XSSFClientAnchor anchor = dr.createAnchor(0,0,0,0, 0, promoDataStart + 1, 12, promoDataStart + 22);
                     XSSFChart xChart = dr.createChart(anchor);
                     xChart.setTitleText("Sử dụng CTKM theo ngày");
                     xChart.getOrAddLegend().setPosition(LegendPosition.TOP_RIGHT);
 
                     XDDFCategoryAxis bottom = xChart.createCategoryAxis(AxisPosition.BOTTOM);
-                    XDDFValueAxis left = xChart.createValueAxis(AxisPosition.LEFT);
+                    XDDFValueAxis left    = xChart.createValueAxis(AxisPosition.LEFT);
                     bottom.crossAxis(left); left.crossAxis(bottom);
 
-                    int last = usageChart.getLabels().size();
                     XDDFDataSource<String> xs = XDDFDataSourcesFactory.fromStringCellRange(
-                            ps3, new CellRangeAddress(1, last, 0, 0));
+                            ctkmSheet, new CellRangeAddress(promoDataStart+1, dataEnd, 0, 0));
                     XDDFNumericalDataSource<Double> ys1 = XDDFDataSourcesFactory.fromNumericCellRange(
-                            ps3, new CellRangeAddress(1, last, 1, 1));
+                            ctkmSheet, new CellRangeAddress(promoDataStart+1, dataEnd, 1, 1));
                     XDDFNumericalDataSource<Double> ys2 = XDDFDataSourcesFactory.fromNumericCellRange(
-                            ps3, new CellRangeAddress(1, last, 2, 2));
+                            ctkmSheet, new CellRangeAddress(promoDataStart+1, dataEnd, 2, 2));
 
                     XDDFChartData data = xChart.createData(ChartTypes.LINE, bottom, left);
                     data.addSeries(xs, ys1).setTitle("Lượt dùng", null);
                     data.addSeries(xs, ys2).setTitle("Giảm giá (VND)", null);
                     xChart.plot(data);
-
-                    ps3.setDisplayGridlines(false);
-                    ps3.setColumnWidth(0, 18*256);
-                    ps3.setColumnWidth(1, 14*256);
-                    ps3.setColumnWidth(2, 14*256);
                 }
+
+                // width cột (12 cột cho đủ Top Voucher)
+                for (int cc = 0; cc <= 11; cc++) ctkmSheet.setColumnWidth(cc, (cc<=2?24:14)*256);
             }
+
 
             // ===== Xuất HTTP =====
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -648,6 +663,7 @@ public class ExportDashboardService {
         final CellStyle title, hdrBoldRed, smallGrey, centerGrey;
         final CellStyle header, headerMuted, th, td, tdRight, tdCenter, totalLeft, totalRight;
         final CellStyle moneyRight;
+        final CellStyle section; // <<-- thêm field
 
         Styles(XSSFWorkbook wb) {
             this.wb = wb;
@@ -717,6 +733,24 @@ public class ExportDashboardService {
             totalRight.setFillForegroundColor(IndexedColors.LEMON_CHIFFON.getIndex());
             totalRight.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             totalRight.setDataFormat(df.getFormat("#,##0"));
+
+
+            // Section title (to đậm, căn giữa, nền xám nhạt)
+            section = wb.createCellStyle();
+            Font fs = wb.createFont();
+            fs.setBold(true);
+            fs.setFontName("Times New Roman");
+            fs.setFontHeightInPoints((short)12);
+            section.setFont(fs);
+            section.setAlignment(HorizontalAlignment.LEFT);
+            section.setVerticalAlignment(VerticalAlignment.CENTER);
+            section.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            section.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            section.setBorderBottom(BorderStyle.THIN);
+            section.setBorderTop(BorderStyle.THIN);
+            section.setBorderLeft(BorderStyle.THIN);
+            section.setBorderRight(BorderStyle.THIN);
+
         }
 
         private CellStyle baseBorder() {
