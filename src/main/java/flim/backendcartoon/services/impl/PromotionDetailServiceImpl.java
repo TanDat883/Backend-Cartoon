@@ -27,7 +27,9 @@ import flim.backendcartoon.repositories.PromotionLineRepository;
 import flim.backendcartoon.repositories.PromotionRepository;
 import flim.backendcartoon.services.PromotionDetailService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -49,7 +51,7 @@ public class PromotionDetailServiceImpl implements PromotionDetailService {
     @Override
     public void createPromotionVoucher(CreatePromotionVoucherRequest request) {
         promotionDetailRepository.getVoucher(request.getPromotionId(), request.getVoucherCode()).ifPresent(x -> {
-            throw new BaseException("Voucher code already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã voucher đã tồn tại");
         });
         PromotionDetail d = PromotionDetail.newVoucher(
                 request.getPromotionId(),
