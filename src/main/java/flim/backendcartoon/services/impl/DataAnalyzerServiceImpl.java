@@ -1154,6 +1154,95 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
     }
 
 
+    @Override
+    public CustomerSalesReportResponse getCustomerSalesByRange(LocalDate start, LocalDate end) {
+        // 1) Lấy paid trong khoảng ngày (dùng isPaid + paymentLocalDate)
+        List<Payment> all = paymentRepository.findAll().stream()
+                .filter(this::isPaid)
+                .filter(p -> {
+                    LocalDate d = paymentLocalDate(p);   // paidAt -> fallback createdAt
+                    return d != null && !d.isBefore(start) && !d.isAfter(end);
+                })
+                .toList();
+
+        // 2) Map payment -> detail (ưu tiên by paymentId, fallback paymentCode)
+        Map<Long, PaymentDetail> detailById = new HashMap<>();
+        Map<Long, PaymentDetail> detailByCode = new HashMap<>();
+        for (Payment p : all) {
+            PaymentDetail pd = paymentDetailRepository.findById(p.getPaymentId());
+            if (pd != null) detailById.put(p.getPaymentCode(), pd);
+            if (p.getPaymentCode() != null) {
+                try {
+                    PaymentDetail pd2 = paymentDetailRepository.findByPaymentCode(p.getPaymentCode());
+                    if (pd2 != null) detailByCode.put(p.getPaymentCode(), pd2);
+                } catch (Throwable ignore) {}
+            }
+        }
+
+        // 3) Gom theo user (dùng object mutable thay vì builder.build() liên tục)
+        Map<String, CustomerSalesItemResponse> acc = new LinkedHashMap<>();
+        for (Payment p : all) {
+            String uid = p.getUserId();
+            CustomerSalesItemResponse it = acc.computeIfAbsent(uid, k ->
+                    CustomerSalesItemResponse.builder()
+                            .userId(uid).txCount(0)
+                            .totalOriginal(0).totalDiscount(0).totalFinal(0)
+                            .firstDate(null).lastDate(null)
+                            .build()
+            );
+
+            // số liệu tiền
+            long fin  = p.getFinalAmount() == null ? 0 : p.getFinalAmount();
+            long orig = 0, disc = 0;
+            PaymentDetail pd = (detailById.get(p.getPaymentId()) != null)
+                    ? detailById.get(p.getPaymentId())
+                    : (p.getPaymentCode() != null ? detailByCode.get(p.getPaymentCode()) : null);
+            if (pd != null) {
+                if (pd.getFinalAmount()   != null) fin  = pd.getFinalAmount();
+                if (pd.getOriginalAmount()!= null) orig = pd.getOriginalAmount();
+                if (pd.getDiscountAmount()!= null) disc = pd.getDiscountAmount();
+            }
+
+            it.setTxCount(it.getTxCount() + 1);
+            it.setTotalOriginal(it.getTotalOriginal() + orig);
+            it.setTotalDiscount(it.getTotalDiscount() + disc);
+            it.setTotalFinal(it.getTotalFinal() + fin);
+
+            LocalDate d = paymentLocalDate(p);
+            if (d != null) {
+                if (it.getFirstDate() == null || d.isBefore(it.getFirstDate())) it.setFirstDate(d);
+                if (it.getLastDate()  == null || d.isAfter(it.getLastDate()))   it.setLastDate(d);
+            }
+        }
+
+        // 4) Bổ sung thông tin user
+        for (CustomerSalesItemResponse it : acc.values()) {
+            User u = userRepository.findById(it.getUserId());
+            if (u != null) {
+                it.setUserName(u.getUserName());
+                it.setPhoneNumber(u.getPhoneNumber());
+                it.setEmail(u.getEmail());
+            }
+        }
+
+        // 5) Sắp xếp & tổng
+        List<CustomerSalesItemResponse> rows = new ArrayList<>(acc.values());
+        rows.sort((a, b) -> Long.compare(b.getTotalFinal(), a.getTotalFinal()));
+
+        long tTx=0, tOri=0, tDis=0, tFin=0;
+        for (var r : rows) {
+            tTx += r.getTxCount();
+            tOri += r.getTotalOriginal();
+            tDis += r.getTotalDiscount();
+            tFin += r.getTotalFinal();
+        }
+
+        return CustomerSalesReportResponse.builder()
+                .totalTx(tTx).totalOriginal(tOri).totalDiscount(tDis).totalFinal(tFin)
+                .rows(rows)
+                .build();
+    }
+
     // DataAnalyzerServiceImpl
     private PaymentDetail getPD(Payment p) {
         PaymentDetail pd = paymentDetailRepository.findById(p.getPaymentId());

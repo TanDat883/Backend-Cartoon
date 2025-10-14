@@ -70,6 +70,12 @@ public interface DataAnalyzerService {
     PromotionRangeChartResponse getPromotionUsageByRange(LocalDate start, LocalDate end, GroupByDataAnalzerResponse groupBy);
 
     List<VoucherUsageItemResponse> getVoucherDetailByPromotion(String promotionId, LocalDate start, LocalDate end);
+
+    //thống kê doanh thu khách hàng
+    CustomerSalesReportResponse getCustomerSalesByRange(LocalDate start, LocalDate end);
+
+
+
 }
 
     

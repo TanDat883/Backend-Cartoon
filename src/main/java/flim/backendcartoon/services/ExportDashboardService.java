@@ -110,74 +110,103 @@ public class ExportDashboardService {
 
             r++;
 
-            final int TX_COL = 3;
-            final int AMT_COL = TX_COL + 4;
-            int headerRow = r;
+            // ====== PHẦN II. BẢNG KÊ CHI TIẾT (gộp theo Người dùng) ======
+            r++; // khoảng trắng
+            Row sec = sheet.createRow(r++);
+            set(sheet, sec, 0, "II. BẢNG KÊ GIAO DỊCH THEO NGƯỜI DÙNG", st.section);
+            sheet.addMergedRegion(new CellRangeAddress(sec.getRowNum(), sec.getRowNum(), 0, 9));
+
+// Header chi tiết
             Row head = sheet.createRow(r++);
-            set(sheet, head, 0, "Nhóm", st.header);
-            set(sheet, head, 1, "Doanh thu", st.header);
-            set(sheet, head, 2, "—", st.headerMuted);
-            int c = TX_COL;
-            set(sheet, head, c++, "STT", st.header);
-            set(sheet, head, c++, "Mã đơn", st.header);
-            set(sheet, head, c++, "Người dùng", st.header);
-            set(sheet, head, c++, "Gói", st.header);
-            set(sheet, head, c++, "Số tiền (VND)", st.header);
-            set(sheet, head, c++, "Ngày", st.header);
-            set(sheet, head, c++, "Trạng thái", st.header);
+            int col = 0;
+            set(sheet, head, col++, "STT",        st.header);
+            set(sheet, head, col++, "Người dùng", st.header);
+            set(sheet, head, col++, "Mã đơn",     st.header);
+            set(sheet, head, col++, "Ngày",       st.header);
+            set(sheet, head, col++, "Gói",        st.header);
+            set(sheet, head, col++, "Số tiền (VND)", st.header);
+            set(sheet, head, col++, "Trạng thái", st.header);
+// chừa vài cột trống cho đẹp khổ A4
+            for (int k = col; k <= 9; k++) { Cell ccc = head.createCell(k); ccc.setCellStyle(st.header); }
 
-            int dataStart = r;
+            int tableHeaderRow = head.getRowNum();
 
-            int grpStart = dataStart;
-            if (chart.getLabels() != null) {
-                for (int i = 0; i < chart.getLabels().size(); i++) {
-                    Row row = getOrCreateRow(sheet, dataStart + i);
-                    set(sheet, row, 0, chart.getLabels().get(i), st.td);
-                    setNum(sheet, row, 1, nz(chart.getData().get(i)), st.moneyRight);
-                }
-            }
-            int grpEnd = (chart.getLabels()==null || chart.getLabels().isEmpty())
-                    ? (dataStart - 1) : (dataStart + chart.getLabels().size() - 1);
-
-            int txStart = dataStart;
-            int stt = 1;
-            DateTimeFormatter dFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+// Gom nhóm theo Người dùng (giống “NVBH” ở mẫu)
+            java.util.Map<String, java.util.List<RecentTransactionResponse>> byUser =
+                    new java.util.LinkedHashMap<>();
             if (txs != null) {
-                for (int i = 0; i < txs.size(); i++) {
-                    RecentTransactionResponse tx = txs.get(i);
-                    Row row = getOrCreateRow(sheet, dataStart + i);
-                    int cc2 = TX_COL;
-                    set(sheet, row, cc2++, String.valueOf(stt++), st.tdCenter);
-                    set(sheet, row, cc2++, "#" + safe(tx.getOrderId()), st.td);
-                    set(sheet, row, cc2++, safe(tx.getUserName()), st.td);
-                    set(sheet, row, cc2++, safe(tx.getPackageId()), st.td);
-                    setNum(sheet, row, AMT_COL, nz(tx.getFinalAmount()), st.moneyRight);
-                    set(sheet, row, AMT_COL + 1, tx.getCreatedAt()==null ? "" : tx.getCreatedAt().format(dFmt), st.tdCenter);
-                    set(sheet, row, AMT_COL + 2, safe(tx.getStatus()), st.tdCenter);
-                    if ((stt % 2) == 0) st.paintZebra(row, TX_COL, AMT_COL + 2);
+                for (RecentTransactionResponse t : txs) {
+                    String k = (t.getUserName()==null || t.getUserName().isBlank()) ? "(không rõ)" : t.getUserName();
+                    byUser.computeIfAbsent(k, _k -> new java.util.ArrayList<>()).add(t);
                 }
             }
-            int txEnd = (txs==null || txs.isEmpty())
-                    ? (dataStart - 1) : (dataStart + txs.size() - 1);
 
-            int endRow  = Math.max(grpEnd, txEnd);
-            Row total = sheet.createRow(endRow  + 1);
+// Ghi dữ liệu nhóm
+            DateTimeFormatter dFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            int runningNo = 1;
+            long grand = 0;
 
-            if (grpEnd >= grpStart) {
-                set(sheet, total, 0, "Tổng doanh thu (bảng trái):", st.totalLeft);
-                setFormula(sheet, total, 1,
-                        "SUM(" + ref(1, grpStart+1) + ":" + ref(1, grpEnd+1) + ")",
-                        st.totalRight);
+            for (var entry : byUser.entrySet()) {
+                String user = entry.getKey();
+                java.util.List<RecentTransactionResponse> list = entry.getValue();
+
+                // Dòng tiêu đề nhóm (cột 0 hiển thị số thứ tự nhóm)
+                Row grp = sheet.createRow(r++);
+                set(sheet, grp, 0, String.valueOf(runningNo++), st.tdCenter);
+                set(sheet, grp, 1, user, st.th); // in đậm giống mẫu
+
+                long subtotal = 0;
+                // Chi tiết từng giao dịch
+                for (RecentTransactionResponse t : list) {
+                    Row row = sheet.createRow(r++);
+                    int cc = 0;
+                    set(sheet, row, cc++, "", st.td); // STT nhóm (để trống, giống mẫu)
+                    set(sheet, row, cc++, user, st.td); // lặp lại cho dễ lọc
+                    set(sheet, row, cc++, "#" + safe(t.getOrderId()), st.td);
+                    set(sheet, row, cc++, t.getCreatedAt()==null? "" : t.getCreatedAt().format(dFmt), st.tdCenter);
+                    set(sheet, row, cc++, safe(t.getPackageId()), st.td);
+                    setNum(sheet, row, cc++, nz(t.getFinalAmount()), st.moneyRight);
+                    set(sheet, row, cc++, safe(t.getStatus()), st.tdCenter);
+
+                    subtotal += (long) nz(t.getFinalAmount());
+                    if ((r % 2) == 0) st.paintZebra(row, 0, 9);
+                }
+
+                // Dòng "Tổng cộng (tên nhóm)"
+                Row sub = sheet.createRow(r++);
+                set(sheet, sub, 1, "Tổng cộng (" + user + ")", st.totalLeft);
+                setNum(sheet, sub, 5, (double) subtotal, st.totalRight);
+
+                grand += subtotal;
+
+                // Khoảng trắng giữa các nhóm
+                r++;
             }
-            if (txEnd >= txStart) {
-                set(sheet, total, AMT_COL - 1, "TỔNG CỘNG:", st.totalLeft);
-                setFormula(sheet, total, AMT_COL,
-                        "SUM(" + ref(AMT_COL, txStart+1) + ":" + ref(AMT_COL, txEnd+1) + ")",
-                        st.totalRight);
-            }
 
-            st.addBoxBorder(sheet, headerRow, endRow  + 1, 0, AMT_COL + 2);
-            sheet.createFreezePane(0, headerRow + 1);
+// Dòng GRAND TOTAL (đậm, viền trên dày)
+            Row grandRow = sheet.createRow(r++);
+            set(sheet, grandRow, 1, "TỔNG CỘNG", st.grandLeft);
+            setNum(sheet, grandRow, 5, grand,   st.grandRight);
+
+// Kẻ khung cho toàn bộ bảng (từ header đến dòng grand)
+            st.addBoxBorder(sheet, tableHeaderRow, grandRow.getRowNum(), 0, 9);
+
+// Freeze header
+            //sheet.createFreezePane(0, tableHeaderRow + 1);
+            sheet.createFreezePane(0, 0);
+// Width cột hợp lý A4
+            sheet.setColumnWidth(0, 6*256);   // STT nhóm
+            sheet.setColumnWidth(1, 26*256);  // Người dùng
+            sheet.setColumnWidth(2, 20*256);  // Mã đơn
+            sheet.setColumnWidth(3, 12*256);  // Ngày
+            sheet.setColumnWidth(4, 14*256);  // Gói
+            sheet.setColumnWidth(5, 16*256);  // Số tiền
+            sheet.setColumnWidth(6, 12*256);  // Trạng thái
+            for (int k = 7; k <= 9; k++) sheet.setColumnWidth(k, 4*256);
+
+
+
+
 
             sheet.setColumnWidth(0, 18*256);
             sheet.setColumnWidth(1, 16*256);
@@ -190,8 +219,33 @@ public class ExportDashboardService {
             sheet.setColumnWidth(8, 12*256);
             sheet.setColumnWidth(9, 12*256);
 
-            wb.setPrintArea(wb.getSheetIndex(sheet), 0, 9, 0, endRow  + 1);
-            sheet.setRepeatingRows(new CellRangeAddress(headerRow, headerRow, 0, 9));
+            wb.setPrintArea(wb.getSheetIndex(sheet), 0, 9, 0, grandRow.getRowNum());
+            sheet.setRepeatingRows(new CellRangeAddress(tableHeaderRow, tableHeaderRow, 0, 9));
+
+
+            r += 1;
+            Row notesTitle = sheet.createRow(r++);
+            set(sheet, notesTitle, 0, "Ghi chú", st.th);
+            sheet.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 9));
+
+            Row notesRow = sheet.createRow(r++);
+            String ghiChu =
+                    "- Báo cáo liệt kê giao dịch theo người dùng trong khoảng ngày đã chọn.\n"
+                            + "- Số tiền là giá trị sau giảm (finalAmount).\n"
+                            + "- Dòng 'Tổng cộng (Tên người dùng)' là tổng giao dịch của người đó.\n"
+                            + "- Dòng 'TỔNG CỘNG' là tổng toàn bộ báo cáo.";
+            set(sheet, notesRow, 0, ghiChu, st.notes);
+            sheet.addMergedRegion(new CellRangeAddress(notesRow.getRowNum(), notesRow.getRowNum()+3, 0, 6));
+
+            Row filterRow = sheet.createRow(r++);
+            set(sheet, filterRow, 8, "Filter:", st.td);
+            set(sheet, sheet.createRow(r++), 8,
+                    "Từ ngày: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
+            set(sheet, sheet.createRow(r++), 8,
+                    "Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
+            set(sheet, sheet.createRow(r++), 8,
+                    "Nhóm theo: " + groupBy, st.td);
+
 
             // ===== SHEET phụ: Revenue Chart =====
             if (chart.getLabels()!=null && !chart.getLabels().isEmpty()) {
@@ -444,6 +498,10 @@ public class ExportDashboardService {
             }
 
 
+            // (4) Thêm sheet Doanh số KH vào CÙNG FILE
+            writeCustomerSalesSheet(wb, st, start, end, companyName, companyAddress);
+
+
             // ===== Xuất HTTP =====
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
             String cd = "attachment; filename*=UTF-8''" + URLEncoder.encode(fileName, StandardCharsets.UTF_8);
@@ -631,6 +689,144 @@ public class ExportDashboardService {
 
 
 
+// ExportDashboardService.java
+
+    private void writeCustomerSalesSheet(XSSFWorkbook wb,
+                                         Styles st,
+                                         LocalDate start, LocalDate end,
+                                         String companyName, String companyAddress) {
+        CustomerSalesReportResponse rpt = dataAnalyzerService.getCustomerSalesByRange(start, end);
+
+        XSSFSheet sh = wb.createSheet("Doanh số KH");
+        sh.setDisplayGridlines(false); sh.setPrintGridlines(false);
+        var ps = sh.getPrintSetup(); ps.setLandscape(true); ps.setPaperSize(PrintSetup.A4_PAPERSIZE);
+        sh.setMargin(Sheet.LeftMargin, 0.4); sh.setMargin(Sheet.RightMargin, 0.4);
+        sh.setMargin(Sheet.TopMargin, 0.6);  sh.setMargin(Sheet.BottomMargin, 0.6);
+
+        int r = 0;
+        Row r1 = sh.createRow(r++); set(sh, r1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+        sh.addMergedRegion(new CellRangeAddress(0,0,0,13));
+        Row r2 = sh.createRow(r++); set(sh, r2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+        sh.addMergedRegion(new CellRangeAddress(1,1,0,13));
+        Row r3 = sh.createRow(r++); set(sh, r3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+        sh.addMergedRegion(new CellRangeAddress(2,2,0,13));
+
+        r++;
+        Row title = sh.createRow(r++); set(sh, title, 0, "DOANH SỐ THEO KHÁCH HÀNG", st.title);
+        sh.addMergedRegion(new CellRangeAddress(title.getRowNum(), title.getRowNum(), 0, 13));
+        Row rg = sh.createRow(r++); set(sh, rg, 0,
+                "Từ ngày: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        + "   Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.centerGrey);
+        sh.addMergedRegion(new CellRangeAddress(rg.getRowNum(), rg.getRowNum(), 0, 13));
+        r++;
+
+        // Header chi tiết
+        Row h = sh.createRow(r++);
+        int c = 0;
+        set(sh, h, c++, "STT", st.header);
+        set(sh, h, c++, "Mã KH", st.header);
+        set(sh, h, c++, "Tên KH", st.header);
+        set(sh, h, c++, "SĐT", st.header);
+        set(sh, h, c++, "Email", st.header);
+        set(sh, h, c++, "Số GD", st.header);
+        set(sh, h, c++, "Doanh số trước CK", st.header);
+        set(sh, h, c++, "Chiết khấu", st.header);
+        set(sh, h, c++, "Doanh số sau CK", st.header);
+        set(sh, h, c++, "First buy", st.header);
+        set(sh, h, c++, "Last buy", st.header);
+        for (int k=c; k<=13; k++) { Cell cc = h.createCell(k); cc.setCellStyle(st.header); }
+        int headerRow = h.getRowNum();
+
+        DateTimeFormatter dFmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        int stt = 1; long totOri=0, totDis=0, totFin=0, totTx=0;
+        List<CustomerSalesItemResponse> rows = rpt.getRows()==null? List.of(): rpt.getRows();
+
+        for (CustomerSalesItemResponse rowData : rows) {
+            Row rr = sh.createRow(r++);
+            int j=0;
+            set(sh, rr, j++, String.valueOf(stt++), st.tdCenter);
+            set(sh, rr, j++, nvl(rowData.getUserId(), ""), st.td);
+            set(sh, rr, j++, nvl(rowData.getUserName(), ""), st.td);
+            set(sh, rr, j++, nvl(rowData.getPhoneNumber(), ""), st.td);
+            set(sh, rr, j++, nvl(rowData.getEmail(), ""), st.td);
+            setNum(sh, rr, j++, rowData.getTxCount(),        st.tdRight);
+            setNum(sh, rr, j++, rowData.getTotalOriginal(),  st.moneyRight);
+            setNum(sh, rr, j++, rowData.getTotalDiscount(),  st.moneyRight);
+            setNum(sh, rr, j++, rowData.getTotalFinal(),     st.moneyRight);
+            set(sh, rr, j++, rowData.getFirstDate()==null? "" : rowData.getFirstDate().format(dFmt), st.tdCenter);
+            set(sh, rr, j++, rowData.getLastDate()==null ? "" : rowData.getLastDate().format(dFmt),  st.tdCenter);
+
+            totOri += rowData.getTotalOriginal();
+            totDis += rowData.getTotalDiscount();
+            totFin += rowData.getTotalFinal();
+            totTx  += rowData.getTxCount();
+            if ((r % 2)==0) st.paintZebra(rr, 0, 13);
+        }
+
+// TOTAL hàng cuối bảng
+        Row total = sh.createRow(r++);
+        set(sh, total, 0, "TỔNG CỘNG", st.totalLeft);
+        sh.addMergedRegion(new CellRangeAddress(total.getRowNum(), total.getRowNum(), 0, 5));
+        setNum(sh, total, 6, totOri, st.totalRight);
+        setNum(sh, total, 7, totDis, st.totalRight);
+        setNum(sh, total, 8, totFin, st.totalRight);
+
+// kẻ khung toàn bảng
+        st.addBoxBorder(sh, headerRow, total.getRowNum(), 0, 13);
+
+// Box 4 dòng (đặt DƯỚI bảng)
+        r += 1;
+        Row s1 = sh.createRow(r++); set(sh, s1, 0, "Doanh số trước CK", st.th); setNum(sh, s1, 1, totOri, st.moneyRight);
+        Row s2 = sh.createRow(r++); set(sh, s2, 0, "Chiết khấu",        st.th); setNum(sh, s2, 1, totDis, st.moneyRight);
+        Row s3 = sh.createRow(r++); set(sh, s3, 0, "Doanh số sau CK",   st.th); setNum(sh, s3, 1, totFin, st.moneyRight);
+        Row s4 = sh.createRow(r++); set(sh, s4, 0, "Số giao dịch",      st.th); setNum(sh, s4, 1, totTx,  st.tdRight);
+        st.addBoxBorder(sh, s1.getRowNum(), s4.getRowNum(), 0, 1);
+
+// --- GHI CHÚ + FILTER ---
+        r += 1;
+
+// Tiêu đề
+        Row notesTitle = sh.createRow(r++);
+        set(sh, notesTitle, 0, "Mô tả báo cáo doanh số bán hàng theo ngày", st.th);
+        sh.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 6));
+
+// Nội dung mô tả (merge NGANG 0..6 trên 1 hàng, không merge theo nhiều hàng)
+        Row notesRow = sh.createRow(r++);
+        String moTa =
+                "- Thông tin khách hàng\n" +
+                        "- Chiết khấu: bao gồm khuyến mãi % hoặc đơn và số tiền cụ thể.\n" +
+                        "- Doanh số trước chiết khấu: tổng tiền chưa trừ chiết khấu.\n" +
+                        "- Doanh số sau chiết khấu: tổng tiền đã trừ chiết khấu.\n\n" +
+                        "Lấy dữ liệu từ bảng khách hàng, sản phẩm, hóa đơn bán hàng (không tính các hóa đơn mua đã trả).";
+        set(sh, notesRow, 0, moTa, st.notes);
+        sh.addMergedRegion(new CellRangeAddress(notesRow.getRowNum(), notesRow.getRowNum(), 0, 6));
+
+// Tăng chiều cao để hiển thị toàn bộ nội dung (tuỳ độ dài, 90–120pt thường đủ)
+        notesRow.setHeightInPoints(110f); // hoặc tính theo số dòng nếu muốn
+
+// Cột phải: FILTER (đặt cùng block, cột 8..)
+        int base = notesRow.getRowNum();
+        Row filterHdr = sh.getRow(base) != null ? sh.getRow(base) : sh.createRow(base);
+        set(sh, filterHdr, 8, "Filter:", st.td);
+
+        Row f1 = sh.getRow(base + 1) != null ? sh.getRow(base + 1) : sh.createRow(base + 1);
+        set(sh, f1, 8, "Từ ngày: "  + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
+
+        Row f2 = sh.getRow(base + 2) != null ? sh.getRow(base + 2) : sh.createRow(base + 2);
+        set(sh, f2, 8, "Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),   st.td);
+
+        Row f3 = sh.getRow(base + 3) != null ? sh.getRow(base + 3) : sh.createRow(base + 3);
+        set(sh, f3, 8, "Khách Hàng", st.td);
+
+
+// Freeze/print & width
+// sh.createFreezePane(0, headerRow + 1);
+        wb.setPrintArea(wb.getSheetIndex(sh), 0, 13, 0, total.getRowNum());
+        sh.setRepeatingRows(new CellRangeAddress(headerRow, headerRow, 0, 13));
+        int[] w = {6,18,24,14,26,8,16,16,16,12,12,8,8,8};
+        for (int i=0;i<w.length;i++) sh.setColumnWidth(i, w[i]*256);
+    }
+
 
 
     // ===== Helpers =====
@@ -663,7 +859,10 @@ public class ExportDashboardService {
         final CellStyle title, hdrBoldRed, smallGrey, centerGrey;
         final CellStyle header, headerMuted, th, td, tdRight, tdCenter, totalLeft, totalRight;
         final CellStyle moneyRight;
-        final CellStyle section; // <<-- thêm field
+        final CellStyle section;
+        final CellStyle grandLeft, grandRight;
+        final CellStyle notes; // block ghi chú (wrap text)
+
 
         Styles(XSSFWorkbook wb) {
             this.wb = wb;
@@ -750,6 +949,24 @@ public class ExportDashboardService {
             section.setBorderTop(BorderStyle.THIN);
             section.setBorderLeft(BorderStyle.THIN);
             section.setBorderRight(BorderStyle.THIN);
+
+
+            // Grand total (đậm hơn, viền trên dày)
+            grandLeft = baseBorder();
+            grandRight = baseBorder();
+            Font fgt = wb.createFont(); fgt.setBold(true); fgt.setFontName("Times New Roman");
+            grandLeft.setFont(fgt); grandRight.setFont(fgt);
+            grandLeft.setAlignment(HorizontalAlignment.RIGHT);
+            grandRight.setAlignment(HorizontalAlignment.RIGHT);
+            grandRight.setDataFormat(wb.createDataFormat().getFormat("#,##0"));
+            // viền trên nét vừa để tách mạnh
+            grandLeft.setBorderTop(BorderStyle.MEDIUM);
+            grandRight.setBorderTop(BorderStyle.MEDIUM);
+
+            // Notes
+            notes = wb.createCellStyle();
+            notes.setFont(font);
+            notes.setWrapText(true);
 
         }
 
