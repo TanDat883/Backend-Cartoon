@@ -250,44 +250,59 @@ public class ExportDashboardService {
             // ===== SHEET phụ: Revenue Chart =====
             if (chart.getLabels()!=null && !chart.getLabels().isEmpty()) {
                 XSSFSheet sChart = wb.createSheet("Revenue Chart");
-                Row hd = sChart.createRow(0);
-                hd.setHeightInPoints(22);
+                int rr = 0;
+                Row hr1 = sChart.createRow(rr++); set(sChart, hr1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+                sChart.addMergedRegion(new CellRangeAddress(0,0,0,11));
+                Row hr2 = sChart.createRow(rr++); set(sChart, hr2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+                sChart.addMergedRegion(new CellRangeAddress(1,1,0,11));
+                Row hr3 = sChart.createRow(rr++); set(sChart, hr3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+                sChart.addMergedRegion(new CellRangeAddress(2,2,0,11));
+
+                rr++;
+                Row t = sChart.createRow(rr++);
+                set(sChart, t, 0, "BIỂU ĐỒ DOANH THU THEO " + groupBy, st.title);
+                sChart.addMergedRegion(new CellRangeAddress(t.getRowNum(), t.getRowNum(), 0, 11));
+
+                Row rg = sChart.createRow(rr++);
+                set(sChart, rg, 0, "Từ: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
+                        "   Đến: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.centerGrey);
+                sChart.addMergedRegion(new CellRangeAddress(rg.getRowNum(), rg.getRowNum(), 0, 11));
+                rr++;
+
+                // bảng dữ liệu
+                Row hd = sChart.createRow(rr++);
                 set(sChart, hd, 0, "Nhóm", st.header);
                 set(sChart, hd, 1, "Doanh thu", st.header);
-
+                int dataStart = rr;
                 for (int i = 0; i < chart.getLabels().size(); i++) {
-                    Row row = sChart.createRow(i + 1);
+                    Row row = sChart.createRow(rr++);
                     set(sChart, row, 0, chart.getLabels().get(i), st.td);
                     setNum(sChart, row, 1, nz(chart.getData().get(i)), st.moneyRight);
                 }
 
+                // vẽ chart (neo dưới bảng)
                 XSSFDrawing drawing = sChart.createDrawingPatriarch();
-                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0,3,1, 11, 24);
+                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0, 3, dataStart, 11, dataStart + 22);
                 XSSFChart xssfChart = drawing.createChart(anchor);
                 xssfChart.setTitleText("Doanh thu theo " + groupBy);
                 xssfChart.getOrAddLegend().setPosition(LegendPosition.TOP_RIGHT);
-
                 XDDFCategoryAxis bottom = xssfChart.createCategoryAxis(AxisPosition.BOTTOM);
                 XDDFValueAxis left = xssfChart.createValueAxis(AxisPosition.LEFT);
-                left.setCrosses(AxisCrosses.AUTO_ZERO);
                 bottom.crossAxis(left); left.crossAxis(bottom);
 
                 int last = chart.getLabels().size();
-                XDDFDataSource<String> xs = XDDFDataSourcesFactory.fromStringCellRange(
-                        sChart, new CellRangeAddress(1, last, 0, 0));
-                XDDFNumericalDataSource<Double> ys = XDDFDataSourcesFactory.fromNumericCellRange(
-                        sChart, new CellRangeAddress(1, last, 1, 1));
-
+                var xs = XDDFDataSourcesFactory.fromStringCellRange(sChart, new CellRangeAddress(dataStart, dataStart + last - 1, 0, 0));
+                var ys = XDDFDataSourcesFactory.fromNumericCellRange(sChart, new CellRangeAddress(dataStart, dataStart + last - 1, 1, 1));
                 XDDFChartData data = xssfChart.createData(ChartTypes.BAR, bottom, left);
                 ((XDDFBarChartData) data).setBarDirection(BarDirection.COL);
-                XDDFChartData.Series s = data.addSeries(xs, ys);
-                s.setTitle("Doanh thu (VND)", null);
+                data.addSeries(xs, ys).setTitle("Doanh thu (VND)", null);
                 xssfChart.plot(data);
 
                 sChart.setDisplayGridlines(false);
                 sChart.setColumnWidth(0, 20*256);
                 sChart.setColumnWidth(1, 16*256);
             }
+
 
             // ====== GỘP CTKM (nếu bật) ======
             if (includePromotions) {
@@ -573,87 +588,193 @@ public class ExportDashboardService {
             st.addBoxBorder(sh, s1.getRowNum(), s6.getRowNum(), 0, 1);
             r++;
 
-            // Bảng “Top phim” (theo view + rating)
-            Row h = sh.createRow(r++);
-            set(sh, h, 0, "Top theo lượt xem", st.header);
-            set(sh, h, 4, "Top theo đánh giá ", st.header);
+            // ===== II. TOP THEO LƯỢT XEM (dọc) =====
+            Row secViews = sh.createRow(r++);
+            set(sh, secViews, 0, "II. TOP THEO LƯỢT XEM", st.section);
+            sh.addMergedRegion(new CellRangeAddress(secViews.getRowNum(), secViews.getRowNum(), 0, 8));
 
-            // merge 4 cột cho mỗi tiêu đề khối
-            sh.addMergedRegion(new CellRangeAddress(h.getRowNum(), h.getRowNum(), 0, 3));
-            sh.addMergedRegion(new CellRangeAddress(h.getRowNum(), h.getRowNum(), 4, 7));
+            Row hv = sh.createRow(r++);
+            set(sh, hv, 0, "STT",      st.header);
+            set(sh, hv, 1, "Tên phim", st.header);
+            set(sh, hv, 2, "Lượt xem", st.header);
+            set(sh, hv, 3, "Điểm TB",  st.header);
+// kẻ đủ width cho khối (để in A4 đẹp)
+            for (int k = 4; k <= 8; k++) { Cell ccc = hv.createCell(k); ccc.setCellStyle(st.header); }
+            int viewsHeader = hv.getRowNum();
 
-            // dòng header con
-            Row sub = sh.createRow(r++);
-            set(sh, sub, 0, "STT",       st.header);
-            set(sh, sub, 1, "Tên phim",  st.header);
-            set(sh, sub, 2, "Lượt xem",  st.header);
-            set(sh, sub, 3, "Điểm TB",   st.header);
-
-            set(sh, sub, 4, "STT",         st.header);
-            set(sh, sub, 5, "Tên phim",    st.header);
-            set(sh, sub, 6, "Điểm TB",     st.header);
-            set(sh, sub, 7, "Số đánh giá", st.header);
-
-            int hdrStart = h.getRowNum();  // dùng để kẻ khung luôn cả tiêu đề + subheader
-
-            int n = Math.max(topViews.size(), topRating.size());
-            for (int i = 0; i < n; i++) {
-                Row rr = sh.createRow(r++);
-                if (i < topViews.size()) {
-                    var t = topViews.get(i);
-                    set(sh, rr, 0, String.valueOf(i + 1), st.tdCenter);
-                    set(sh, rr, 1, t.getTitle(),          st.td);
-                    setNum(sh, rr, 2, t.getViewCount()==null?0:t.getViewCount(), st.tdRight);
-                    setNum(sh, rr, 3, t.getAvgRating()==null?0:t.getAvgRating(), st.tdRight);
-                }
-                if (i < topRating.size()) {
-                    var t = topRating.get(i);
-                    set(sh, rr, 4, String.valueOf(i + 1), st.tdCenter);
-                    set(sh, rr, 5, t.getTitle(),          st.td);
-                    setNum(sh, rr, 6, t.getAvgRating()==null?0:t.getAvgRating(), st.tdRight);
-                    setNum(sh, rr, 7, t.getRatingCount()==null?0:t.getRatingCount(), st.tdRight);
-                }
+            for (int i = 0; i < topViews.size(); i++) {
+                Row rrw = sh.createRow(r++);
+                var t = topViews.get(i);
+                set(sh, rrw, 0, String.valueOf(i + 1),      st.tdCenter);
+                set(sh, rrw, 1, nvl(t.getTitle(), ""),      st.td);
+                setNum(sh, rrw, 2, t.getViewCount()==null?0:t.getViewCount(), st.tdRight);
+                setNum(sh, rrw, 3, t.getAvgRating()==null?0:t.getAvgRating(), st.tdRight);
+                if ((i % 2) == 1) st.paintZebra(rrw, 0, 8);
             }
-            // kẻ khung toàn khối
-            st.addBoxBorder(sh, hdrStart, r - 1, 0, 7);
+            st.addBoxBorder(sh, viewsHeader, r - 1, 0, 8);
 
-// chỉnh width cho cả 2 bảng (đủ 1 lần)
-            sh.setColumnWidth(0, 6*256);   sh.setColumnWidth(1, 30*256);
-            sh.setColumnWidth(2, 12*256);  sh.setColumnWidth(3, 12*256);
-            sh.setColumnWidth(4, 6*256);   sh.setColumnWidth(5, 30*256);
-            sh.setColumnWidth(6, 12*256);  sh.setColumnWidth(7, 12*256);
+            r += 2; // khoảng cách giữa 2 bảng
+
+// ===== III. TOP THEO ĐÁNH GIÁ (dọc) =====
+            Row secRate = sh.createRow(r++);
+            set(sh, secRate, 0, "III. TOP THEO ĐÁNH GIÁ", st.section);
+            sh.addMergedRegion(new CellRangeAddress(secRate.getRowNum(), secRate.getRowNum(), 0, 8));
+
+            Row hr = sh.createRow(r++);
+            set(sh, hr, 0, "STT",         st.header);
+            set(sh, hr, 1, "Tên phim",    st.header);
+            set(sh, hr, 2, "Điểm TB",     st.header);
+            set(sh, hr, 3, "Số đánh giá", st.header);
+            for (int k = 4; k <= 8; k++) { Cell ccc = hr.createCell(k); ccc.setCellStyle(st.header); }
+            int rateHeader = hr.getRowNum();
+
+            for (int i = 0; i < topRating.size(); i++) {
+                Row rrw = sh.createRow(r++);
+                var t = topRating.get(i);
+                set(sh, rrw, 0, String.valueOf(i + 1),         st.tdCenter);
+                set(sh, rrw, 1, nvl(t.getTitle(), ""),         st.td);
+                setNum(sh, rrw, 2, t.getAvgRating()==null?0:t.getAvgRating(),      st.tdRight);
+                setNum(sh, rrw, 3, t.getRatingCount()==null?0:t.getRatingCount(),  st.tdRight);
+                if ((i % 2) == 1) st.paintZebra(rrw, 0, 8);
+            }
+            st.addBoxBorder(sh, rateHeader, r - 1, 0, 8);
+
+            // width hợp lý cho bố cục dọc
+            sh.setColumnWidth(0, 6*256);
+            sh.setColumnWidth(1, 40*256);
+            sh.setColumnWidth(2, 14*256);
+            sh.setColumnWidth(3, 14*256);
+            for (int ccc = 4; ccc <= 8; ccc++) sh.setColumnWidth(ccc, 6*256);
+
+            r += 1;
+            Row notesTitle1 = sh.createRow(r++);
+            set(sh, notesTitle1, 0, "Ghi chú", st.th);
+            sh.addMergedRegion(new CellRangeAddress(notesTitle1.getRowNum(), notesTitle1.getRowNum(), 0, 6));
+
+            Row notesRow1 = sh.createRow(r++);
+            String moTa1 =
+                    "- Thống kê phim theo lượt xem và theo đánh giá.\n" +
+                            "- Bảng 'Top theo lượt xem' sắp theo view giảm dần.\n" +
+                            "- Bảng 'Top theo đánh giá' lọc theo ngưỡng số đánh giá tối thiểu, sắp theo điểm trung bình.\n" +
+                            "- Dữ liệu lấy từ danh sách phim trong hệ thống trong khoảng ngày đã chọn.";
+            set(sh, notesRow1, 0, moTa1, st.notes);
+            sh.addMergedRegion(new CellRangeAddress(notesRow1.getRowNum(), notesRow1.getRowNum(), 0, 6));
+            notesRow1.setHeightInPoints(90f);
 
             // ===== SHEET 2: New Movies Chart =====
             if (newMovies.getLabels()!=null && !newMovies.getLabels().isEmpty()) {
                 XSSFSheet sChart = wb.createSheet("Phim mới theo " + groupBy);
-                Row hd = sChart.createRow(0);
+                sChart.setDisplayGridlines(false);
+                sChart.setPrintGridlines(false);
+
+                // Header thông tin
+                int rChart = 0;
+                Row rc1 = sChart.createRow(rChart++);
+                set(sChart, rc1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+                sChart.addMergedRegion(new CellRangeAddress(rc1.getRowNum(), rc1.getRowNum(), 0, 8));
+
+                Row rc2 = sChart.createRow(rChart++);
+                set(sChart, rc2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+                sChart.addMergedRegion(new CellRangeAddress(rc2.getRowNum(), rc2.getRowNum(), 0, 8));
+
+                Row rc3 = sChart.createRow(rChart++);
+                set(sChart, rc3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+                sChart.addMergedRegion(new CellRangeAddress(rc3.getRowNum(), rc3.getRowNum(), 0, 8));
+
+                rChart++;
+
+                Row titleRow = sChart.createRow(rChart++);
+                set(sChart, titleRow, 0, "PHIM MỚI THEO " + groupBy.name().toUpperCase(), st.title);
+                sChart.addMergedRegion(new CellRangeAddress(titleRow.getRowNum(), titleRow.getRowNum(), 0, 8));
+
+                Row dateRange = sChart.createRow(rChart++);
+                set(sChart, dateRange, 0,
+                    "Từ ngày: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    + "   Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.centerGrey);
+                sChart.addMergedRegion(new CellRangeAddress(dateRange.getRowNum(), dateRange.getRowNum(), 0, 8));
+
+                rChart++;
+
+                // Bảng dữ liệu
+                Row hd = sChart.createRow(rChart++);
                 set(sChart, hd, 0, "Nhóm", st.header);
                 set(sChart, hd, 1, "Số phim", st.header);
+
+                int dataStartRow = rChart;
                 for (int i = 0; i < newMovies.getLabels().size(); i++) {
-                    Row row = sChart.createRow(i + 1);
+                    Row row = sChart.createRow(rChart++);
                     set(sChart, row, 0, newMovies.getLabels().get(i), st.td);
                     setNum(sChart, row, 1, newMovies.getData().get(i), st.tdRight);
                 }
+
+                // Biểu đồ
                 XSSFDrawing drawing = sChart.createDrawingPatriarch();
-                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0,3,1, 11, 24);
+                XSSFClientAnchor anchor = drawing.createAnchor(0,0,0,0,3, dataStartRow-1, 11, rChart+15);
                 XSSFChart xssfChart = drawing.createChart(anchor);
                 xssfChart.setTitleText("Phim mới theo " + groupBy);
                 xssfChart.getOrAddLegend().setPosition(LegendPosition.TOP_RIGHT);
                 XDDFCategoryAxis bottom = xssfChart.createCategoryAxis(AxisPosition.BOTTOM);
                 XDDFValueAxis left = xssfChart.createValueAxis(AxisPosition.LEFT);
-                int last = newMovies.getLabels().size();
-                var xs = XDDFDataSourcesFactory.fromStringCellRange(sChart, new CellRangeAddress(1, last, 0, 0));
-                var ys = XDDFDataSourcesFactory.fromNumericCellRange(sChart, new CellRangeAddress(1, last, 1, 1));
+                int last = dataStartRow + newMovies.getLabels().size() - 1;
+                var xs = XDDFDataSourcesFactory.fromStringCellRange(sChart, new CellRangeAddress(dataStartRow, last, 0, 0));
+                var ys = XDDFDataSourcesFactory.fromNumericCellRange(sChart, new CellRangeAddress(dataStartRow, last, 1, 1));
                 XDDFChartData data = xssfChart.createData(ChartTypes.LINE, bottom, left);
                 data.addSeries(xs, ys).setTitle("Số phim", null);
                 xssfChart.plot(data);
-                sChart.setDisplayGridlines(false);
-                sChart.setColumnWidth(0, 20*256); sChart.setColumnWidth(1, 14*256);
+
+                sChart.setColumnWidth(0, 20*256);
+                sChart.setColumnWidth(1, 14*256);
+
+                // Ghi chú
+                int rr2 = rChart + 2;
+                Row nt = sChart.createRow(rr2++);
+                set(sChart, nt, 0, "Ghi chú", st.th);
+                sChart.addMergedRegion(new CellRangeAddress(nt.getRowNum(), nt.getRowNum(), 0, 6));
+
+                Row nr = sChart.createRow(rr2++);
+                String moTa2 =
+                        "- Biểu đồ số phim thêm mới theo " + groupBy + ".\n" +
+                                "- Trục X: nhóm thời gian; Trục Y: số lượng phim mới.\n" +
+                                "- Dữ liệu lấy từ ngày tạo phim.";
+                set(sChart, nr, 0, moTa2, st.notes);
+                sChart.addMergedRegion(new CellRangeAddress(nr.getRowNum(), nr.getRowNum(), 0, 6));
+                nr.setHeightInPoints(70f);
+
             }
 
             // ===== SHEET 3: Phân tích danh mục =====
             XSSFSheet sCat = wb.createSheet("Phân rã danh mục");
+            sCat.setDisplayGridlines(false);
+            sCat.setPrintGridlines(false);
+
+            // Header thông tin
             int r0 = 0;
+            Row rcat1 = sCat.createRow(r0++);
+            set(sCat, rcat1, 0, nvl(companyName, "CartoonToo — Web xem phim trực tuyến"), st.hdrBoldRed);
+            sCat.addMergedRegion(new CellRangeAddress(rcat1.getRowNum(), rcat1.getRowNum(), 0, 8));
+
+            Row rcat2 = sCat.createRow(r0++);
+            set(sCat, rcat2, 0, nvl(companyAddress, "cartoontoo.example • Việt Nam"), st.smallGrey);
+            sCat.addMergedRegion(new CellRangeAddress(rcat2.getRowNum(), rcat2.getRowNum(), 0, 8));
+
+            Row rcat3 = sCat.createRow(r0++);
+            set(sCat, rcat3, 0, "Ngày in: " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.smallGrey);
+            sCat.addMergedRegion(new CellRangeAddress(rcat3.getRowNum(), rcat3.getRowNum(), 0, 8));
+
+            r0++;
+
+            Row titleCat = sCat.createRow(r0++);
+            set(sCat, titleCat, 0, "PHÂN RÃ DANH MỤC PHIM", st.title);
+            sCat.addMergedRegion(new CellRangeAddress(titleCat.getRowNum(), titleCat.getRowNum(), 0, 8));
+
+            Row dateRangeCat = sCat.createRow(r0++);
+            set(sCat, dateRangeCat, 0,
+                "Từ ngày: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + "   Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.centerGrey);
+            sCat.addMergedRegion(new CellRangeAddress(dateRangeCat.getRowNum(), dateRangeCat.getRowNum(), 0, 8));
+
+            r0++;
+
             Row hh = sCat.createRow(r0++); set(sCat, hh, 0, "Top Thể loại", st.header); set(sCat, hh, 3, "Top Quốc gia", st.header);
             // thể loại
             Row h1 = sCat.createRow(r0++); set(sCat, h1, 0, "Thể loại", st.th); set(sCat, h1, 1, "Số phim", st.th);
@@ -662,7 +783,7 @@ public class ExportDashboardService {
             st.addBoxBorder(sCat, h1.getRowNum(), r0-1, 0, 1);
 
             // quốc gia (cột bên phải)
-            int rR = base; Row h2 = sCat.getRow(h1.getRowNum()); set(sCat, h2, 3, "Quốc gia", st.th); set(sCat, h2, 4, "Số phim", st.th);
+            int rR = base; Row h2 = sCat.getRow(h1.getRowNum()); set(sCat, h2, 3, "Quốc gia", st.th); set(sCat, sCat.getRow(h2.getRowNum()), 4, "Số phim", st.th);
             for (var it : byCountry) { Row row = sCat.getRow(rR); if (row==null) row = sCat.createRow(rR); set(sCat, row, 3, it.getKey(), st.td); setNum(sCat, row, 4, it.getCount(), st.tdRight); rR++; }
             st.addBoxBorder(sCat, h1.getRowNum(), Math.max(r0-1, rR-1), 3, 4);
 
@@ -678,6 +799,21 @@ public class ExportDashboardService {
             st.addBoxBorder(sCat, rT, rT2-1, 3, 4);
             sCat.setColumnWidth(0, 24*256); sCat.setColumnWidth(1, 10*256);
             sCat.setColumnWidth(3, 24*256); sCat.setColumnWidth(4, 10*256);
+
+
+            int tail = Math.max(rB, rT2) + 2;
+            Row nt3 = sCat.createRow(tail++);
+            set(sCat, nt3, 0, "Ghi chú", st.th);
+            sCat.addMergedRegion(new CellRangeAddress(nt3.getRowNum(), nt3.getRowNum(), 0, 6));
+
+            Row nr3 = sCat.createRow(tail++);
+            String moTa3 =
+                    "- Top thể loại/quốc gia được sắp theo số lượng phim giảm dần.\n" +
+                            "- Hai bảng 'Trạng thái' và 'Loại phim' tổng hợp toàn hệ thống.";
+            set(sCat, nr3, 0, moTa3, st.notes);
+            sCat.addMergedRegion(new CellRangeAddress(nr3.getRowNum(), nr3.getRowNum(), 0, 6));
+            nr3.setHeightInPoints(60f);
+
 
             // ===== Xuất HTTP =====
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

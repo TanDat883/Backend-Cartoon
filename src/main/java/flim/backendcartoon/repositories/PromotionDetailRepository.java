@@ -15,10 +15,7 @@ import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static flim.backendcartoon.services.impl.SubscriptionPackageServiceImpl.normalizeIdsFromString;
@@ -141,4 +138,18 @@ public class PromotionDetailRepository {
         }
         promotionDetailDynamoDbTable.deleteItem(existing);
     }
+
+
+    public Optional<PromotionDetail> findFirstByPackageId(String packageId) {
+        if (packageId == null || packageId.isBlank()) return Optional.empty();
+        String wanted = packageId.trim();
+
+        return promotionDetailDynamoDbTable.scan().items().stream()
+                .filter(Objects::nonNull)
+                .filter(it -> it.getSk() != null && it.getSk().startsWith("PACKAGE#"))
+                .filter(it -> normalizeIdsFromString(it.getSk()).contains(wanted))
+                .findFirst(); // không sort
+    }
+
+
 }

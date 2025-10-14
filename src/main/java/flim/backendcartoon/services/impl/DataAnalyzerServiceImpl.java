@@ -981,13 +981,20 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                     pid = det.getPromotionId();
                     type = "VOUCHER";
                 }
-            } else if (pd.getPromotionId() != null && p.getPackageId() != null) {
-                var opt = promotionDetailRepository.getPackage(pd.getPromotionId(), List.of(p.getPackageId()));
-                if (opt != null && opt.isPresent()) {
-                    var det = opt.get();
-                    lineId = det.getPromotionLineId();
-                    pid = det.getPromotionId();
-                    type = "PACKAGE";
+            }  if (lineId == null && p.getPackageId()!=null) {
+                // ưu tiên lookup theo promotionId nếu có
+                java.util.Optional<PromotionDetail> det = java.util.Optional.empty();
+                if (pd.getPromotionId()!=null) {
+                    det = promotionDetailRepository.getPackage(pd.getPromotionId(), java.util.List.of(p.getPackageId()));
+                }
+                // fallback: tìm theo packageId (cần có method trong repository)
+                if (det.isEmpty()) {
+                    det = promotionDetailRepository.findFirstByPackageId(p.getPackageId());
+                }
+                if (det!=null && det.isPresent()) {
+                    lineId = det.get().getPromotionLineId();
+                    pid    = det.get().getPromotionId();
+                    type   = "PACKAGE";
                 }
             }
             if (lineId == null) continue;
