@@ -154,9 +154,9 @@ public class S3Service {
                 .hlsGroupSettings(hls)
                 .build();
 
-        Output o480  = Output.builder()
-                .nameModifier("_480p")
-                .preset("System-Avc_16x9_480p_29_97fps_1500kbps")
+        Output o540 = Output.builder()
+                .nameModifier("_540p")
+                .preset("System-Avc_16x9_540p_29_97fps_3500kbps")
                 .build();
         Output o720 = Output.builder()
                 .nameModifier("_720p")
@@ -187,12 +187,15 @@ public class S3Service {
                 .outputGroups(OutputGroup.builder()
                         .name("Apple HLS")
                         .outputGroupSettings(ogs)
-                        .outputs(o480, o720, o1080)
+                        .outputs(o540, o720, o1080)
                         .build())
                 .build();
 
 // Đọc env (mặc định PREFERRED để tăng tốc; nếu không hỗ trợ sẽ tự fallback)
-        AccelerationMode accMode = AccelerationMode.DISABLED;
+        String accEnv = String.valueOf(dotenv.get("MEDIACONVERT_ACCELERATION"));
+        AccelerationMode accMode = "DISABLED".equalsIgnoreCase(accEnv)
+                ? AccelerationMode.DISABLED
+                : AccelerationMode.PREFERRED; // default nhanh nhất
 
         int priority = 0; // -50..50 (cao hơn = ưu tiên hơn)
         try { priority = Integer.parseInt(String.valueOf(dotenv.get("MEDIACONVERT_PRIORITY"))); } catch (Exception ignore) {}
