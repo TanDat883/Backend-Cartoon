@@ -77,6 +77,26 @@ public class AiController {
                 ? prior
                 : recService.recommendForUser(user.userId, req.getCurrentMovieId(), 8);
 
+        // --- Nếu user hỏi theo thể loại (vd: anime/hoạt hình) → ghi đè candidates bằng danh sách đã lọc ---
+        Set<String> wantedGenres = detectWantedGenres(q);
+        if (!wantedGenres.isEmpty()) {
+            var filtered = movieService.findAllMovies().stream()
+                    .filter(m -> movieHasAnyGenreNormalized(m, wantedGenres))
+                    .sorted((a,b) -> Long.compare(
+                            (b.getViewCount()==null?0:b.getViewCount()),
+                            (a.getViewCount()==null?0:a.getViewCount())))
+                    .limit(8)
+                    .map(m -> new MovieSuggestionDTO(
+                            m.getMovieId(), m.getTitle(), m.getThumbnailUrl(),
+                            m.getGenres(), m.getViewCount(), m.getAvgRating()))
+                    .toList();
+
+            if (!filtered.isEmpty()) {
+                candidates = filtered;
+            }
+        }
+
+        
         // Lịch sử hội thoại
         List<ChatMemoryService.ChatMsg> prev = isBlank(convId)
                 ? List.of()
@@ -452,6 +472,88 @@ public class AiController {
         }
         return cards;
     }
+
+
+
+    private static final Map<String, List<String>> GENRE_TOKENS = Map.ofEntries(
+            Map.entry("Anime", List.of("anime", "hoat hinh", "hoathinh", "cartoon", "manga", "japanese anime")),
+            Map.entry("Ẩm Thực", List.of("am thuc", "food", "cooking", "chef", "culinary")),
+            Map.entry("Bí Ẩn", List.of("bi an", "mystery", "trinh tham")),
+            Map.entry("Chiến Tranh", List.of("chien tranh", "war", "military", "army", "soldier")),
+            Map.entry("Chiếu Rạp", List.of("chieu rap", "theatrical", "cinema", "feature film", "movie theater")),
+            Map.entry("Chuyển Thể", List.of("chuyen the", "adaptation", "adapted", "based on", "live action adaptation")),
+            Map.entry("Chính Kịch", List.of("chinh kich", "drama", "dramatics")),
+            Map.entry("Chính Luận", List.of("chinh luan", "commentary", "op ed", "political commentary")),
+            Map.entry("Chính Trị", List.of("chinh tri", "politics", "political")),
+            Map.entry("Chương Trình Truyền Hình", List.of("chuong trinh truyen hinh", "tv show", "television", "tv series", "variety show")),
+            Map.entry("Cung Đấu", List.of("cung dau", "palace drama", "palace intrigue", "court intrigue")),
+            Map.entry("Cuối Tuần", List.of("cuoi tuan", "weekend", "weekend special")),
+            Map.entry("Cách Mạng", List.of("cach mang", "revolution", "revolutionary")),
+            Map.entry("Cổ Trang", List.of("co trang", "period", "costume drama", "historical costume")),
+            Map.entry("Cổ Tích", List.of("co tich", "fairy tale", "folklore")),
+            Map.entry("Cổ Điển", List.of("co dien", "classic", "classical")),
+            Map.entry("DC", List.of("dc", "dc comics", "dc universe", "dceu")),
+            Map.entry("Disney", List.of("disney", "pixar", "walt disney")),
+            Map.entry("Đau Thương", List.of("dau thuong", "tragic", "tragedy", "melodrama")),
+            Map.entry("Gia Đình", List.of("gia dinh", "family", "family friendly", "family drama")),
+            Map.entry("Giáng Sinh", List.of("giang sinh", "christmas", "noel", "holiday")),
+            Map.entry("Giả Tưởng", List.of("gia tuong", "fantasy", "ky ao")),
+            Map.entry("Hoàng Cung", List.of("hoang cung", "imperial palace", "royal court", "palace")),
+            Map.entry("Hoạt Hình", List.of("hoat hinh", "animation", "animated", "cartoon")),
+            Map.entry("Hài", List.of("hai", "hai huoc", "comedy", "funny", "sitcom")),
+            Map.entry("Hành Động", List.of("hanh dong", "action", "fight", "combat")),
+            Map.entry("Hình Sự", List.of("hinh su", "crime", "police", "detective", "trinh tham")),
+            Map.entry("Học Đường", List.of("hoc duong", "school", "campus", "high school", "college")),
+            Map.entry("Khoa Học", List.of("khoa hoc", "science", "scientific")),
+            Map.entry("Kinh Dị", List.of("kinh di", "horror", "scary", "ma", "ghost")),
+            Map.entry("Kinh Điển", List.of("kinh dien", "classic", "cult classic")),
+            Map.entry("Kịch Nói", List.of("kich noi", "stage play", "theatre", "theater")),
+            Map.entry("Kỳ Ảo", List.of("ky ao", "fantasy", "huyen ao", "mythic")),
+            Map.entry("LGBT+", List.of("lgbt", "lgbt plus", "dong tinh", "queer", "bl", "gl", "yuri", "yaoi")),
+            Map.entry("Live Action", List.of("live action", "phim nguoi dong", "live action adaptation")),
+            Map.entry("Lãng Mạn", List.of("lang man", "romance", "romcom", "love")),
+            Map.entry("Lịch Sử", List.of("lich su", "history", "historical")),
+            Map.entry("Marvel", List.of("marvel", "mcu", "marvel studios", "avengers")),
+            Map.entry("Miền Viễn Tây", List.of("mien vien tay", "western", "cowboy")),
+            Map.entry("Nghề Nghiệp", List.of("nghe nghiep", "workplace", "career", "professional")),
+            Map.entry("Người Mẫu", List.of("nguoi mau", "model", "fashion model", "supermodel", "fashion")),
+            Map.entry("Nhạc Kịch", List.of("nhac kich", "musical", "broadway")),
+            Map.entry("Phiêu Lưu", List.of("phieu luu", "adventure", "quest", "journey")),
+            Map.entry("Phép Thuật", List.of("phep thuat", "magic", "wizard", "witch", "sorcery")),
+            Map.entry("Siêu Anh Hùng", List.of("sieu anh hung", "superhero", "hero", "vigilante")),
+            Map.entry("Thiếu Nhi", List.of("thieu nhi", "kids", "children", "childrens")),
+            Map.entry("Thần Thoại", List.of("than thoai", "mythology", "mythic", "legend")),
+            Map.entry("Thể Thao", List.of("the thao", "sports", "soccer", "football", "basketball")),
+            Map.entry("Truyền Hình Thực Tế", List.of("truyen hinh thuc te", "reality tv", "reality show")),
+            Map.entry("Tuổi Trẻ", List.of("tuoi tre", "youth", "teen", "coming of age")),
+            Map.entry("Tài Liệu", List.of("tai lieu", "documentary", "docu", "doc")),
+            Map.entry("Tâm Lý", List.of("tam ly", "psychological", "psychology", "psychodrama")),
+            Map.entry("Tình Cảm", List.of("tinh cam", "romance", "melodrama", "love story")),
+            Map.entry("Tập Luyện", List.of("tap luyen", "training", "fitness", "gym", "workout")),
+            Map.entry("Viễn Tưởng", List.of("vien tuong", "sci fi", "science fiction", "scifi")),
+            Map.entry("Võ Thuật", List.of("vo thuat", "martial arts", "kung fu", "wushu", "karate")),
+            Map.entry("Xuyên Không", List.of("xuyen khong", "time travel", "isekai", "transmigration")),
+            Map.entry("Đời Thường", List.of("doi thuong", "slice of life")),
+            Map.entry("T13+", List.of("t13", "13+", "teen", "pg 13")),
+            Map.entry("T18+", List.of("t18", "18+", "adult"))
+    );
+
+    private static Set<String> detectWantedGenres(String qNoAccent) {
+        Set<String> wanted = new java.util.HashSet<>();
+        GENRE_TOKENS.forEach((canonical, tokens) -> {
+            for (String t : tokens) if (qNoAccent.contains(t)) { wanted.add(canonical); break; }
+        });
+        return wanted;
+    }
+
+    private static boolean movieHasAnyGenreNormalized(Movie m, Set<String> wanted) {
+        if (m.getGenres()==null || wanted.isEmpty()) return false;
+        var set = new java.util.HashSet<String>();
+        for (String g : m.getGenres()) set.add(vnNorm(g));
+        for (String w : wanted) if (set.contains(vnNorm(w))) return true;
+        return false;
+    }
+
 
     /* ============================ UTIL ============================ */
 
