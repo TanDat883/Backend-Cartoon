@@ -114,7 +114,7 @@ public class ExportDashboardService {
             r++; // khoảng trắng
             Row sec = sheet.createRow(r++);
             set(sheet, sec, 0, "II. BẢNG KÊ GIAO DỊCH THEO NGƯỜI DÙNG", st.section);
-            sheet.addMergedRegion(new CellRangeAddress(sec.getRowNum(), sec.getRowNum(), 0, 9));
+            sheet.addMergedRegion(new CellRangeAddress(sec.getRowNum(), sec.getRowNum(), 0, 6));
 
 // Header chi tiết
             Row head = sheet.createRow(r++);
@@ -126,8 +126,6 @@ public class ExportDashboardService {
             set(sheet, head, col++, "Gói",        st.header);
             set(sheet, head, col++, "Số tiền (VND)", st.header);
             set(sheet, head, col++, "Trạng thái", st.header);
-// chừa vài cột trống cho đẹp khổ A4
-            for (int k = col; k <= 9; k++) { Cell ccc = head.createCell(k); ccc.setCellStyle(st.header); }
 
             int tableHeaderRow = head.getRowNum();
 
@@ -169,7 +167,7 @@ public class ExportDashboardService {
                     set(sheet, row, cc++, safe(t.getStatus()), st.tdCenter);
 
                     subtotal += (long) nz(t.getFinalAmount());
-                    if ((r % 2) == 0) st.paintZebra(row, 0, 9);
+                    if ((r % 2) == 0) st.paintZebra(row, 0, 6);
                 }
 
                 // Dòng "Tổng cộng (tên nhóm)"
@@ -189,10 +187,9 @@ public class ExportDashboardService {
             setNum(sheet, grandRow, 5, grand,   st.grandRight);
 
 // Kẻ khung cho toàn bộ bảng (từ header đến dòng grand)
-            st.addBoxBorder(sheet, tableHeaderRow, grandRow.getRowNum(), 0, 9);
+            st.addBoxBorder(sheet, tableHeaderRow, grandRow.getRowNum(), 0, 6);
 
 // Freeze header
-            //sheet.createFreezePane(0, tableHeaderRow + 1);
             sheet.createFreezePane(0, 0);
 // Width cột hợp lý A4
             sheet.setColumnWidth(0, 6*256);   // STT nhóm
@@ -202,31 +199,14 @@ public class ExportDashboardService {
             sheet.setColumnWidth(4, 14*256);  // Gói
             sheet.setColumnWidth(5, 16*256);  // Số tiền
             sheet.setColumnWidth(6, 12*256);  // Trạng thái
-            for (int k = 7; k <= 9; k++) sheet.setColumnWidth(k, 4*256);
 
-
-
-
-
-            sheet.setColumnWidth(0, 18*256);
-            sheet.setColumnWidth(1, 16*256);
-            sheet.setColumnWidth(2, 3*256);
-            sheet.setColumnWidth(3, 6*256);
-            sheet.setColumnWidth(4, 18*256);
-            sheet.setColumnWidth(5, 18*256);
-            sheet.setColumnWidth(6, 12*256);
-            sheet.setColumnWidth(7, 16*256);
-            sheet.setColumnWidth(8, 12*256);
-            sheet.setColumnWidth(9, 12*256);
-
-            wb.setPrintArea(wb.getSheetIndex(sheet), 0, 9, 0, grandRow.getRowNum());
-            sheet.setRepeatingRows(new CellRangeAddress(tableHeaderRow, tableHeaderRow, 0, 9));
-
+            wb.setPrintArea(wb.getSheetIndex(sheet), 0, 6, 0, grandRow.getRowNum());
+            sheet.setRepeatingRows(new CellRangeAddress(tableHeaderRow, tableHeaderRow, 0, 6));
 
             r += 1;
             Row notesTitle = sheet.createRow(r++);
             set(sheet, notesTitle, 0, "Ghi chú", st.th);
-            sheet.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 9));
+            sheet.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 6));
 
             Row notesRow = sheet.createRow(r++);
             String ghiChu =
@@ -237,14 +217,6 @@ public class ExportDashboardService {
             set(sheet, notesRow, 0, ghiChu, st.notes);
             sheet.addMergedRegion(new CellRangeAddress(notesRow.getRowNum(), notesRow.getRowNum()+3, 0, 6));
 
-            Row filterRow = sheet.createRow(r++);
-            set(sheet, filterRow, 8, "Filter:", st.td);
-            set(sheet, sheet.createRow(r++), 8,
-                    "Từ ngày: " + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
-            set(sheet, sheet.createRow(r++), 8,
-                    "Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
-            set(sheet, sheet.createRow(r++), 8,
-                    "Nhóm theo: " + groupBy, st.td);
 
 
             // ===== SHEET phụ: Revenue Chart =====
@@ -918,15 +890,15 @@ public class ExportDashboardService {
         Row s4 = sh.createRow(r++); set(sh, s4, 0, "Số giao dịch",      st.th); setNum(sh, s4, 1, totTx,  st.tdRight);
         st.addBoxBorder(sh, s1.getRowNum(), s4.getRowNum(), 0, 1);
 
-// --- GHI CHÚ + FILTER ---
+// --- GHI CHÚ ---
         r += 1;
 
 // Tiêu đề
         Row notesTitle = sh.createRow(r++);
-        set(sh, notesTitle, 0, "Mô tả báo cáo doanh số bán hàng theo ngày", st.th);
-        sh.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 6));
+        set(sh, notesTitle, 0, "Ghi chú", st.th);
+        sh.addMergedRegion(new CellRangeAddress(notesTitle.getRowNum(), notesTitle.getRowNum(), 0, 10));
 
-// Nội dung mô tả (merge NGANG 0..6 trên 1 hàng, không merge theo nhiều hàng)
+// Nội dung mô tả
         Row notesRow = sh.createRow(r++);
         String moTa =
                 "- Thông tin khách hàng\n" +
@@ -935,28 +907,10 @@ public class ExportDashboardService {
                         "- Doanh số sau chiết khấu: tổng tiền đã trừ chiết khấu.\n\n" +
                         "Lấy dữ liệu từ bảng khách hàng, sản phẩm, hóa đơn bán hàng (không tính các hóa đơn mua đã trả).";
         set(sh, notesRow, 0, moTa, st.notes);
-        sh.addMergedRegion(new CellRangeAddress(notesRow.getRowNum(), notesRow.getRowNum(), 0, 6));
-
-// Tăng chiều cao để hiển thị toàn bộ nội dung (tuỳ độ dài, 90–120pt thường đủ)
-        notesRow.setHeightInPoints(110f); // hoặc tính theo số dòng nếu muốn
-
-// Cột phải: FILTER (đặt cùng block, cột 8..)
-        int base = notesRow.getRowNum();
-        Row filterHdr = sh.getRow(base) != null ? sh.getRow(base) : sh.createRow(base);
-        set(sh, filterHdr, 8, "Filter:", st.td);
-
-        Row f1 = sh.getRow(base + 1) != null ? sh.getRow(base + 1) : sh.createRow(base + 1);
-        set(sh, f1, 8, "Từ ngày: "  + start.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")), st.td);
-
-        Row f2 = sh.getRow(base + 2) != null ? sh.getRow(base + 2) : sh.createRow(base + 2);
-        set(sh, f2, 8, "Đến ngày: " + end.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),   st.td);
-
-        Row f3 = sh.getRow(base + 3) != null ? sh.getRow(base + 3) : sh.createRow(base + 3);
-        set(sh, f3, 8, "Khách Hàng", st.td);
-
+        sh.addMergedRegion(new CellRangeAddress(notesRow.getRowNum(), notesRow.getRowNum(), 0, 10));
+        notesRow.setHeightInPoints(110f);
 
 // Freeze/print & width
-// sh.createFreezePane(0, headerRow + 1);
         wb.setPrintArea(wb.getSheetIndex(sh), 0, 13, 0, total.getRowNum());
         sh.setRepeatingRows(new CellRangeAddress(headerRow, headerRow, 0, 13));
         int[] w = {6,18,24,14,26,8,16,16,16,12,12,8,8,8};
