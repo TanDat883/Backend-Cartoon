@@ -1,0 +1,52 @@
+/*
+ * @(#) $(NAME).java    1.0     10/18/2025
+ *
+ * Copyright (c) 2025 IUH. All rights reserved.
+ */
+
+package flim.backendcartoon.repositories;
+
+/*
+ * @description
+ * @author: Tran Tan Dat
+ * @version: 1.0
+ * @created: 18-October-2025 3:42 PM
+ */
+
+import flim.backendcartoon.entities.Promotion;
+import flim.backendcartoon.entities.WatchRoom;
+import org.springframework.stereotype.Repository;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+
+import java.util.List;
+@Repository
+public class WatchRoomRepository {
+    private final DynamoDbTable<WatchRoom> table;
+
+    public WatchRoomRepository(DynamoDbEnhancedClient client) {
+        this.table = client.table("WatchRoom", TableSchema.fromBean(WatchRoom.class));
+    }
+
+    public void saveNew(WatchRoom room) {
+        table.putItem(r -> r.item(room)
+                .conditionExpression(Expression.builder()
+                        .expression("attribute_not_exists(roomId)")
+                        .build()));
+    }
+
+    public void upsert(WatchRoom room) {
+        table.putItem(room);
+    }
+
+    public WatchRoom get(String roomId) {
+        return table.getItem(r -> r.key(k -> k.partitionValue(roomId)));
+    }
+
+    // CẢNH BÁO: scan chỉ nên dùng tạm để test
+    public List<WatchRoom> findAll() {
+        return table.scan().items().stream().toList();
+    }
+}
