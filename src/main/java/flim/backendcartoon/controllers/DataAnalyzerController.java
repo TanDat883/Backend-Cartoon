@@ -263,6 +263,24 @@ public class DataAnalyzerController {
         return revenueService.getVoucherDetailByPromotion(promotionId, LocalDate.parse(startDate), LocalDate.parse(endDate));
     }
 
+    // =========================
+    // ===== CUSTOMERS =========
+    // =========================
+
+    // Báo cáo doanh số khách hàng theo khoảng thời gian
+    @GetMapping("/customers/sales")
+    public ResponseEntity<CustomerSalesReportResponse> getCustomerSalesByRange(
+            @RequestParam String startDate,
+            @RequestParam String endDate) {
+        LocalDate s = LocalDate.parse(startDate);
+        LocalDate e = LocalDate.parse(endDate);
+        return ResponseEntity.ok(revenueService.getCustomerSalesByRange(s, e));
+    }
+
+    // =========================
+    // ===== EXPORT ============
+    // =========================
+
     // Xuất theo khoảng ngày + groupBy (DAY|WEEK|MONTH)
     @GetMapping("/export/dashboard-range.xlsx")
     public void exportDashboardRange(
@@ -289,6 +307,3 @@ public class DataAnalyzerController {
 
 
 }
-
-
-
