@@ -66,6 +66,11 @@ public class WatchRoomServiceImpl implements WatchRoomService {
     }
 
     @Override
+    public WatchRoom getRoomById(String roomId) {
+        return getWatchRoomById(roomId);
+    }
+
+    @Override
     public List<WatchRoomResponse> getAllWatchRooms() {
 
         return watchRoomRepository.findAll()
@@ -81,9 +86,16 @@ public class WatchRoomServiceImpl implements WatchRoomService {
 
                     dto.setStartAt(r.getStartAt());
 
-                     var user = userReponsitory.findById(r.getUserId());
-                     dto.setUserName(user.getUserName());
-                     dto.setAvatarUrl(user.getAvatarUrl());
+                    // Lấy thông tin user với null-check để tránh NullPointerException
+                    var user = userReponsitory.findById(r.getUserId());
+                    if (user != null) {
+                        dto.setUserName(user.getUserName() != null ? user.getUserName() : "Host");
+                        dto.setAvatarUrl(user.getAvatarUrl());
+                    } else {
+                        // Fallback nếu user không tồn tại (đã bị xóa)
+                        dto.setUserName("Host");
+                        dto.setAvatarUrl(null);
+                    }
 
                     return dto;
                 })

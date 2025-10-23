@@ -50,7 +50,14 @@ public class SecurityConfig {
                         .requestMatchers("/authors/**").permitAll()
                         .requestMatchers("/users/**").permitAll()
                         .requestMatchers("/episodes/**").permitAll()
-                                .requestMatchers("/seasons/**").permitAll()
+                        .requestMatchers("/seasons/**").permitAll()
+
+                        // WebSocket endpoints - QUAN TRỌNG cho Watch Together
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/app/**").permitAll()
+                        .requestMatchers("/topic/**").permitAll()
+                        .requestMatchers("/queue/**").permitAll()
+                        .requestMatchers("/api/watchrooms/**").permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/movies/**").permitAll() // Move this after the authenticated matchers

@@ -22,6 +22,7 @@ import java.util.List;
 public interface WatchRoomService {
     void createWatchRoom(CreateWatchRoomRequest request);
     WatchRoom getWatchRoomById(String roomId);
+    WatchRoom getRoomById(String roomId); // Alias method cho WebSocket
     List<WatchRoomResponse> getAllWatchRooms();
 }
 
