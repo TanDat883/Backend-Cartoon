@@ -26,4 +26,5 @@ public class WatchRoomResponse {
     private String videoUrl;
     private Boolean isPrivate;
     private String startAt;
+    private VideoStateDTO videoState;
 }

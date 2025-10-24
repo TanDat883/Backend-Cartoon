@@ -8,6 +8,7 @@ package flim.backendcartoon.services;
 
 
 import flim.backendcartoon.entities.DTO.request.CreateWatchRoomRequest;
+import flim.backendcartoon.entities.DTO.response.VideoStateDTO;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
 import flim.backendcartoon.entities.WatchRoom;
 
@@ -24,6 +25,11 @@ public interface WatchRoomService {
     WatchRoom getWatchRoomById(String roomId);
     WatchRoom getRoomById(String roomId); // Alias method cho WebSocket
     List<WatchRoomResponse> getAllWatchRooms();
+
+    // Video state methods
+    VideoStateDTO getCurrentVideoState(WatchRoom room);
+    void updateVideoState(String roomId, Boolean playing, Long positionMs,
+                          Double playbackRate, String userId);
 }
 
     

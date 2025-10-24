@@ -32,6 +32,13 @@ public class WatchRoom {
     private String status;            // ACTIVE, SCHEDULED, ENDED
     private String inviteCode;        // optional
 
+    // Video state fields for persistence
+    private Boolean videoPlaying;
+    private Long videoPositionMs;
+    private Double videoPlaybackRate;
+    private Long videoLastUpdateMs;
+    private String videoUpdatedBy;
+
     @DynamoDbPartitionKey
     @DynamoDbAttribute("roomId")
     public String getRoomId() { return roomId; }
@@ -80,5 +87,25 @@ public class WatchRoom {
     @DynamoDbAttribute("inviteCode")
     public String getInviteCode() { return inviteCode; }
     public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
+
+    @DynamoDbAttribute("videoPlaying")
+    public Boolean getVideoPlaying() { return videoPlaying; }
+    public void setVideoPlaying(Boolean videoPlaying) { this.videoPlaying = videoPlaying; }
+
+    @DynamoDbAttribute("videoPositionMs")
+    public Long getVideoPositionMs() { return videoPositionMs; }
+    public void setVideoPositionMs(Long videoPositionMs) { this.videoPositionMs = videoPositionMs; }
+
+    @DynamoDbAttribute("videoPlaybackRate")
+    public Double getVideoPlaybackRate() { return videoPlaybackRate; }
+    public void setVideoPlaybackRate(Double videoPlaybackRate) { this.videoPlaybackRate = videoPlaybackRate; }
+
+    @DynamoDbAttribute("videoLastUpdateMs")
+    public Long getVideoLastUpdateMs() { return videoLastUpdateMs; }
+    public void setVideoLastUpdateMs(Long videoLastUpdateMs) { this.videoLastUpdateMs = videoLastUpdateMs; }
+
+    @DynamoDbAttribute("videoUpdatedBy")
+    public String getVideoUpdatedBy() { return videoUpdatedBy; }
+    public void setVideoUpdatedBy(String videoUpdatedBy) { this.videoUpdatedBy = videoUpdatedBy; }
 }
 

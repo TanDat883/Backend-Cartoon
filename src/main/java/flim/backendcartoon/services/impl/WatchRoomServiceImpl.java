@@ -14,6 +14,7 @@ package flim.backendcartoon.services.impl;
  */
 
 import flim.backendcartoon.entities.DTO.request.CreateWatchRoomRequest;
+import flim.backendcartoon.entities.DTO.response.VideoStateDTO;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
 import flim.backendcartoon.entities.WatchRoom;
 import flim.backendcartoon.repositories.UserReponsitory;
@@ -98,8 +99,74 @@ public class WatchRoomServiceImpl implements WatchRoomService {
                         dto.setAvatarUrl(null);
                     }
 
+                    // Add video state
+                    dto.setVideoState(getCurrentVideoState(r));
+
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Calculate current video state from persisted data
+     */
+    public VideoStateDTO getCurrentVideoState(WatchRoom room) {
+        if (room == null) {
+            return null;
+        }
+
+        VideoStateDTO state = new VideoStateDTO();
+
+        Boolean playing = room.getVideoPlaying();
+        Long positionMs = room.getVideoPositionMs();
+        Double playbackRate = room.getVideoPlaybackRate();
+        Long lastUpdateMs = room.getVideoLastUpdateMs();
+
+        // Set defaults if null
+        playing = (playing != null) ? playing : false;
+        positionMs = (positionMs != null) ? positionMs : 0L;
+        playbackRate = (playbackRate != null) ? playbackRate : 1.0;
+
+        long currentPositionMs = positionMs;
+
+        // If video is playing, calculate drift since last update
+        if (playing && lastUpdateMs != null) {
+            long now = System.currentTimeMillis();
+            long elapsedMs = now - lastUpdateMs;
+
+            // Add elapsed time (adjusted by playback rate)
+            currentPositionMs += (long) (elapsedMs * playbackRate);
+        }
+
+        state.setPlaying(playing);
+        state.setPositionMs(currentPositionMs);
+        state.setPlaybackRate(playbackRate);
+        state.setServerTimeMs(System.currentTimeMillis());
+        state.setUpdatedBy(room.getVideoUpdatedBy());
+
+        return state;
+    }
+
+    /**
+     * Update video state in database
+     */
+    public void updateVideoState(String roomId, Boolean playing, Long positionMs,
+                                  Double playbackRate, String userId) {
+        WatchRoom room = watchRoomRepository.get(roomId);
+        if (room != null) {
+            if (playing != null) {
+                room.setVideoPlaying(playing);
+            }
+            if (positionMs != null) {
+                room.setVideoPositionMs(positionMs);
+            }
+            if (playbackRate != null) {
+                room.setVideoPlaybackRate(playbackRate);
+            }
+            room.setVideoLastUpdateMs(System.currentTimeMillis());
+            room.setVideoUpdatedBy(userId);
+
+            watchRoomRepository.upsert(room);
+        }
     }
 }

@@ -3,6 +3,7 @@ package flim.backendcartoon.controllers;
 import flim.backendcartoon.dto.WsEventDto;
 import flim.backendcartoon.entities.WatchRoom;
 import flim.backendcartoon.entities.WatchRoomMember;
+import flim.backendcartoon.scheduler.InactiveMemberCleanupService;
 import flim.backendcartoon.services.*;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -29,18 +30,21 @@ public class WatchRoomWsController {
     private final WatchRoomMemberService memberService;
     private final RoomMessageService messageService;
     private final RoomPlaybackStateManager playbackStateManager;
+    private final InactiveMemberCleanupService cleanupService;
 
     public WatchRoomWsController(
             SimpMessagingTemplate messagingTemplate,
             WatchRoomService watchRoomService,
             WatchRoomMemberService memberService,
             RoomMessageService messageService,
-            RoomPlaybackStateManager playbackStateManager) {
+            RoomPlaybackStateManager playbackStateManager,
+            InactiveMemberCleanupService cleanupService) {
         this.messagingTemplate = messagingTemplate;
         this.watchRoomService = watchRoomService;
         this.memberService = memberService;
         this.messageService = messageService;
         this.playbackStateManager = playbackStateManager;
+        this.cleanupService = cleanupService;
     }
 
     /**
@@ -87,6 +91,9 @@ public class WatchRoomWsController {
                 memberService.updateHeartbeat(roomId, userId);
             }
 
+            // Initialize ping tracking for this member
+            cleanupService.updateMemberPing(roomId, userId);
+
             // Lưu system message
             messageService.createSystemMessage(roomId, userId, userName,
                     userName + " đã tham gia phòng");
@@ -124,6 +131,9 @@ public class WatchRoomWsController {
         try {
             String userId = event.getSenderId();
             String userName = event.getSenderName();
+
+            // Remove ping tracking
+            cleanupService.removeMemberPing(roomId, userId);
 
             // Xóa member
             memberService.removeMember(roomId, userId);
@@ -228,12 +238,18 @@ public class WatchRoomWsController {
             switch (controlType) {
                 case "PLAY":
                     playbackStateManager.handlePlay(roomId, positionMs, playbackRate);
+                    // Persist to database
+                    watchRoomService.updateVideoState(roomId, true, positionMs, playbackRate, userId);
                     break;
                 case "PAUSE":
                     playbackStateManager.handlePause(roomId, positionMs);
+                    // Persist to database
+                    watchRoomService.updateVideoState(roomId, false, positionMs, null, userId);
                     break;
                 case "SEEK":
                     playbackStateManager.handleSeek(roomId, positionMs);
+                    // Persist to database
+                    watchRoomService.updateVideoState(roomId, null, positionMs, null, userId);
                     break;
                 default:
                     return;
@@ -262,6 +278,9 @@ public class WatchRoomWsController {
                           @Payload WsEventDto event) {
         try {
             String userId = event.getSenderId();
+
+            // Update ping tracking for auto-cleanup
+            cleanupService.updateMemberPing(roomId, userId);
 
             // Cập nhật lastSeenAt
             memberService.updateHeartbeat(roomId, userId);

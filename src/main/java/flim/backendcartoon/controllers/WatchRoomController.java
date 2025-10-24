@@ -13,8 +13,8 @@ package flim.backendcartoon.controllers;
  * @created: 18-October-2025 3:48 PM
  */
 
-import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreateWatchRoomRequest;
+import flim.backendcartoon.entities.DTO.response.VideoStateDTO;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
 import flim.backendcartoon.entities.WatchRoom;
 import flim.backendcartoon.services.WatchRoomService;
@@ -23,7 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -44,8 +46,32 @@ public class WatchRoomController {
     }
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<WatchRoom> getWatchRoomById(@PathVariable String roomId) {
+    public ResponseEntity<?> getWatchRoomById(@PathVariable String roomId) {
         WatchRoom watchRoom = watchRoomService.getWatchRoomById(roomId);
-        return ResponseEntity.ok(watchRoom);
+
+        if (watchRoom == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Create response with video state
+        Map<String, Object> response = new HashMap<>();
+        response.put("roomId", watchRoom.getRoomId());
+        response.put("userId", watchRoom.getUserId());
+        response.put("movieId", watchRoom.getMovieId());
+        response.put("roomName", watchRoom.getRoomName());
+        response.put("posterUrl", watchRoom.getPosterUrl());
+        response.put("videoUrl", watchRoom.getVideoUrl());
+        response.put("isPrivate", watchRoom.isPrivateRoom());
+        response.put("isAutoStart", watchRoom.isAutoStart());
+        response.put("startAt", watchRoom.getStartAt());
+        response.put("createdAt", watchRoom.getCreatedAt());
+        response.put("status", watchRoom.getStatus());
+        response.put("inviteCode", watchRoom.getInviteCode());
+
+        // Add video state
+        VideoStateDTO videoState = watchRoomService.getCurrentVideoState(watchRoom);
+        response.put("videoState", videoState);
+
+        return ResponseEntity.ok(response);
     }
 }
