@@ -16,9 +16,11 @@ package flim.backendcartoon.services.impl;
 import flim.backendcartoon.entities.Payment;
 import flim.backendcartoon.entities.PaymentDetail;
 import flim.backendcartoon.entities.User;
+import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.PaymentDetailRepository;
 import flim.backendcartoon.repositories.PaymentRepository;
+import flim.backendcartoon.repositories.VipSubscriptionRepository;
 import flim.backendcartoon.services.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
@@ -42,14 +44,16 @@ public class PaymentServiceImpl implements PaymentService {
     private final PayOS payOS;
     private final PaymentRepository paymentRepository;
     private final PaymentDetailRepository paymentDetailRepository;
+    private final VipSubscriptionRepository vipSubscriptionRepository;
     private static final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final DateTimeFormatter ISO_OFFSET = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     @Autowired
-    public PaymentServiceImpl(PayOS payOS, PaymentRepository paymentRepository, PaymentDetailRepository paymentDetailRepository) {
+    public PaymentServiceImpl(PayOS payOS, PaymentRepository paymentRepository, PaymentDetailRepository paymentDetailRepository, VipSubscriptionRepository vipSubscriptionRepository) {
         this.payOS = payOS;
         this.paymentRepository = paymentRepository;
         this.paymentDetailRepository = paymentDetailRepository;
+        this.vipSubscriptionRepository = vipSubscriptionRepository;
     }
 
     @Override
@@ -149,18 +153,11 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public Page<Payment> findAllPayments(int page, int size, String keyword) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
-        List<Payment> payments;
-        long total;
+    public Page<Payment> findAllPayments(int page, int size, String keyword, String status, String startDate, String endDate) {
+        Pageable pageable = PageRequest.of(page, size);
 
-        if (keyword != null && !keyword.isEmpty()) {
-            payments = paymentRepository.findByKeyword(keyword, pageable);
-            total = paymentRepository.countByKeyword(keyword);
-        } else {
-            payments = paymentRepository.findAllPayments(pageable);
-            total = paymentRepository.countAllPayments();
-        }
+        List<Payment> payments = paymentRepository.findAllFiltered(keyword, status, startDate, endDate, pageable);
+        long total = paymentRepository.countAllFiltered(keyword, status, startDate, endDate);
 
         return new PageImpl<>(payments, pageable, total);
     }
@@ -184,5 +181,30 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode) {
         return paymentDetailRepository.findByPaymentCode(paymentCode);
+    }
+
+    @Override
+    public void markRefundedByPaymentCode(long paymentCode) {
+        Payment payment = paymentRepository.findByPaymentCode(paymentCode);
+        if (payment == null) throw new BaseException("Không tìm thấy đơn hàng");
+        if (!"SUCCESS".equalsIgnoreCase(payment.getStatus())) {
+            throw new BaseException("Chỉ đánh dấu hoàn tiền cho đơn đã thanh toán thành công");
+        }
+
+        // 1) Update Payment
+        payment.setStatus("REFUNDED");
+        paymentRepository.update(payment);
+
+        // 2) Tắt gói VIP liên quan (nếu có)
+        PaymentDetail pd = paymentDetailRepository.findById(payment.getPaymentId());
+        if (pd != null) {
+            VipSubscription vip = vipSubscriptionRepository.findByVipId(pd.getPaymentId());
+            if (vip != null && "ACTIVE".equalsIgnoreCase(vip.getStatus())) {
+                vip.setStatus("INACTIVE"); // hoặc "CANCELED"
+                // có thể cắt ngày kết thúc về hôm nay nếu muốn
+                // vip.setEndDate(LocalDate.now().toString());
+                vipSubscriptionRepository.save(vip);
+            }
+        }
     }
 }

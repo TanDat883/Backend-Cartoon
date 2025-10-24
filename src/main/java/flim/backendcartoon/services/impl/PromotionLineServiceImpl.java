@@ -58,7 +58,10 @@ public class PromotionLineServiceImpl implements PromotionLineService {
 
         existingLine.setPromotionLineType(request.getPromotionLineType());
         existingLine.setPromotionLineName(request.getPromotionLineName());
-        existingLine.setStartDate(request.getStartDate());
+        if (request.getStartDate() != null) {
+            existingLine.setStartDate(request.getStartDate());
+        }
+//        existingLine.setStartDate(request.getStartDate());
         existingLine.setEndDate(request.getEndDate());
         existingLine.setStatus(request.getStatus());
 

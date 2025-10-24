@@ -3,7 +3,6 @@ package flim.backendcartoon.services;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -90,6 +89,43 @@ public class EmailService {
 
         sendMessage(null, toEmail, subject, html);
     }
+
+    public void sendRefundRequest(String toEmail,
+                                  String requesterEmail,
+                                  String requesterUserId,
+                                  String orderCode,
+                                  String reason,
+                                  String bankName,
+                                  String bankAccountNumber) {
+        String subject = "[Refund Request] " + orderCode;
+
+        String html = """
+      <div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:auto">
+        <h2>📩 Yêu cầu hoàn tiền</h2>
+        <table style="width:100%%;border-collapse:collapse">
+          <tr><td style="border:1px solid #eee;padding:8px"><b>User ID</b></td><td style="border:1px solid #eee;padding:8px">%s</td></tr>
+          <tr><td style="border:1px solid #eee;padding:8px"><b>Email user</b></td><td style="border:1px solid #eee;padding:8px">%s</td></tr>
+          <tr><td style="border:1px solid #eee;padding:8px"><b>Mã đơn hàng</b></td><td style="border:1px solid #eee;padding:8px">%s</td></tr>
+          <tr><td style="border:1px solid #eee;padding:8px"><b>Ngân hàng</b></td><td style="border:1px solid #eee;padding:8px">%s</td></tr>
+          <tr><td style="border:1px solid #eee;padding:8px"><b>Số tài khoản</b></td><td style="border:1px solid #eee;padding:8px">%s</td></tr>
+        </table>
+        <p><b>Lý do:</b></p>
+        <div style="white-space:pre-wrap;border:1px solid #eee;padding:10px;border-radius:6px">%s</div>
+        <p style="color:#888;font-size:12px;margin-top:16px">Gửi lúc: %s</p>
+      </div>
+      """.formatted(
+                safe(requesterUserId),
+                safe(requesterEmail),
+                safe(orderCode),
+                safe(bankName),
+                safe(bankAccountNumber),
+                safe(reason),
+                java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toString()
+        );
+
+        sendMessage("Cartoon Support <no-reply@cartoon.app>", toEmail, subject, html);
+    }
+
 
     private static String safe(String s) { return s == null ? "" : s; }
 
