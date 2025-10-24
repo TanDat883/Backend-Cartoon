@@ -23,6 +23,7 @@ public class WatchRoomResponse {
     private String avatarUrl;
     private String roomName;
     private String posterUrl;
+    private String videoUrl;
     private Boolean isPrivate;
     private String startAt;
 }

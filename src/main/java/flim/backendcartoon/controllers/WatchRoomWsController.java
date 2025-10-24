@@ -91,7 +91,7 @@ public class WatchRoomWsController {
             messageService.createSystemMessage(roomId, userId, userName,
                     userName + " đã tham gia phòng");
 
-            // Broadcast JOIN event
+            // Broadcast JOIN event to ALL members (including sender)
             WsEventDto joinEvent = new WsEventDto("JOIN");
             joinEvent.setRoomId(roomId);
             joinEvent.setSenderId(userId);
@@ -102,10 +102,10 @@ public class WatchRoomWsController {
 
             messagingTemplate.convertAndSend("/topic/rooms/" + roomId, joinEvent);
 
-            // Gửi MEMBER_LIST cho user vừa join (danh sách tất cả members hiện tại)
-            sendMemberList(roomId, userId);
+            // Broadcast MEMBER_LIST to ALL members in room (CRITICAL FIX)
+            broadcastMemberListToAll(roomId);
 
-            // Gửi SYNC_STATE cho user vừa join
+            // Gửi SYNC_STATE cho user vừa join only
             sendSyncState(roomId, userId);
 
         } catch (Exception e) {
@@ -132,7 +132,7 @@ public class WatchRoomWsController {
             messageService.createSystemMessage(roomId, userId, userName,
                     userName + " đã rời phòng");
 
-            // Broadcast LEAVE event
+            // Broadcast LEAVE event to ALL members
             WsEventDto leaveEvent = new WsEventDto("LEAVE");
             leaveEvent.setRoomId(roomId);
             leaveEvent.setSenderId(userId);
@@ -140,6 +140,9 @@ public class WatchRoomWsController {
             leaveEvent.setCreatedAt(Instant.now().toString());
 
             messagingTemplate.convertAndSend("/topic/rooms/" + roomId, leaveEvent);
+
+            // Broadcast updated MEMBER_LIST to ALL remaining members (CRITICAL FIX)
+            broadcastMemberListToAll(roomId);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -277,10 +280,12 @@ public class WatchRoomWsController {
     }
 
     /**
-     * Gửi MEMBER_LIST cho user mới join
-     * QUAN TRỌNG: Giúp member mới thấy tất cả members hiện tại (bao gồm Host)
+     * Broadcast MEMBER_LIST to ALL members in room
+     * CRITICAL FIX: Ensures all members see the same member list
+     * - Creator sees themselves (1 member initially)
+     * - When someone joins, BOTH creator and new joiner see updated list (2 members)
      */
-    private void sendMemberList(String roomId, String userId) {
+    private void broadcastMemberListToAll(String roomId) {
         try {
             // Lấy tất cả members trong phòng (bao gồm cả members đã có trước đó)
             List<WatchRoomMember> members = memberService.getAllMembers(roomId);
@@ -290,7 +295,8 @@ public class WatchRoomWsController {
             memberListEvent.addPayload("members", members);
             memberListEvent.setCreatedAt(Instant.now().toString());
 
-            messagingTemplate.convertAndSendToUser(userId, "/queue/reply", memberListEvent);
+            // ✅ FIXED: Broadcast to /topic (ALL subscribers) instead of /user/queue (single user)
+            messagingTemplate.convertAndSend("/topic/rooms/" + roomId, memberListEvent);
         } catch (Exception e) {
             e.printStackTrace();
         }

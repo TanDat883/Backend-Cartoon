@@ -22,7 +22,6 @@ import flim.backendcartoon.services.WatchRoomService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,6 +46,7 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         room.setMovieId(req.getMovieId());
         room.setRoomName(req.getRoomName());
         room.setPosterUrl(req.getPosterUrl());
+        room.setVideoUrl(req.getVideoUrl());
         room.setPrivateRoom(Boolean.TRUE.equals(req.getIsPrivate()));
         room.setAutoStart(Boolean.TRUE.equals(req.getIsAutoStart()));
         room.setStartAt(req.getStartAt());
@@ -82,6 +82,7 @@ public class WatchRoomServiceImpl implements WatchRoomService {
                     dto.setMovieId(r.getMovieId());
                     dto.setRoomName(r.getRoomName());
                     dto.setPosterUrl(r.getPosterUrl());
+                    dto.setVideoUrl(r.getVideoUrl());
                     dto.setIsPrivate(Boolean.TRUE.equals(r.isPrivateRoom()));
 
                     dto.setStartAt(r.getStartAt());

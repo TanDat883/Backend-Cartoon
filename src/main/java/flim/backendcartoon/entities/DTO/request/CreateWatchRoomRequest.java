@@ -17,15 +17,13 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
 @Data
 public class CreateWatchRoomRequest {
     @NotBlank private String userId;
     @NotBlank private String movieId;
     @NotBlank private String roomName;
     private String posterUrl;
+    private String videoUrl;  // URL to the video file (CloudFront or direct link)
     @NotNull
     private Boolean isPrivate;
     @NotNull  private Boolean isAutoStart;

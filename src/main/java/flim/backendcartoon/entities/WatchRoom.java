@@ -17,9 +17,6 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbAttri
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
 @DynamoDbBean
 public class WatchRoom {
     private String roomId;            // PK
@@ -27,6 +24,7 @@ public class WatchRoom {
     private String movieId;           // GSI2 PK
     private String roomName;
     private String posterUrl;
+    private String videoUrl;          // URL to video file
     private boolean privateRoom;      // rename
     private boolean autoStart;        // rename
     private String startAt;           // ISO-8601 string "2025-10-18T16:30:00+07:00"
@@ -54,6 +52,10 @@ public class WatchRoom {
     @DynamoDbAttribute("posterUrl")
     public String getPosterUrl() { return posterUrl; }
     public void setPosterUrl(String posterUrl) { this.posterUrl = posterUrl; }
+
+    @DynamoDbAttribute("videoUrl")
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
 
     @DynamoDbAttribute("isPrivate")
     public boolean isPrivateRoom() { return privateRoom; }
