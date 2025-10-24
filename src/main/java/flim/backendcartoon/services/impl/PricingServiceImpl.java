@@ -170,7 +170,7 @@ public class PricingServiceImpl implements PricingService {
             throw new IllegalArgumentException("End date must be after start date");
         }
 
-        // ====== BỔ SUNG: CHẶN OVERLAP THEO PACKAGE KHI UPDATE ======
+        // ====== CHẶN OVERLAP THEO PACKAGE KHI UPDATE ======
         // Lấy danh sách package của PriceList hiện tại
         java.util.Set<String> currentPkgIds =
                 new java.util.HashSet<>(priceItemRepository.findPackageIdsByPriceListId(priceListId));
@@ -180,7 +180,6 @@ public class PricingServiceImpl implements PricingService {
                 if (other == null) continue;
                 if (priceListId.equals(other.getPriceListId())) continue; // bỏ qua chính nó
 
-                // Kiểm tra giao nhau khoảng ngày: [newStart, newEnd] ∩ [oStart, oEnd] ≠ ∅
                 LocalDate oStart = other.getStartDate();
                 LocalDate oEnd   = other.getEndDate();
                 boolean overlapRange = !(newEnd.isBefore(oStart) || oEnd.isBefore(newStart));
@@ -245,35 +244,6 @@ public class PricingServiceImpl implements PricingService {
         }
         return clearedPkgs;
     }
-
-//    @Override
-//    @Transactional
-//    public int autoFlipInactiveListsStartingToday() {
-//        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
-//        LocalDate today = LocalDate.now(zone);
-//
-//        // Lấy các list đang INACTIVE và có startDate == hôm nay
-//        List<PriceList> toFlip = priceListRepository.findByStatusAndStartDate("INACTIVE", today);
-//        int listsActivated = 0;
-//
-//        for (PriceList pl : toFlip) {
-//            // Đổi trạng thái sang ACTIVE
-//            pl.setStatus("ACTIVE");
-//            priceListRepository.save(pl);
-//
-//            // Gán vào currentPriceListId cho các package thuộc list này (nếu cover hôm nay)
-//            try {
-//                activatePriceList(pl.getPriceListId());
-//            } catch (Exception ex) {
-//                System.err.println("Failed to activate packages for list " + pl.getPriceListId() + ": " + ex.getMessage());
-//            }
-//
-//            listsActivated++;
-//        }
-//
-//        return listsActivated;
-//    }
-
 
     @Override
     public PriceList getPriceListById(String priceListId) {

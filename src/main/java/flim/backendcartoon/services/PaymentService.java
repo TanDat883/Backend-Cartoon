@@ -31,12 +31,16 @@ public interface PaymentService {
     void updatePaymentStatus(String paymentId, String newStatus);
     void updatePaymentPaidAt(String paymentId, String paidAt);
     Payment findPaymentById(String paymentId);
-    Page<Payment> findAllPayments(int page, int size, String keyword);
+    Page<Payment> findAllPayments(int page, int size, String keyword, String status, String startDate, String endDate);
+
+
     Payment findPaymentByPaymentCode(Long paymentCode);
 
     void savePaymentDetail(PaymentDetail paymentDetail);
     PaymentDetail findPaymentDetailByPaymentId(String paymentId);
     PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode);
+
+    void markRefundedByPaymentCode(long paymentCode);
 }
 
     

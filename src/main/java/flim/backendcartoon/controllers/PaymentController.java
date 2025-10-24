@@ -15,9 +15,11 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.request.ApplyVoucherRequest;
 import flim.backendcartoon.entities.DTO.request.CreatePaymentRequest;
+import flim.backendcartoon.entities.DTO.request.RefundRequest;
 import flim.backendcartoon.entities.DTO.response.ApplyVoucherResponse;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.*;
+import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,9 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.payos.type.CheckoutResponseData;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -50,16 +50,15 @@ public class PaymentController {
     public ResponseEntity<List<Payment>> getAllPayments(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String keyword) {
-
-        Page<Payment> payments = paymentService.findAllPayments(page, size, keyword);
-
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate
+    ) {
+        Page<Payment> payments = paymentService.findAllPayments(page, size, keyword, status, startDate, endDate);
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-Total-Count", String.valueOf(payments.getTotalElements()));
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(payments.getContent());
+        return ResponseEntity.ok().headers(headers).body(payments.getContent());
     }
 
     @GetMapping("/info/{paymentId}")
@@ -231,7 +230,7 @@ public class PaymentController {
                     LocalDate currentEndDate = LocalDate.parse(vipSubscription.getEndDate());
                     // Chỉ sử dụng ngày kết thúc nếu nó là trong tương lai
                     if (currentEndDate.isAfter(startDate)) {
-                        startDate = currentEndDate;
+                        startDate = currentEndDate.plusDays(1);
                     }
                 }
 
@@ -287,6 +286,77 @@ public class PaymentController {
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Lỗi xử lý webhook: " + e.getMessage());
+        }
+    }
+
+
+    @PostMapping("/refund-request")
+    public ResponseEntity<?> createRefundRequest(@RequestBody RefundRequest req) {
+        if (req.getOrderCode() == null || req.getOrderCode().isBlank()
+                || req.getReason() == null || req.getReason().isBlank()
+                || req.getBankName() == null || req.getBankName().isBlank()
+                || req.getBankAccountNumber() == null || req.getBankAccountNumber().isBlank()) {
+            return ResponseEntity.status(422).body("Thiếu thông tin: mã đơn hàng, lý do, ngân hàng, số tài khoản"); // 422
+        }
+
+        final ZoneId VN_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+        final long MAX_HOURS = 48;
+
+        final long paymentCode;
+        try {
+            paymentCode = Long.parseLong(req.getOrderCode().trim());
+        } catch (NumberFormatException nfe) {
+            return ResponseEntity.status(422).body("Mã đơn hàng không hợp lệ"); // 422
+        }
+
+        Payment p = paymentService.findPaymentByPaymentCode(paymentCode);
+        if (p == null) {
+            return ResponseEntity.status(404).body("Không tìm thấy đơn hàng"); // 404
+        }
+        if (!"SUCCESS".equalsIgnoreCase(p.getStatus())) {
+            return ResponseEntity.status(409).body("Chỉ hỗ trợ hoàn tiền cho đơn đã thanh toán thành công"); // 409
+        }
+        if (p.getPaidAt() == null || p.getPaidAt().isBlank()) {
+            return ResponseEntity.status(422).body("Đơn hàng chưa có thời điểm thanh toán (paidAt)"); // 422
+        }
+
+        try {
+            OffsetDateTime paidAt = OffsetDateTime.parse(p.getPaidAt());
+            OffsetDateTime now = OffsetDateTime.now(VN_ZONE);
+            long diffHours = Duration.between(paidAt, now).toHours();
+            if (diffHours > MAX_HOURS) {
+                return ResponseEntity.status(409).body("Chỉ tiếp nhận yêu cầu hoàn tiền trong vòng 48 giờ kể từ thời điểm thanh toán"); // 409
+            }
+        } catch (Exception parseEx) {
+            return ResponseEntity.status(422).body("Định dạng thời gian thanh toán không hợp lệ"); // 422
+        }
+
+        try {
+            emailService.sendRefundRequest(
+                    "trantandatt03@gmail.com",
+                    req.getUserEmail(),
+                    req.getUserId(),
+                    req.getOrderCode(),
+                    req.getReason(),
+                    req.getBankName(),
+                    req.getBankAccountNumber()
+            );
+            return ResponseEntity.ok("Đã ghi nhận yêu cầu hoàn tiền");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Gửi yêu cầu thất bại: " + e.getMessage()); // 500
+        }
+    }
+
+    @PutMapping("/refund/{paymentCode}/approve")
+    public ResponseEntity<?> approveRefund(
+            @PathVariable long paymentCode) {
+        try {
+            paymentService.markRefundedByPaymentCode(paymentCode);
+            return ResponseEntity.ok("Đã cập nhật trạng thái đơn thành REFUNDED và vô hiệu gói VIP liên quan.");
+        } catch (BaseException ex) {
+            return ResponseEntity.status(409).body(ex.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
         }
     }
 }
