@@ -242,10 +242,12 @@ public class PaymentController {
                 vipSub.setVipId(paymentDetail.getPaymentId());
                 vipSub.setUserId(user.getUserId());
                 vipSub.setPackageId(subscriptionPackage.getPackageId());
+                vipSub.setOrderCode(orderCode);
                 vipSub.setPackageType(packageType);
                 vipSub.setStatus("ACTIVE");
                 vipSub.setStartDate(startDate.toString());
                 vipSub.setEndDate(endDate.toString());
+                vipSub.setCreatedAt(LocalDate.now().toString());
 
                 vipSubscriptionService.saveVipSubscription(vipSub);
 
@@ -292,7 +294,7 @@ public class PaymentController {
 
     @PostMapping("/refund-request")
     public ResponseEntity<?> createRefundRequest(@RequestBody RefundRequest req) {
-        if (req.getOrderCode() == null || req.getOrderCode().isBlank()
+        if (req.getOrderCode() == null
                 || req.getReason() == null || req.getReason().isBlank()
                 || req.getBankName() == null || req.getBankName().isBlank()
                 || req.getBankAccountNumber() == null || req.getBankAccountNumber().isBlank()) {
@@ -304,7 +306,7 @@ public class PaymentController {
 
         final long paymentCode;
         try {
-            paymentCode = Long.parseLong(req.getOrderCode().trim());
+            paymentCode = req.getOrderCode();
         } catch (NumberFormatException nfe) {
             return ResponseEntity.status(422).body("Mã đơn hàng không hợp lệ"); // 422
         }
@@ -312,6 +314,9 @@ public class PaymentController {
         Payment p = paymentService.findPaymentByPaymentCode(paymentCode);
         if (p == null) {
             return ResponseEntity.status(404).body("Không tìm thấy đơn hàng"); // 404
+        }
+        if (p.getUserId() == null || !p.getUserId().equals(req.getUserId())) {
+            return ResponseEntity.status(403).body("Bạn không có quyền yêu cầu hoàn tiền cho đơn hàng này");
         }
         if (!"SUCCESS".equalsIgnoreCase(p.getStatus())) {
             return ResponseEntity.status(409).body("Chỉ hỗ trợ hoàn tiền cho đơn đã thanh toán thành công"); // 409

@@ -19,6 +19,7 @@ public class WatchRoomResponse {
     private String userId;
     private String roomId;
     private String movieId;
+    private String movieTitle;
     private String userName;
     private String avatarUrl;
     private String roomName;

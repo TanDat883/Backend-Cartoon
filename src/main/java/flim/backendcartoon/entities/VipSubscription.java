@@ -22,6 +22,7 @@ public class VipSubscription {
     private String vipId;
     private String userId;
     private String packageId;
+    private Long orderCode;
     private String status; // PENDING, ACTIVE, EXPIRED, REFUNDED
     private PackageType packageType;
     private String startDate;
@@ -91,6 +92,14 @@ public class VipSubscription {
     }
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    @DynamoDbAttribute("orderCode")
+    public Long getOrderCode() {
+        return orderCode;
+    }
+    public void setOrderCode(Long orderCode) {
+        this.orderCode = orderCode;
     }
 
 }
