@@ -8,6 +8,8 @@ package flim.backendcartoon.services;
 
 
 import flim.backendcartoon.entities.DTO.request.CreateWatchRoomRequest;
+import flim.backendcartoon.entities.DTO.request.JoinRoomRequest;
+import flim.backendcartoon.entities.DTO.response.JoinRoomResponse;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
 import flim.backendcartoon.entities.WatchRoom;
 
@@ -24,6 +26,7 @@ public interface WatchRoomService {
     WatchRoom getWatchRoomById(String roomId);
     WatchRoom getRoomById(String roomId); // Alias method cho WebSocket
     List<WatchRoomResponse> getAllWatchRooms();
+    JoinRoomResponse joinRoom(JoinRoomRequest request);
 }
 
     

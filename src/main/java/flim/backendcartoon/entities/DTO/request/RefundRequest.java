@@ -19,7 +19,7 @@ import lombok.Data;
 public class RefundRequest {
     private String userId;
     private String userEmail;
-    private String orderCode;
+    private Long orderCode;
     private String reason;
     private String bankName;
     private String bankAccountNumber;

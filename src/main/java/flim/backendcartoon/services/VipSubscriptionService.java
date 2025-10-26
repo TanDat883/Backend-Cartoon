@@ -26,7 +26,6 @@ public interface VipSubscriptionService {
     void expireOutdatedVipSubscriptions();
     List<VipSubscription> UserVipSubscriptions(String userId);
 
-
     PackageType findUserHighestActiveTier(String userId);
 
 }

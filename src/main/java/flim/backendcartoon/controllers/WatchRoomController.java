@@ -15,6 +15,8 @@ package flim.backendcartoon.controllers;
 
 import flim.backendcartoon.entities.DTO.request.CreatePromotionRequest;
 import flim.backendcartoon.entities.DTO.request.CreateWatchRoomRequest;
+import flim.backendcartoon.entities.DTO.request.JoinRoomRequest;
+import flim.backendcartoon.entities.DTO.response.JoinRoomResponse;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
 import flim.backendcartoon.entities.WatchRoom;
 import flim.backendcartoon.services.WatchRoomService;
@@ -47,5 +49,12 @@ public class WatchRoomController {
     public ResponseEntity<WatchRoom> getWatchRoomById(@PathVariable String roomId) {
         WatchRoom watchRoom = watchRoomService.getWatchRoomById(roomId);
         return ResponseEntity.ok(watchRoom);
+    }
+
+    @PostMapping("/watch-rooms/join")
+    public ResponseEntity<JoinRoomResponse> join(@RequestBody JoinRoomRequest req) {
+        var res = watchRoomService.joinRoom(req);
+        if (!res.isOk()) return ResponseEntity.status(403).body(res);
+        return ResponseEntity.ok(res);
     }
 }

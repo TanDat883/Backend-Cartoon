@@ -41,6 +41,26 @@ public class WatchRoomRepository {
         table.putItem(room);
     }
 
+    public boolean existsByInviteCode(String inviteCode) {
+        var expression = Expression.builder()
+                .expression("inviteCode = :inviteCode")
+                .putExpressionValue(":inviteCode", software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder().s(inviteCode).build())
+                .build();
+
+        var result = table.scan(r -> r.filterExpression(expression)).items().stream().findFirst();
+        return result.isPresent();
+    }
+
+    public WatchRoom findByInviteCode(String inviteCode) {
+        var expression = Expression.builder()
+                .expression("inviteCode = :inviteCode")
+                .putExpressionValue(":inviteCode", software.amazon.awssdk.services.dynamodb.model.AttributeValue.builder().s(inviteCode).build())
+                .build();
+
+        var result = table.scan(r -> r.filterExpression(expression)).items().stream().findFirst();
+        return result.orElse(null);
+    }
+
     public WatchRoom get(String roomId) {
         return table.getItem(r -> r.key(k -> k.partitionValue(roomId)));
     }

@@ -93,7 +93,7 @@ public class EmailService {
     public void sendRefundRequest(String toEmail,
                                   String requesterEmail,
                                   String requesterUserId,
-                                  String orderCode,
+                                  Long orderCode,
                                   String reason,
                                   String bankName,
                                   String bankAccountNumber) {
@@ -116,7 +116,7 @@ public class EmailService {
       """.formatted(
                 safe(requesterUserId),
                 safe(requesterEmail),
-                safe(orderCode),
+                safe(orderCode == null ? "" : orderCode.toString()),
                 safe(bankName),
                 safe(bankAccountNumber),
                 safe(reason),
