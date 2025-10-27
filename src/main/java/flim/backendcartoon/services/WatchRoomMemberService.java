@@ -128,5 +128,25 @@ public class WatchRoomMemberService {
             memberRepository.upsert(newOwner);
         }
     }
+
+    /**
+     * Update read receipt - Mark messages as read up to a specific message
+     */
+    public void updateReadReceipt(String roomId, String userId, String lastReadMessageSortKey) {
+        WatchRoomMember member = getMember(roomId, userId);
+        if (member != null) {
+            member.setLastReadMessageSortKey(lastReadMessageSortKey);
+            member.setLastReadAt(Instant.now().toString());
+            memberRepository.upsert(member);
+        }
+    }
+
+    /**
+     * Get last read message sort key for a user in a room
+     */
+    public String getLastReadMessageSortKey(String roomId, String userId) {
+        WatchRoomMember member = getMember(roomId, userId);
+        return member != null ? member.getLastReadMessageSortKey() : null;
+    }
 }
 

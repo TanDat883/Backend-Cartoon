@@ -14,6 +14,10 @@ public class WatchRoomMember {
     private String role;       // OWNER | CO_HOST | MEMBER
     private Long   expireAt;   // TTL (epoch seconds), optional
 
+    // Read receipt tracking for unread messages notification
+    private String lastReadMessageSortKey; // SK of last read message (ts#millis#uuid)
+    private String lastReadAt;             // ISO-8601 timestamp when user last read chat
+
     @DynamoDbPartitionKey
     @DynamoDbAttribute("roomId")
     public String getRoomId() { return roomId; }
@@ -53,4 +57,14 @@ public class WatchRoomMember {
     @DynamoDbAttribute("expireAt")
     public Long getExpireAt() { return expireAt; }
     public void setExpireAt(Long expireAt) { this.expireAt = expireAt; }
+
+    @DynamoDbAttribute("lastReadMessageSortKey")
+    public String getLastReadMessageSortKey() { return lastReadMessageSortKey; }
+    public void setLastReadMessageSortKey(String lastReadMessageSortKey) {
+        this.lastReadMessageSortKey = lastReadMessageSortKey;
+    }
+
+    @DynamoDbAttribute("lastReadAt")
+    public String getLastReadAt() { return lastReadAt; }
+    public void setLastReadAt(String lastReadAt) { this.lastReadAt = lastReadAt; }
 }

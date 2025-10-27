@@ -165,6 +165,10 @@ public class WatchRoomWsController {
             log.info("🔄 Sending SYNC_STATE to user: {}", userId);
             sendSyncState(roomId, userId);
 
+            // Gửi UNREAD_COUNT cho user vừa join
+            log.info("📬 Sending UNREAD_COUNT to user: {}", userId);
+            sendUnreadCount(roomId, userId);
+
             log.info("🎉 JOIN handling completed successfully for userId={} in roomId={}", userId, roomId);
 
         } catch (Exception e) {
@@ -208,6 +212,40 @@ public class WatchRoomWsController {
 
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Xử lý read receipt - Mark messages as read
+     * /app/rooms/{roomId}/read
+     */
+    @MessageMapping("/rooms/{roomId}/read")
+    public void handleReadReceipt(@DestinationVariable String roomId,
+                                  @Payload WsEventDto event,
+                                  @Header("simpSessionId") String sessionId) {
+        log.info("👁️ READ_RECEIPT received: roomId={}, userId={}, sessionId={}",
+                roomId, event.getSenderId(), sessionId);
+
+        try {
+            String userId = event.getSenderId();
+            String lastReadMessageSortKey = (String) event.getPayloadValue("lastReadMessageSortKey");
+
+            if (lastReadMessageSortKey == null) {
+                log.warn("⚠️ READ_RECEIPT missing lastReadMessageSortKey");
+                return;
+            }
+
+            log.debug("📖 Marking messages as read up to: {}", lastReadMessageSortKey);
+
+            // Update read receipt in DB
+            memberService.updateReadReceipt(roomId, userId, lastReadMessageSortKey);
+            log.info("✅ Read receipt updated successfully for user: {}", userId);
+
+            // Optional: Broadcast to others (for "seen by" feature) - Not needed for current requirement
+            // Could be added later if needed
+
+        } catch (Exception e) {
+            log.error("❌ Unexpected error handling READ_RECEIPT: roomId={}, event={}", roomId, event, e);
         }
     }
 
@@ -470,6 +508,40 @@ public class WatchRoomWsController {
 
         } catch (Exception e) {
             log.error("❌ Failed to send SYNC_STATE: roomId={}, userId={}", roomId, userId, e);
+        }
+    }
+
+    /**
+     * Gửi UNREAD_COUNT cho user mới join hoặc khi có update
+     */
+    private void sendUnreadCount(String roomId, String userId) {
+        log.debug("📬 Preparing UNREAD_COUNT: roomId={}, userId={}", roomId, userId);
+        try {
+            // Get last read message sort key from member data
+            String lastReadMessageSortKey = memberService.getLastReadMessageSortKey(roomId, userId);
+
+            // Calculate unread count
+            int unreadCount = messageService.getUnreadCount(roomId, lastReadMessageSortKey);
+
+            log.info("📊 Unread count calculated: roomId={}, userId={}, count={}, lastReadSortKey={}",
+                    roomId, userId, unreadCount, lastReadMessageSortKey);
+
+            // Send UNREAD_COUNT event
+            WsEventDto unreadEvent = new WsEventDto("UNREAD_COUNT");
+            unreadEvent.setRoomId(roomId);
+            unreadEvent.addPayload("unreadCount", unreadCount);
+            unreadEvent.addPayload("lastReadMessageSortKey", lastReadMessageSortKey);
+            unreadEvent.setCreatedAt(Instant.now().toString());
+
+            String destination = "/user/" + userId + "/queue/reply";
+            log.info("📤 Sending UNREAD_COUNT to user: {}, destination: {}, count={}",
+                    userId, destination, unreadCount);
+
+            messagingTemplate.convertAndSendToUser(userId, "/queue/reply", unreadEvent);
+            log.info("✅ UNREAD_COUNT sent successfully");
+
+        } catch (Exception e) {
+            log.error("❌ Failed to send UNREAD_COUNT: roomId={}, userId={}", roomId, userId, e);
         }
     }
 

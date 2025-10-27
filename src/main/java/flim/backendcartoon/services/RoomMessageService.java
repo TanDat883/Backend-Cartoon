@@ -85,5 +85,29 @@ public class RoomMessageService {
         Map<String, Object> result = messageRepository.list(roomId, limit, null);
         return (List<RoomMessage>) result.get("items");
     }
-}
 
+    /**
+     * Đếm số messages chưa đọc (CHAT + SYSTEM) sau lastReadMessageSortKey
+     *
+     * @param roomId Room ID
+     * @param lastReadMessageSortKey Sort key của message cuối cùng đã đọc (null = chưa đọc gì)
+     * @return Số messages chưa đọc
+     */
+    public int getUnreadCount(String roomId, String lastReadMessageSortKey) {
+        if (lastReadMessageSortKey == null) {
+            // User chưa đọc message nào → Count all CHAT + SYSTEM messages
+            List<RoomMessage> allMessages = getRecentMessages(roomId, 1000); // Limit reasonable
+            return (int) allMessages.stream()
+                    .filter(msg -> "CHAT".equals(msg.getType()) || "SYSTEM".equals(msg.getType()))
+                    .count();
+        }
+
+        // Count messages after lastReadMessageSortKey
+        // DynamoDB sort key format: "ts#<millis>#<uuid>"
+        List<RoomMessage> allMessages = getRecentMessages(roomId, 1000);
+        return (int) allMessages.stream()
+                .filter(msg -> "CHAT".equals(msg.getType()) || "SYSTEM".equals(msg.getType()))
+                .filter(msg -> msg.getSortKey().compareTo(lastReadMessageSortKey) > 0)
+                .count();
+    }
+}
