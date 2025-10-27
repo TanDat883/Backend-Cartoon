@@ -30,6 +30,7 @@ public interface PaymentService {
     Payment createPayment(String userId, String packageId, Long paymentCode, Long finalAmount);
     void updatePaymentStatus(String paymentId, String newStatus);
     void updatePaymentPaidAt(String paymentId, String paidAt);
+    void updatePaymentRefund(String paymentId, boolean refundRequested);
     Payment findPaymentById(String paymentId);
     Page<Payment> findAllPayments(int page, int size, String keyword, String status, String startDate, String endDate);
 

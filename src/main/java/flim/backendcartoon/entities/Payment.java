@@ -31,6 +31,7 @@ public class Payment {
     private String status; // PENDING, COMPLETED, CANCELED, EXPIRED
     private String createdAt;
     private String paidAt;
+    private boolean refundRequested;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("paymentId")
@@ -104,6 +105,14 @@ public class Payment {
     }
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    @DynamoDbAttribute("refundRequested")
+    public boolean isRefundRequested() {
+        return refundRequested;
+    }
+    public void setRefundRequested(boolean refundRequested) {
+        this.refundRequested = refundRequested;
     }
 
 }
