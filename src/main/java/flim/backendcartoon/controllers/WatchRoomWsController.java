@@ -77,7 +77,15 @@ public class WatchRoomWsController {
 
             // Kiểm tra phòng tồn tại và active
             log.debug("🔍 Checking if room exists: {}", roomId);
-            WatchRoom room = watchRoomService.getWatchRoomById(roomId);
+            WatchRoom room;
+            try {
+                room = watchRoomService.getWatchRoomById(roomId);
+            } catch (flim.backendcartoon.exception.RoomGoneException e) {
+                log.warn("⚠️ Room is deleted/expired: roomId={}, userId={}", roomId, userId);
+                sendErrorToUser(userId, "This room has been deleted or expired");
+                return;
+            }
+
             if (room == null || !"ACTIVE".equals(room.getStatus())) {
                 log.error("❌ Room not found or inactive: roomId={}, status={}",
                         roomId, room != null ? room.getStatus() : "NULL");
@@ -460,11 +468,9 @@ public class WatchRoomWsController {
      * - When someone joins, BOTH creator and new joiner see updated list (2 members)
      */
     private void broadcastMemberListToAll(String roomId) {
-        log.debug("📋 Broadcasting MEMBER_LIST: roomId={}", roomId);
         try {
             // Lấy tất cả members trong phòng (bao gồm cả members đã có trước đó)
             List<WatchRoomMember> members = memberService.getAllMembers(roomId);
-            log.info("📋 Found {} members in room: {}", members.size(), roomId);
 
             WsEventDto memberListEvent = new WsEventDto("MEMBER_LIST");
             memberListEvent.setRoomId(roomId);
@@ -472,11 +478,9 @@ public class WatchRoomWsController {
             memberListEvent.setCreatedAt(Instant.now().toString());
 
             String destination = "/topic/rooms/" + roomId;
-            log.info("📢 Broadcasting MEMBER_LIST to destination: {} (count={})", destination, members.size());
 
-            // ✅ FIXED: Broadcast to /topic (ALL subscribers) instead of /user/queue (single user)
+            // Broadcast to /topic (ALL subscribers)
             messagingTemplate.convertAndSend(destination, memberListEvent);
-            log.info("✅ MEMBER_LIST broadcasted successfully to all members");
 
         } catch (Exception e) {
             log.error("❌ Failed to broadcast MEMBER_LIST: roomId={}", roomId, e);
