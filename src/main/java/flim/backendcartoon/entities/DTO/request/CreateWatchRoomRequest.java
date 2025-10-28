@@ -19,6 +19,7 @@ import lombok.Data;
 
 @Data
 public class CreateWatchRoomRequest {
+    private String roomId;  // Optional: if not provided, backend will generate
     @NotBlank private String userId;
     @NotBlank private String movieId;
     @NotBlank private String roomName;

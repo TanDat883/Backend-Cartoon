@@ -49,7 +49,12 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         var now = OffsetDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
 
         var room = new WatchRoom();
-        room.setRoomId("room_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+//        room.setRoomId("room_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+        if (req.getRoomId() != null && !req.getRoomId().trim().isEmpty()) {
+            room.setRoomId(req.getRoomId()); // ✅ Use frontend's roomId
+        } else {
+            room.setRoomId("room_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+        }
         room.setUserId(req.getUserId());
         room.setMovieId(req.getMovieId());
         room.setRoomName(req.getRoomName());
