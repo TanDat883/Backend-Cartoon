@@ -144,6 +144,17 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    public void updatePaymentRefund(String paymentId, boolean refundRequested) {
+        Payment payment = paymentRepository.findByPaymentId(paymentId);
+        if (payment != null) {
+            payment.setRefundRequested(refundRequested);
+            paymentRepository.update(payment);
+        } else {
+            throw new BaseException("Payment not found with ID: " + paymentId);
+        }
+    }
+
+    @Override
     public Payment findPaymentById(String paymentId) {
         Payment payment = paymentRepository.findByPaymentId(paymentId);
         if (payment == null) {
@@ -201,8 +212,6 @@ public class PaymentServiceImpl implements PaymentService {
             VipSubscription vip = vipSubscriptionRepository.findByVipId(pd.getPaymentId());
             if (vip != null && "ACTIVE".equalsIgnoreCase(vip.getStatus())) {
                 vip.setStatus("INACTIVE"); // hoặc "CANCELED"
-                // có thể cắt ngày kết thúc về hôm nay nếu muốn
-                // vip.setEndDate(LocalDate.now().toString());
                 vipSubscriptionRepository.save(vip);
             }
         }

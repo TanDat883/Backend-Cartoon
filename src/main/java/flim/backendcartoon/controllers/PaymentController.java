@@ -324,6 +324,9 @@ public class PaymentController {
         if (p.getPaidAt() == null || p.getPaidAt().isBlank()) {
             return ResponseEntity.status(422).body("Đơn hàng chưa có thời điểm thanh toán (paidAt)"); // 422
         }
+        p.setRefundRequested(true);
+        paymentService.updatePaymentRefund(p.getPaymentId(), p.isRefundRequested());
+
 
         try {
             OffsetDateTime paidAt = OffsetDateTime.parse(p.getPaidAt());

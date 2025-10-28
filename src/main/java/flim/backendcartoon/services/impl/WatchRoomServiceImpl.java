@@ -61,7 +61,8 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         var now = OffsetDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
 
         var room = new WatchRoom();
-        room.setRoomId("room_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
+
+        room.setRoomId(req.getRoomId()); // ✅ Use frontend's roomId
         room.setUserId(req.getUserId()); // For backward compatibility
         room.setHostUserId(req.getUserId()); // New field
         room.setMovieId(req.getMovieId());
