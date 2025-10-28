@@ -148,5 +148,18 @@ public class WatchRoomMemberService {
         WatchRoomMember member = getMember(roomId, userId);
         return member != null ? member.getLastReadMessageSortKey() : null;
     }
+
+    /**
+     * Xóa tất cả members trong phòng (khi phòng bị xóa)
+     * @param roomId Room ID
+     * @return Số members đã xóa
+     */
+    public int deleteAllByRoomId(String roomId) {
+        List<WatchRoomMember> members = getAllMembers(roomId);
+        for (WatchRoomMember member : members) {
+            removeMember(roomId, member.getUserId());
+        }
+        return members.size();
+    }
 }
 

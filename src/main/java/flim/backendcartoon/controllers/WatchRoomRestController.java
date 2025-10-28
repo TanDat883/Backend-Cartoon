@@ -1,8 +1,11 @@
 package flim.backendcartoon.controllers;
 
+import flim.backendcartoon.entities.DTO.response.DeleteRoomResponse;
 import flim.backendcartoon.entities.WatchRoomMember;
 import flim.backendcartoon.services.RoomMessageService;
 import flim.backendcartoon.services.WatchRoomMemberService;
+import flim.backendcartoon.services.WatchRoomService;
+import flim.backendcartoon.utils.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -28,12 +31,15 @@ public class WatchRoomRestController {
 
     private final WatchRoomMemberService memberService;
     private final RoomMessageService messageService;
+    private final WatchRoomService watchRoomService;
 
     public WatchRoomRestController(
             WatchRoomMemberService memberService,
-            RoomMessageService messageService) {
+            RoomMessageService messageService,
+            WatchRoomService watchRoomService) {
         this.memberService = memberService;
         this.messageService = messageService;
+        this.watchRoomService = watchRoomService;
     }
 
     /**
@@ -247,6 +253,26 @@ public class WatchRoomRestController {
                     "message", e.getMessage()
             ));
         }
+    }
+
+    /**
+     * DELETE /api/watchrooms/{roomId}
+     * Xóa phòng (soft delete) - chỉ ADMIN hoặc host
+     * @param roomId Room ID to delete
+     * @param force If true, delete even if room has viewers
+     */
+    @DeleteMapping("/{roomId}")
+    public ResponseEntity<DeleteRoomResponse> deleteRoom(
+            @PathVariable String roomId,
+            @RequestParam(defaultValue = "false") boolean force) {
+
+        // Get actorId from RequestContext (set by AuthInterceptor)
+        String actorId = RequestContext.getActorId();
+
+        // Call service to delete room
+        watchRoomService.deleteRoom(roomId, actorId, force);
+
+        return ResponseEntity.ok(new DeleteRoomResponse(true));
     }
 
     /**

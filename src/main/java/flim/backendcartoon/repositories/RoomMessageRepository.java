@@ -105,5 +105,33 @@ public class RoomMessageRepository {
                 .build();
         table.deleteItem(key);
     }
+
+    /**
+     * Xóa tất cả messages trong một phòng
+     * Dùng khi phòng bị xóa
+     */
+    public int deleteAllByRoomId(String roomId) {
+        QueryConditional condition = QueryConditional.keyEqualTo(
+                Key.builder().partitionValue(roomId).build()
+        );
+
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(condition)
+                .build();
+
+        int deletedCount = 0;
+        for (Page<RoomMessage> page : table.query(request)) {
+            for (RoomMessage message : page.items()) {
+                Key key = Key.builder()
+                        .partitionValue(message.getRoomId())
+                        .sortValue(message.getSortKey())
+                        .build();
+                table.deleteItem(key);
+                deletedCount++;
+            }
+        }
+
+        return deletedCount;
+    }
 }
 

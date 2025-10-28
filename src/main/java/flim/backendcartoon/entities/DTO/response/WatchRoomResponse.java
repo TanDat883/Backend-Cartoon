@@ -28,4 +28,5 @@ public class WatchRoomResponse {
     private Boolean isPrivate;
     private String startAt;
     private VideoStateDTO videoState;
+    private Integer viewerCount; // Number of online viewers
 }

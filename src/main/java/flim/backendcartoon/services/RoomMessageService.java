@@ -110,4 +110,13 @@ public class RoomMessageService {
                 .filter(msg -> msg.getSortKey().compareTo(lastReadMessageSortKey) > 0)
                 .count();
     }
+
+    /**
+     * Xóa tất cả messages trong phòng (khi phòng bị xóa)
+     * @param roomId Room ID
+     * @return Số messages đã xóa
+     */
+    public int deleteAllByRoomId(String roomId) {
+        return messageRepository.deleteAllByRoomId(roomId);
+    }
 }

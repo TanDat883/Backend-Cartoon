@@ -34,6 +34,17 @@ public interface WatchRoomService {
 
     JoinRoomResponse joinRoom(JoinRoomRequest request);
 
+    /**
+     * Delete watch room (soft delete)
+     * @param roomId Room ID to delete
+     * @param actorId User performing the delete
+     * @param force If true, delete even if room has viewers
+     * @throws UnauthorizedException if actorId is null
+     * @throws ForbiddenException if user doesn't have permission
+     * @throws RoomGoneException if room doesn't exist or already deleted
+     * @throws RoomHasViewersException if room has viewers and force=false
+     */
+    void deleteRoom(String roomId, String actorId, boolean force);
 }
 
     

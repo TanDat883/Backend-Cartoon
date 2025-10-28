@@ -24,6 +24,7 @@ import flim.backendcartoon.repositories.UserReponsitory;
 import flim.backendcartoon.repositories.WatchRoomRepository;
 import flim.backendcartoon.services.WatchRoomService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
@@ -36,12 +37,23 @@ public class WatchRoomServiceImpl implements WatchRoomService {
     private final WatchRoomRepository watchRoomRepository;
     private final UserReponsitory userReponsitory;
     private final MovieRepository movieRepository;
+    private final flim.backendcartoon.services.RoomMessageService roomMessageService;
+    private final flim.backendcartoon.services.WatchRoomMemberService watchRoomMemberService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired
-    public WatchRoomServiceImpl(WatchRoomRepository watchRoomRepository, UserReponsitory userReponsitory, MovieRepository movieRepository) {
+    public WatchRoomServiceImpl(WatchRoomRepository watchRoomRepository,
+                                UserReponsitory userReponsitory,
+                                MovieRepository movieRepository,
+                                flim.backendcartoon.services.RoomMessageService roomMessageService,
+                                flim.backendcartoon.services.WatchRoomMemberService watchRoomMemberService,
+                                SimpMessagingTemplate messagingTemplate) {
         this.watchRoomRepository = watchRoomRepository;
         this.userReponsitory = userReponsitory;
         this.movieRepository = movieRepository;
+        this.roomMessageService = roomMessageService;
+        this.watchRoomMemberService = watchRoomMemberService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Override
@@ -50,7 +62,8 @@ public class WatchRoomServiceImpl implements WatchRoomService {
 
         var room = new WatchRoom();
         room.setRoomId("room_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 10));
-        room.setUserId(req.getUserId());
+        room.setUserId(req.getUserId()); // For backward compatibility
+        room.setHostUserId(req.getUserId()); // New field
         room.setMovieId(req.getMovieId());
         room.setRoomName(req.getRoomName());
         room.setPosterUrl(req.getPosterUrl());
@@ -64,6 +77,10 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         var status = (req.getStartAt() != null && !req.getStartAt().isBlank()) ? "SCHEDULED" : "ACTIVE";
         room.setStatus(status);
 
+        // Set TTL: 24h from creation
+        long ttlEpochSeconds = now.toEpochSecond() + (24 * 60 * 60);
+        room.setTtl(ttlEpochSeconds);
+
         if (Boolean.TRUE.equals(room.isPrivateRoom())) {
             room.setInviteCode(generateUniqueInviteCode());
         }
@@ -73,7 +90,20 @@ public class WatchRoomServiceImpl implements WatchRoomService {
 
     @Override
     public WatchRoom getWatchRoomById(String roomId) {
-        return watchRoomRepository.get(roomId);
+        WatchRoom room = watchRoomRepository.get(roomId);
+
+        // Check if room exists and is not deleted/expired
+        if (room == null || "DELETED".equals(room.getStatus()) || "EXPIRED".equals(room.getStatus())) {
+            throw new flim.backendcartoon.exception.RoomGoneException("Room not found or has been deleted");
+        }
+
+        // Check TTL
+        Long ttl = room.getTtl();
+        if (ttl != null && ttl <= System.currentTimeMillis() / 1000) {
+            throw new flim.backendcartoon.exception.RoomGoneException("Room has expired");
+        }
+
+        return room;
     }
 
     @Override
@@ -86,6 +116,19 @@ public class WatchRoomServiceImpl implements WatchRoomService {
 
         return watchRoomRepository.findAll()
                 .stream()
+                .filter(r -> {
+                    // Only show ACTIVE and SCHEDULED rooms
+                    String status = r.getStatus();
+                    if ("DELETED".equals(status) || "EXPIRED".equals(status)) {
+                        return false;
+                    }
+                    // Check TTL not expired
+                    Long ttl = r.getTtl();
+                    if (ttl != null && ttl <= System.currentTimeMillis() / 1000) {
+                        return false;
+                    }
+                    return true;
+                })
                 .map(r -> {
                     WatchRoomResponse dto = new WatchRoomResponse();
                     dto.setUserId(r.getUserId());
@@ -99,7 +142,8 @@ public class WatchRoomServiceImpl implements WatchRoomService {
                     dto.setStartAt(r.getStartAt());
 
                     // Lấy thông tin user với null-check để tránh NullPointerException
-                    var user = userReponsitory.findById(r.getUserId());
+                    String hostId = r.getHostUserId() != null ? r.getHostUserId() : r.getUserId();
+                    var user = userReponsitory.findById(hostId);
                     if (user != null) {
                         dto.setUserName(user.getUserName() != null ? user.getUserName() : "Host");
                         dto.setAvatarUrl(user.getAvatarUrl());
@@ -113,6 +157,16 @@ public class WatchRoomServiceImpl implements WatchRoomService {
                     dto.setVideoState(getCurrentVideoState(r));
                     var movie = movieRepository.findById(r.getMovieId());
                     dto.setMovieTitle(movie != null ? movie.getTitle() : null);
+
+                    // ✅ Add viewer count (count online members)
+                    try {
+                        java.util.List<flim.backendcartoon.entities.WatchRoomMember> onlineMembers =
+                            watchRoomMemberService.getOnlineMembers(r.getRoomId());
+                        dto.setViewerCount(onlineMembers != null ? onlineMembers.size() : 0);
+                    } catch (Exception e) {
+                        // If error, set to 0
+                        dto.setViewerCount(0);
+                    }
 
                     return dto;
                 })
@@ -218,4 +272,90 @@ public class WatchRoomServiceImpl implements WatchRoomService {
             }
             throw new IllegalStateException("Không thể sinh inviteCode duy nhất, thử lại sau.");
         }
+
+    @Override
+    public void deleteRoom(String roomId, String actorId, boolean force) {
+        // 1. Check authentication
+        if (actorId == null || actorId.isBlank()) {
+            throw new flim.backendcartoon.exception.UnauthorizedException("User not authenticated");
+        }
+
+        // 2. Get room
+        WatchRoom room = watchRoomRepository.get(roomId);
+        if (room == null || "DELETED".equals(room.getStatus()) || "EXPIRED".equals(room.getStatus())) {
+            throw new flim.backendcartoon.exception.RoomGoneException("Room not found or already deleted");
+        }
+
+        // 3. Get user role
+        flim.backendcartoon.entities.User user = userReponsitory.findById(actorId);
+        if (user == null) {
+            throw new flim.backendcartoon.exception.UnauthorizedException("User not found");
+        }
+
+        // 4. Check permission: must be ADMIN or host
+        String hostUserId = room.getHostUserId() != null ? room.getHostUserId() : room.getUserId();
+        boolean isAdmin = user.getRole() == flim.backendcartoon.entities.Role.ADMIN;
+        boolean isHost = actorId.equals(hostUserId);
+
+        if (!isAdmin && !isHost) {
+            throw new flim.backendcartoon.exception.ForbiddenException("You don't have permission to delete this room");
+        }
+
+        // 5. Check if room has viewers (if not force)
+        if (!force) {
+            java.util.List<flim.backendcartoon.entities.WatchRoomMember> onlineMembers = watchRoomMemberService.getOnlineMembers(roomId);
+            if (!onlineMembers.isEmpty()) {
+                throw new flim.backendcartoon.exception.RoomHasViewersException(
+                    "Cannot delete room with " + onlineMembers.size() + " active viewers. Use force=true to override"
+                );
+            }
+        }
+
+        // 6. Soft delete room
+        room.setStatus("DELETED");
+        room.setDeletedAt(java.time.OffsetDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toString());
+        room.setDeletedBy(actorId);
+        watchRoomRepository.upsert(room);
+
+        // 7. ✅ BROADCAST WebSocket event TRƯỚC KHI xóa members (để connections còn alive)
+        try {
+            broadcastRoomDeleted(roomId, "DELETED", actorId);
+            System.out.println("📢 Broadcasted ROOM_DELETED event to room: " + roomId);
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to broadcast ROOM_DELETED event: " + e.getMessage());
+        }
+
+        // 8. Delete all messages in the room
+        int deletedMessages = roomMessageService.deleteAllByRoomId(roomId);
+        System.out.println("🗑️ Deleted " + deletedMessages + " messages from room " + roomId);
+
+        // 9. Delete all members in the room
+        int deletedMembers = watchRoomMemberService.deleteAllByRoomId(roomId);
+        System.out.println("🗑️ Deleted " + deletedMembers + " members from room " + roomId);
+
+        System.out.println("✅ Room deleted: roomId=" + roomId + ", deletedBy=" + actorId);
+    }
+
+    /**
+     * Broadcast ROOM_DELETED event to all users in the room
+     */
+    private void broadcastRoomDeleted(String roomId, String reason, String deletedBy) {
+        flim.backendcartoon.dto.WsEventDto event = new flim.backendcartoon.dto.WsEventDto();
+        event.setType("ROOM_DELETED");
+        event.setRoomId(roomId);
+        event.setSenderId(null);
+        event.setSenderName(null);
+        event.setAvatarUrl(null);
+        event.setCreatedAt(java.time.Instant.now().toString());
+
+        // Payload
+        java.util.Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("reason", reason);
+        payload.put("deletedBy", deletedBy);
+        payload.put("timestamp", System.currentTimeMillis());
+        event.setPayload(payload);
+
+        // Broadcast to room topic
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, event);
+    }
     }

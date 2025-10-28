@@ -20,7 +20,8 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbParti
 @DynamoDbBean
 public class WatchRoom {
     private String roomId;            // PK
-    private String userId;            // GSI1 PK
+    private String userId;            // GSI1 PK (DEPRECATED: use hostUserId)
+    private String hostUserId;        // Host/creator của phòng
     private String movieId;           // GSI2 PK
     private String roomName;
     private String posterUrl;
@@ -29,8 +30,12 @@ public class WatchRoom {
     private boolean autoStart;        // rename
     private String startAt;           // ISO-8601 string "2025-10-18T16:30:00+07:00"
     private String createdAt;         // ISO date or datetime
-    private String status;            // ACTIVE, SCHEDULED, ENDED
+    private String status;            // ACTIVE, SCHEDULED, DELETED, EXPIRED
     private String inviteCode;        // optional
+    private Long ttl;                 // DynamoDB TTL (epoch seconds)
+    private String deletedAt;         // ISO timestamp khi soft-delete
+    private String deletedBy;         // userId của người xóa
+    private String expiredAt;         // ISO timestamp khi auto-expire
 
     // Video state fields for persistence
     private Boolean videoPlaying;
@@ -47,6 +52,10 @@ public class WatchRoom {
     @DynamoDbAttribute("userId")
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+
+    @DynamoDbAttribute("hostUserId")
+    public String getHostUserId() { return hostUserId; }
+    public void setHostUserId(String hostUserId) { this.hostUserId = hostUserId; }
 
     @DynamoDbAttribute("movieId")
     public String getMovieId() { return movieId; }
@@ -107,5 +116,21 @@ public class WatchRoom {
     @DynamoDbAttribute("videoUpdatedBy")
     public String getVideoUpdatedBy() { return videoUpdatedBy; }
     public void setVideoUpdatedBy(String videoUpdatedBy) { this.videoUpdatedBy = videoUpdatedBy; }
+
+    @DynamoDbAttribute("ttl")
+    public Long getTtl() { return ttl; }
+    public void setTtl(Long ttl) { this.ttl = ttl; }
+
+    @DynamoDbAttribute("deletedAt")
+    public String getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(String deletedAt) { this.deletedAt = deletedAt; }
+
+    @DynamoDbAttribute("deletedBy")
+    public String getDeletedBy() { return deletedBy; }
+    public void setDeletedBy(String deletedBy) { this.deletedBy = deletedBy; }
+
+    @DynamoDbAttribute("expiredAt")
+    public String getExpiredAt() { return expiredAt; }
+    public void setExpiredAt(String expiredAt) { this.expiredAt = expiredAt; }
 }
 
