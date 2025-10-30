@@ -144,7 +144,7 @@ public class S3Service {
 
         HlsGroupSettings hls = HlsGroupSettings.builder()
                 .destination(destination)
-                .segmentLength(6)
+                .segmentLength(10)  // Tăng từ 6s → 10s: giảm số file .ts, giảm overhead
                 .minSegmentLength(2)
                 .segmentControl(HlsSegmentControl.SEGMENTED_FILES)
                 .build();
@@ -154,17 +154,101 @@ public class S3Service {
                 .hlsGroupSettings(hls)
                 .build();
 
-        Output o540 = Output.builder()
-                .nameModifier("_540p")
-                .preset("System-Avc_16x9_540p_29_97fps_3500kbps")
+        // DÙNG CUSTOM SETTINGS thay vì System presets để tránh lỗi 404
+        // 480p - 1.5 Mbps
+        Output o480 = Output.builder()
+                .nameModifier("_480p")
+                .containerSettings(ContainerSettings.builder()
+                        .container(ContainerType.M3_U8)
+                        .build())
+                .videoDescription(VideoDescription.builder()
+                        .width(854)
+                        .height(480)
+                        .codecSettings(VideoCodecSettings.builder()
+                                .codec(VideoCodec.H_264)
+                                .h264Settings(H264Settings.builder()
+                                        .bitrate(1500000)
+                                        .rateControlMode(H264RateControlMode.CBR)
+                                        .codecProfile(H264CodecProfile.MAIN)
+                                        .codecLevel(H264CodecLevel.LEVEL_3_1)
+                                        .build())
+                                .build())
+                        .build())
+                .audioDescriptions(AudioDescription.builder()
+                        .audioSourceName("Audio Selector 1")
+                        .codecSettings(AudioCodecSettings.builder()
+                                .codec(AudioCodec.AAC)
+                                .aacSettings(AacSettings.builder()
+                                        .bitrate(96000)
+                                        .codingMode(AacCodingMode.CODING_MODE_2_0)
+                                        .sampleRate(48000)
+                                        .build())
+                                .build())
+                        .build())
                 .build();
+
+        // 720p - 3.5 Mbps
         Output o720 = Output.builder()
                 .nameModifier("_720p")
-                .preset("System-Avc_16x9_720p_29_97fps_5000kbps")
+                .containerSettings(ContainerSettings.builder()
+                        .container(ContainerType.M3_U8)
+                        .build())
+                .videoDescription(VideoDescription.builder()
+                        .width(1280)
+                        .height(720)
+                        .codecSettings(VideoCodecSettings.builder()
+                                .codec(VideoCodec.H_264)
+                                .h264Settings(H264Settings.builder()
+                                        .bitrate(3500000)
+                                        .rateControlMode(H264RateControlMode.CBR)
+                                        .codecProfile(H264CodecProfile.MAIN)
+                                        .codecLevel(H264CodecLevel.LEVEL_4)
+                                        .build())
+                                .build())
+                        .build())
+                .audioDescriptions(AudioDescription.builder()
+                        .audioSourceName("Audio Selector 1")
+                        .codecSettings(AudioCodecSettings.builder()
+                                .codec(AudioCodec.AAC)
+                                .aacSettings(AacSettings.builder()
+                                        .bitrate(128000)
+                                        .codingMode(AacCodingMode.CODING_MODE_2_0)
+                                        .sampleRate(48000)
+                                        .build())
+                                .build())
+                        .build())
                 .build();
+
+        // 1080p - 6 Mbps (giảm từ 8.5 để tiết kiệm)
         Output o1080 = Output.builder()
                 .nameModifier("_1080p")
-                .preset("System-Avc_16x9_1080p_29_97fps_8500kbps")
+                .containerSettings(ContainerSettings.builder()
+                        .container(ContainerType.M3_U8)
+                        .build())
+                .videoDescription(VideoDescription.builder()
+                        .width(1920)
+                        .height(1080)
+                        .codecSettings(VideoCodecSettings.builder()
+                                .codec(VideoCodec.H_264)
+                                .h264Settings(H264Settings.builder()
+                                        .bitrate(6000000)
+                                        .rateControlMode(H264RateControlMode.CBR)
+                                        .codecProfile(H264CodecProfile.HIGH)
+                                        .codecLevel(H264CodecLevel.LEVEL_4_1)
+                                        .build())
+                                .build())
+                        .build())
+                .audioDescriptions(AudioDescription.builder()
+                        .audioSourceName("Audio Selector 1")
+                        .codecSettings(AudioCodecSettings.builder()
+                                .codec(AudioCodec.AAC)
+                                .aacSettings(AacSettings.builder()
+                                        .bitrate(192000)
+                                        .codingMode(AacCodingMode.CODING_MODE_2_0)
+                                        .sampleRate(48000)
+                                        .build())
+                                .build())
+                        .build())
                 .build();
 
         // Khai báo Audio Selector 1 và ép dùng track #1 (MediaConvert: set trực tiếp)
@@ -187,15 +271,15 @@ public class S3Service {
                 .outputGroups(OutputGroup.builder()
                         .name("Apple HLS")
                         .outputGroupSettings(ogs)
-                        .outputs(o540, o720, o1080)
+                        .outputs(o480, o720, o1080)  // 3 chất lượng: 480p, 720p, 1080p
                         .build())
                 .build();
 
-// Đọc env (mặc định PREFERRED để tăng tốc; nếu không hỗ trợ sẽ tự fallback)
+// Đọc env (mặc định DISABLED để tiết kiệm; PREFERRED tốn phí hơn)
         String accEnv = String.valueOf(dotenv.get("MEDIACONVERT_ACCELERATION"));
-        AccelerationMode accMode = "DISABLED".equalsIgnoreCase(accEnv)
-                ? AccelerationMode.DISABLED
-                : AccelerationMode.PREFERRED; // default nhanh nhất
+        AccelerationMode accMode = "PREFERRED".equalsIgnoreCase(accEnv)
+                ? AccelerationMode.PREFERRED
+                : AccelerationMode.DISABLED; // default = DISABLED để tiết kiệm
 
         int priority = 0; // -50..50 (cao hơn = ưu tiên hơn)
         try { priority = Integer.parseInt(String.valueOf(dotenv.get("MEDIACONVERT_PRIORITY"))); } catch (Exception ignore) {}
