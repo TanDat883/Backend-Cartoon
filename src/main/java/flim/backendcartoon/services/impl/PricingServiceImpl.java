@@ -362,4 +362,47 @@ public class PricingServiceImpl implements PricingService {
                 .toList();
     }
 
+    /**
+     * ✅ NEW: Get all active price lists for a specific date
+     * Active = status='ACTIVE' AND startDate <= date <= endDate
+     */
+    @Override
+    public List<PriceList> getAllActivePriceList(LocalDate date) {
+        if (date == null) {
+            date = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        }
+
+        final LocalDate finalDate = date; // Make final for lambda
+        return priceListRepository.getAll().stream()
+                .filter(pl -> isActivePriceList(pl, finalDate))
+                .toList();
+    }
+
+    /**
+     * ✅ NEW: Get all subscription packages
+     */
+    @Override
+    public List<flim.backendcartoon.entities.SubscriptionPackage> getAllSubscriptionPackages() {
+        return subscriptionPackageRepository.findAll();
+    }
+
+    /**
+     * Check if price list is active on given date
+     */
+    private boolean isActivePriceList(PriceList priceList, LocalDate date) {
+        // Check status
+        if (!"ACTIVE".equalsIgnoreCase(priceList.getStatus())) {
+            return false;
+        }
+
+        // Check date range
+        LocalDate start = priceList.getStartDate();
+        LocalDate end = priceList.getEndDate();
+
+        boolean afterStart = (start == null) || !date.isBefore(start);
+        boolean beforeEnd = (end == null) || !date.isAfter(end);
+
+        return afterStart && beforeEnd;
+    }
+
 }

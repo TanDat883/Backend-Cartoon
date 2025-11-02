@@ -36,6 +36,10 @@ public interface PricingService {
     void addPrice(AddPriceRequest addPriceRequest);
     int activatePriceList(String priceListId);
     List<PriceItem> getPriceItemsByPriceListId(String priceListId);
+
+    // ✅ NEW: Methods for AI Assistant pricing
+    List<PriceList> getAllActivePriceList(LocalDate date);
+    List<flim.backendcartoon.entities.SubscriptionPackage> getAllSubscriptionPackages();
 }
 
     

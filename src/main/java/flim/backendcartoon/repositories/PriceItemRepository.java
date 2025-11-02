@@ -205,4 +205,13 @@ public class PriceItemRepository {
         return items;
     }
 
+    /**
+     * ✅ NEW: Find all price items (for assistant pricing)
+     */
+    public List<PriceItem> findAll() {
+        List<PriceItem> items = new ArrayList<>();
+        table.scan().items().forEach(items::add);
+        return items;
+    }
+
 }

@@ -80,6 +80,13 @@ public class AiController {
         // Ý định người dùng (fallback từ rule cũ)
         final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
 
+        // ✅ NEW: Detect pricing queries
+        final boolean wantsPricing = containsAny(q,
+            "goi dang ky","goi nao","goi gi","goi thanh vien",
+            "gia tien","gia ca","bao nhieu tien","phi","cost","price",
+            "premium","basic","vip","membership","subscription",
+            "dang ky","mua goi","thanh toan");
+
         // Phim ngữ cảnh
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
         List<Movie> mentioned = findMentionedMovies(q);
@@ -96,8 +103,10 @@ public class AiController {
                 || containsAny(q, "thong tin","noi dung","tom tat","bao nhieu tap","may tap",
                 "trailer","danh gia","rating","nam phat hanh","quoc gia","luot xem",
                 "dien vien","dao dien","season","phan","tap");
-        boolean wantsRec = explicitRec || (!asksInfo && !wantsPromo);
-        if (asksInfo) wantsRec = false;
+
+        // ✅ FIX: Pricing queries should NOT show movie recommendations
+        boolean wantsRec = explicitRec || (!asksInfo && !wantsPromo && !wantsPricing);
+        if (asksInfo || wantsPricing) wantsRec = false;
 
         // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước
         List<MovieSuggestionDTO> prior = isBlank(convId) ? List.of() : memory.getSuggestions(convId);
@@ -129,6 +138,17 @@ public class AiController {
         List<ChatMemoryService.ChatMsg> prev = isBlank(convId)
                 ? List.of()
                 : memory.history(convId, HISTORY_LIMIT);
+
+        // ✅ NEW: Nếu hỏi về pricing/gói đăng ký → trả thông tin trực tiếp với AI consultation
+        if (wantsPricing) {
+            log.info("⏱️ Pricing query detected | building INTELLIGENT pricing response...");
+            ChatResponse pricingResp = buildPricingResponse(user.userName, rawQ);  // Pass user query for AI
+            log.info("✅ Pricing response built with AI consultation | NO movie suggestions");
+            persistMemory(convId, rawQ, pricingResp.getAnswer(), pricingResp.getSuggestions(), false);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Pricing query completed | latency={}ms", (tEnd - tStart));
+            return ResponseEntity.ok(pricingResp);
+        }
 
         // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
         if (wantsPromo) {
@@ -522,7 +542,200 @@ public class AiController {
                 .build();
     }
 
+    private final AssistantPricingService assistantPricingService;
 
+    /**
+     * ✅ NEW: Build INTELLIGENT pricing response with AI consultation
+     * Analyzes user query and provides smart recommendations
+     * ✅ IMPORTANT: This method NEVER returns movie suggestions
+     */
+    private ChatResponse buildPricingResponse(String userName, String userQuery) {
+        log.info("💰 Building INTELLIGENT pricing response for user: {} | query: {}", userName, userQuery);
+
+        try {
+            // ✅ Fetch real pricing data from database
+            var pricingData = assistantPricingService.getActivePricing(null); // null = today
+
+            if (pricingData.getPackages().isEmpty()) {
+                log.warn("⚠️ No active packages found in database");
+                return buildPricingErrorResponse();
+            }
+
+            // 🎯 Use AI to provide intelligent consultation
+            String aiConsultation = buildAIPricingConsultation(userQuery, pricingData);
+
+            log.info("✅ AI pricing consultation generated successfully");
+
+            // ✅ IMPORTANT: Pricing queries should NEVER show movie suggestions!
+            return ChatResponse.builder()
+                    .answer(aiConsultation)
+                    .suggestions(java.util.List.of())  // Always empty for pricing queries
+                    .showSuggestions(false)            // Always false for pricing queries
+                    .promos(java.util.List.of())
+                    .showPromos(false)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("❌ Error building pricing response: {}", e.getMessage(), e);
+            return buildPricingErrorResponse();
+        }
+    }
+
+    /**
+     * 🎯 Build AI-powered pricing consultation
+     * Uses OpenAI to analyze user needs and recommend best packages
+     */
+    private String buildAIPricingConsultation(String userQuery, flim.backendcartoon.entities.DTO.response.AssistantPricingResponse pricingData) {
+        try {
+            // Build context with pricing data
+            StringBuilder pricingContext = new StringBuilder("BẢNG GIÁ:\n\n");
+
+            // Group by type for easier AI understanding
+            var byType = pricingData.getPackages().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(
+                        flim.backendcartoon.entities.DTO.response.AssistantPackageDTO::getType
+                    ));
+
+            byType.forEach((type, packages) -> {
+                pricingContext.append(type).append(":\n");
+                packages.forEach(pkg -> {
+                    pricingContext.append(String.format("  - %d ngày: %,dđ (~%,dđ/tháng)\n",
+                        pkg.getDurationDays(), pkg.getPrice(), pkg.getPriceMonthly()));
+                });
+                if (!packages.isEmpty() && packages.get(0).getFeatures() != null) {
+                    pricingContext.append("  Features: ").append(String.join(", ", packages.get(0).getFeatures())).append("\n");
+                }
+                pricingContext.append("\n");
+            });
+
+            // Build prompt for AI
+            String fullPrompt = String.format("""
+                Bạn là chuyên gia tư vấn gói phim CartoonToo.
+                
+                %s
+                
+                Khách hỏi: "%s"
+                
+                TƯ VẤN THÔNG MINH:
+                - Nếu hỏi "rẻ/tiết kiệm" → gợi ý NO_ADS 360 ngày (rẻ nhất: 13,250đ/tháng)
+                - Nếu hỏi "4K + nhiều thiết bị" → gợi ý PREMIUM  
+                - Nếu so sánh 2 gói → giải thích rõ khác biệt
+                - Ngắn gọn 3-5 dòng, thân thiện, dùng emoji
+                - ĐỪNG liệt kê hết tất cả gói!
+                
+                Trả lời:
+                """, pricingContext.toString(), userQuery);
+
+            // Use existing AiService with simplified call
+            var response = aiService.composeAnswer(
+                null,  // userName
+                List.of(),  // no movie suggestions
+                fullPrompt,  // user message with context
+                List.of(),  // no history
+                false,  // don't want recommendations
+                false,  // don't want promos
+                List.of(),  // no promos
+                Map.of()  // no extras
+            );
+
+            return response.getAnswer();
+
+        } catch (Exception e) {
+            log.error("❌ AI consultation failed, falling back to simple response: {}", e.getMessage());
+            // Fallback: return simple formatted list
+            return buildSimplePricingList(pricingData);
+        }
+    }
+
+    /**
+     * Fallback: Build simple pricing list when AI fails
+     */
+    private String buildSimplePricingList(flim.backendcartoon.entities.DTO.response.AssistantPricingResponse pricingData) {
+        StringBuilder answer = new StringBuilder();
+        answer.append("Hôm nay có các gói đăng ký sau (giá từ hệ thống):\n\n");
+
+        // Group packages by type
+        var packagesByType = pricingData.getPackages().stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    flim.backendcartoon.entities.DTO.response.AssistantPackageDTO::getType
+                ));
+
+        // Format NO_ADS packages
+        if (packagesByType.containsKey("NO_ADS")) {
+            answer.append("📦 **GÓI BỎ QUẢNG CÁO (NO_ADS)**\n");
+            formatPackageGroup(answer, packagesByType.get("NO_ADS"));
+            answer.append("\n");
+        }
+
+        // Format PREMIUM packages
+        if (packagesByType.containsKey("PREMIUM")) {
+            answer.append("⭐ **GÓI PREMIUM**\n");
+            formatPackageGroup(answer, packagesByType.get("PREMIUM"));
+            answer.append("\n");
+        }
+
+        // Format MEGA_PLUS packages
+        if (packagesByType.containsKey("MEGA_PLUS")) {
+            answer.append("💎 **GÓI MEGA+**\n");
+            formatPackageGroup(answer, packagesByType.get("MEGA_PLUS"));
+            answer.append("\n");
+        }
+
+        // Format COMBO packages
+        if (packagesByType.containsKey("COMBO_PREMIUM_MEGA_PLUS")) {
+            answer.append("🎁 **GÓI COMBO PREMIUM & MEGA+**\n");
+            formatPackageGroup(answer, packagesByType.get("COMBO_PREMIUM_MEGA_PLUS"));
+            answer.append("\n");
+        }
+
+        answer.append("💳 Thanh toán qua: Thẻ ATM, Ví điện tử (Momo, ZaloPay), Chuyển khoản\n");
+        answer.append("💡 Gói dài hạn có giá trung bình/tháng rẻ hơn!\n");
+
+        return answer.toString();
+    }
+
+    /**
+     * Format a group of packages (same type, different durations)
+     */
+    private void formatPackageGroup(StringBuilder answer, List<flim.backendcartoon.entities.DTO.response.AssistantPackageDTO> packages) {
+        packages.stream()
+                .sorted(java.util.Comparator.comparing(flim.backendcartoon.entities.DTO.response.AssistantPackageDTO::getDurationDays))
+                .forEach(pkg -> {
+                    answer.append(String.format("   • %d ngày: %,dđ (~%,dđ/tháng)\n",
+                        pkg.getDurationDays(),
+                        pkg.getPrice(),
+                        pkg.getPriceMonthly()
+                    ));
+
+                    // Show features for first package in group
+                    if (packages.indexOf(pkg) == 0 && pkg.getFeatures() != null && !pkg.getFeatures().isEmpty()) {
+                        pkg.getFeatures().forEach(feature ->
+                            answer.append("     - ").append(feature).append("\n")
+                        );
+                    }
+                });
+    }
+
+    /**
+     * Build error response when pricing data is unavailable
+     * ✅ IMPORTANT: Never returns movie suggestions
+     */
+    private ChatResponse buildPricingErrorResponse() {
+        String errorMessage = "Xin lỗi, hiện không lấy được dữ liệu gói đăng ký. " +
+                              "Vui lòng thử lại sau hoặc liên hệ hỗ trợ.";
+
+        return ChatResponse.builder()
+                .answer(errorMessage)
+                .suggestions(java.util.List.of())  // Never show movies for pricing errors
+                .showSuggestions(false)
+                .promos(java.util.List.of())
+                .showPromos(false)
+                .build();
+    }
+
+    /**
+     * Persist conversation memory
+     */
     private void persistMemory(String convId, String userMsg, String aiAnswer,
                                List<MovieSuggestionDTO> shownSuggestions, boolean wantsRec) {
         if (isBlank(convId)) return;
@@ -534,6 +747,9 @@ public class AiController {
         }
     }
 
+    /**
+     * Convert Movie to info map for AI context
+     */
     private Map<String, Object> toMovieInfo(Movie m) throws AuthorException {
         if (m == null) return null;
         var seasons = seasonService.findByMovieId(m.getMovieId());
@@ -583,6 +799,9 @@ public class AiController {
         return info;
     }
 
+    /**
+     * Find movies mentioned in user query
+     */
     private List<Movie> findMentionedMovies(String qNoAccent) {
         return movieService.findAllMovies().stream()
                 .filter(m -> {
@@ -598,6 +817,9 @@ public class AiController {
     }
 
 
+    /**
+     * Collect active promotions
+     */
     private List<PromoSuggestionDTO> collectActivePromos() {
         var today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         // 1) Lấy promotions đang ACTIVE và chưa hết hạn
@@ -753,7 +975,10 @@ public class AiController {
             Map.entry("T18+", List.of("t18", "18+", "adult"))
     );
 
-    private static Set<String> detectWantedGenres(String qNoAccent) {
+    /**
+     * Detect wanted genres from query
+     */
+    private Set<String> detectWantedGenres(String qNoAccent) {
         Set<String> wanted = new java.util.HashSet<>();
         GENRE_TOKENS.forEach((canonical, tokens) -> {
             for (String t : tokens) if (qNoAccent.contains(t)) { wanted.add(canonical); break; }
@@ -761,11 +986,14 @@ public class AiController {
         return wanted;
     }
 
-    private static boolean movieHasAnyGenreNormalized(Movie m, Set<String> wanted) {
-        if (m.getGenres()==null || wanted.isEmpty()) return false;
+    /**
+     * Check if movie has any wanted genres (normalized)
+     */
+    private boolean movieHasAnyGenreNormalized(Movie m, Set<String> wantedGenres) {
+        if (m.getGenres()==null || wantedGenres.isEmpty()) return false;
         var set = new java.util.HashSet<String>();
         for (String g : m.getGenres()) set.add(vnNorm(g));
-        for (String w : wanted) if (set.contains(vnNorm(w))) return true;
+        for (String w : wantedGenres) if (set.contains(vnNorm(w))) return true;
         return false;
     }
 
