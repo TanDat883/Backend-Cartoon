@@ -41,42 +41,38 @@ public class AiService {
 
         final String safeUser = (userName == null || userName.isBlank()) ? "bạn" : userName;
 
-        // Hướng dẫn model rất rõ + chỉ cho trả JSON
+        // ✅ Rút gọn system prompt để giảm token, giữ nguyên logic
         String system = """
-Bạn là trợ lý thông minh cho website xem phim CartoonToo.
-
-BẠN ĐƯỢC CUNG CẤP TRONG 'Context':
-- currentMovie: object | null
-- mentionedMovies: array
-- candidateSuggestions: array — dùng khi wantsRec=true.
-- **activePromos: array<PromoSuggestionDTO> — các khuyến mãi/voucher đang hoạt động.**
+Trợ lý AI cho website phim CartoonToo. Trả về JSON theo schema:
+{answer:string, showSuggestions:bool, suggestions:[], showPromos:bool, promos:[]}
 
 QUY TẮC:
-1) ...
-4) Chỉ gợi ý từ candidateSuggestions khi wantsRec=true.
-5) **Nếu wantsPromo=true → BẮT BUỘC:**
-   - đặt showPromos=true
-   - đưa tối đa 8 item từ activePromos vào trường `promos`
-   - KHÔNG bịa mã/voucher nếu activePromos rỗng (khi đó để promos=[] và showPromos=false)
-6) Trả về MỘT JSON OBJECT:
-   - answer: string
-   - showSuggestions: boolean
-   - suggestions: array<MovieSuggestionDTO> (<=8)
-   - showPromos: boolean
-   - promos: array<PromoSuggestionDTO> (<=8)
-KHÔNG thêm text ngoài JSON.
-...
-""";
+1) Chỉ gợi ý từ candidateSuggestions khi wantsRec=true (max 8).
+2) Chỉ đưa promos từ activePromos khi wantsPromo=true (max 8). KHÔNG bịa mã.
+3) Dùng currentMovie/mentionedMovies nếu user hỏi chi tiết phim.
+4) Trả ngắn gọn, thân thiện, dùng "%s" khi xưng hô.
+5) KHÔNG text ngoài JSON.
+""".formatted(safeUser);
 
 
 
+        // ✅ Chỉ đưa suggestions/promos vào context khi cần thiết
         Map<String, Object> ctx = new HashMap<>();
         ctx.put("userName", safeUser);
         ctx.put("wantsRec", wantsRec);
         ctx.put("wantsPromo", wantsPromo);
-        ctx.put("candidateSuggestions", suggestions == null ? List.of() : suggestions);
-        ctx.put("activePromos", promos == null ? List.of() : promos);
-        if (extras != null) ctx.putAll(extras);   // ✅ quan trọng
+
+        // ✅ Chỉ gắn candidateSuggestions khi wantsRec=true
+        if (wantsRec && suggestions != null && !suggestions.isEmpty()) {
+            ctx.put("candidateSuggestions", suggestions);
+        }
+
+        // ✅ Chỉ gắn activePromos khi wantsPromo=true
+        if (wantsPromo && promos != null && !promos.isEmpty()) {
+            ctx.put("activePromos", promos);
+        }
+
+        if (extras != null) ctx.putAll(extras);
 
 
         // Ép model theo JSON Schema để giảm sai key
@@ -85,8 +81,11 @@ KHÔNG thêm text ngoài JSON.
         var messages = new ArrayList<Map<String, Object>>();
         messages.add(Map.of("role", "system", "content", system));
 
+        // ✅ Chỉ giữ 3-5 message cuối để giảm payload
         if (history != null && !history.isEmpty()) {
-            for (var m : history) {
+            int startIdx = Math.max(0, history.size() - 5);
+            for (int i = startIdx; i < history.size(); i++) {
+                var m = history.get(i);
                 messages.add(Map.of("role", m.getRole(), "content", m.getContent()));
             }
         }
@@ -103,6 +102,15 @@ KHÔNG thêm text ngoài JSON.
         );
 
         try {
+            // ✅ Đo latency: t_send_openai
+            long tSend = System.currentTimeMillis();
+
+            // ✅ Log payload size
+            String payloadJson = writeSafe(payload);
+            int payloadSize = payloadJson.getBytes().length;
+            log.info("⏱️ OpenAI request | payload_size={}bytes | messages_count={}",
+                    payloadSize, messages.size());
+
             JsonNode root = openAI.post()
                     .uri("/chat/completions")
                     .bodyValue(payload)
@@ -110,22 +118,41 @@ KHÔNG thêm text ngoài JSON.
                     .bodyToMono(JsonNode.class)
                     .block();
 
+            // ✅ Đo latency: t_recv_openai
+            long tRecv = System.currentTimeMillis();
+            long openaiLatency = tRecv - tSend;
+
             String content = root == null ? "{}" : root.at("/choices/0/message/content").asText("{}");
-            log.debug("OpenAI content: {}", content);
+            log.info("⏱️ OpenAI response | latency={}ms | response_size={}bytes",
+                    openaiLatency, content.getBytes().length);
 
             ChatResponse cr = om.readValue(content, ChatResponse.class);
 
             // Chuẩn hoá flags + mảng + câu trả lời
             normalize(cr, safeUser, wantsRec, wantsPromo);
 
+            // ✅ Đo latency end-to-end (từ service call)
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ composeAnswer completed | total_latency={}ms | openai_latency={}ms",
+                    (tEnd - tSend), openaiLatency);
+
             return cr;
 
+        } catch (org.springframework.web.reactive.function.client.WebClientRequestException e) {
+            // ✅ Handle timeout exceptions (ReadTimeoutException, ConnectTimeoutException)
+            if (e.getCause() != null && e.getCause().toString().contains("ReadTimeoutException")) {
+                log.warn("⏱️ OpenAI timeout - Query might be too complex or off-topic | timeout=12s");
+                return fallbackOffTopic(safeUser, suggestions, wantsRec, promos, wantsPromo);
+            }
+            log.error("⚠️ OpenAI connection error: {}", e.getMessage());
+            return fallback(safeUser, suggestions, wantsRec, promos, wantsPromo,
+                    "Mình đang gặp sự cố kết nối. Đây là gợi ý dành cho bạn.");
         } catch (WebClientResponseException e) {
-            log.error("OpenAI API error {} - {}", e.getRawStatusCode(), e.getResponseBodyAsString());
+            log.error("⚠️ OpenAI API error {} - {}", e.getRawStatusCode(), e.getResponseBodyAsString());
             return fallback(safeUser, suggestions, wantsRec, promos, wantsPromo,
                     "Mình đang gặp sự cố kết nối OpenAI. Đây là gợi ý/k.mãi hiện có.");
         } catch (Exception e) {
-            log.error("composeAnswer error", e);
+            log.error("⚠️ composeAnswer error: {}", e.getMessage(), e);
             return fallback(safeUser, suggestions, wantsRec, promos, wantsPromo,
                     "Mình gặp chút trục trặc định dạng, nhưng vẫn hiểu câu hỏi của bạn.");
         }
@@ -167,6 +194,33 @@ KHÔNG thêm text ngoài JSON.
                 .showSuggestions(wantsRec && suggestions != null && !suggestions.isEmpty())
                 .promos(wantsPromo && promos != null ? promos : List.of())
                 .showPromos(wantsPromo && promos != null && !promos.isEmpty())
+                .build();
+    }
+
+    /**
+     * ✅ Fallback for off-topic or timeout queries
+     * Khi user hỏi câu không liên quan đến phim (vd: "trần trọng tín có đỉnh ko")
+     */
+    private ChatResponse fallbackOffTopic(String userName,
+                                          List<MovieSuggestionDTO> suggestions, boolean wantsRec,
+                                          List<PromoSuggestionDTO> promos, boolean wantsPromo) {
+        String answer = String.format(
+                "Xin lỗi %s, mình là trợ lý tìm phim nên chỉ có thể giúp bạn với các câu hỏi về phim, " +
+                "thể loại, diễn viên, hoặc gợi ý xem gì. " +
+                "Bạn có thể thử hỏi như:\n" +
+                "• \"Gợi ý phim hành động Hàn Quốc\"\n" +
+                "• \"Phim anime hay nhất\"\n" +
+                "• \"Có khuyến mãi gì không?\"\n\n" +
+                "Dưới đây là vài gợi ý phim hot hiện tại cho bạn:",
+                userName
+        );
+
+        return ChatResponse.builder()
+                .answer(answer)
+                .suggestions(suggestions != null && !suggestions.isEmpty() ? suggestions : List.of())
+                .showSuggestions(suggestions != null && !suggestions.isEmpty())
+                .promos(List.of())
+                .showPromos(false)
                 .build();
     }
 

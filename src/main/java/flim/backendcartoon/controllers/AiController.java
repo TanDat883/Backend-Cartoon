@@ -37,34 +37,62 @@ public class AiController {
     private final MovieService movieService;
     private final AiService aiService;
     private final ChatMemoryService memory;
+    private final IntentParser intentParser;
+    private final MovieFilterService movieFilterService;
 
     /* ============================ PUBLIC APIs ============================ */
 
     @PostMapping(value = "/chat", produces = "application/json;charset=UTF-8")
     public ResponseEntity<ChatResponse> chat(@AuthenticationPrincipal Jwt jwt,
                                              @RequestBody ChatRequest req) throws AuthorException {
+        // ✅ Start timing for end-to-end latency measurement
+        long tStart = System.currentTimeMillis();
+
         var user = resolveUser(jwt);
         final String convId = nullSafe(req.getConversationId());
 
         final String rawQ = nullSafe(req.getMessage());
         final String q = vnNorm(rawQ); // chuẩn hoá để match không dấu
 
-        // Ý định người dùng
-        final boolean wantsPromo = containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
+        // ✅ FAST-PATH: Parse intent trước khi xử lý logic phức tạp
+        IntentParser.Intent intent = intentParser.parse(rawQ);
+        log.info("⏱️ Intent parsed | isPureFilter={} | genres={} | countries={} | wantsPromo={} | wantsRec={}",
+                intent.isPureFilter(), intent.getGenres(), intent.getCountries(),
+                intent.isWantsPromo(), intent.isWantsRec());
+
+        // ✅ OFF-TOPIC DETECTION: Detect obviously off-topic queries to avoid timeout
+        if (isObviouslyOffTopic(rawQ, intent)) {
+            log.warn("⚠️ Off-topic query detected: {}", rawQ);
+            ChatResponse offTopicResponse = handleOffTopicQuery(user.userName, convId);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Off-topic handled | latency={}ms | no_llm_call=true", (tEnd - tStart));
+            return ResponseEntity.ok(offTopicResponse);
+        }
+
+        // ✅ FAST-PATH: Xử lý query lọc thuần KHÔNG gọi LLM
+        if (intent.isPureFilter()) {
+            ChatResponse fastResponse = handlePureFilterQuery(intent, user.userName, convId, rawQ);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Fast-path completed | latency={}ms | no_llm_call=true", (tEnd - tStart));
+            return ResponseEntity.ok(fastResponse);
+        }
+
+        // Ý định người dùng (fallback từ rule cũ)
+        final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
 
         // Phim ngữ cảnh
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
         List<Movie> mentioned = findMentionedMovies(q);
 
         //nhận diện gợi ý
-        final boolean explicitRec = containsAny(q,
+        final boolean explicitRec = intent.isWantsRec() || containsAny(q,
                 "goi y","de xuat","xem gi","nen xem","top","trending",
                 "hay nhat","phu hop",
                 "phim nao hay","co phim nao hay","co gi xem", "hay khong", "hay ko",
                 "recommend","suggest"
         );
         // Nếu hỏi thông tin phim → tắt gợi ý
-        boolean asksInfo = current != null || !mentioned.isEmpty()
+        boolean asksInfo = intent.isAsksInfo() || current != null || !mentioned.isEmpty()
                 || containsAny(q, "thong tin","noi dung","tom tat","bao nhieu tap","may tap",
                 "trailer","danh gia","rating","nam phat hanh","quoc gia","luot xem",
                 "dien vien","dao dien","season","phan","tap");
@@ -104,8 +132,14 @@ public class AiController {
 
         // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
         if (wantsPromo) {
+            log.info("⏱️ Promo query detected | building promo response...");
             ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
+            log.info("✅ Promo response built | promos_count={} | has_promos={}",
+                    promoResp.getPromos() != null ? promoResp.getPromos().size() : 0,
+                    promoResp.getShowPromos());
             persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Promo query completed | latency={}ms", (tEnd - tStart));
             return ResponseEntity.ok(promoResp);
         }
 
@@ -131,11 +165,15 @@ public class AiController {
                 user.userName, candidates, rawQ, prev, wantsRec, wantsPromo, promos, extras
         );
 
-        // Lưu lịch sử + danh sách đề xuất đã hiển thị (để hiểu “hai phim đó” ở lượt sau)
+        // Lưu lịch sử + danh sách đề xuất đã hiển thị (để hiểu "hai phim đó" ở lượt sau)
         persistMemory(convId, rawQ, resp.getAnswer(),
                 (resp.getShowSuggestions()!=null && resp.getShowSuggestions())
                         ? nullSafe(resp.getSuggestions()) : candidates,
                 wantsRec);
+
+        // ✅ Log end-to-end latency
+        long tEnd = System.currentTimeMillis();
+        log.info("⏱️ Chat completed | end_to_end_latency={}ms | llm_called=true", (tEnd - tStart));
 
         return ResponseEntity.ok(resp);
     }
@@ -168,6 +206,162 @@ public class AiController {
     }
 
     /* ============================ HELPERS ============================ */
+
+    /**
+     * ✅ OFF-TOPIC DETECTION: Phát hiện câu hỏi rõ ràng không liên quan đến phim
+     * Tránh gọi OpenAI cho queries như: "trần trọng tín có đỉnh ko", "2+2=?", etc.
+     */
+    private boolean isObviouslyOffTopic(String query, IntentParser.Intent intent) {
+        if (query == null || query.length() < 3) return false;
+
+        String q = vnNorm(query.toLowerCase());
+
+        // Has any movie-related intent? → NOT off-topic
+        if (!intent.getGenres().isEmpty() || !intent.getCountries().isEmpty() ||
+            intent.isWantsPromo() || intent.isWantsRec() || intent.isAsksInfo()) {
+            return false;
+        }
+
+        // Check for movie-related keywords
+        if (containsAny(q, "phim", "movie", "film", "tap", "episode", "season", "phan",
+                "xem", "watch", "trailer", "rating", "danh gia", "dien vien", "actor",
+                "dao dien", "director", "the loai", "genre", "quoc gia", "country")) {
+            return false;
+        }
+
+        // ✅ Obviously off-topic patterns
+        // Personal questions about people (not actors/directors)
+        if (containsAny(q, "co dinh ko", "co dep ko", "co gioi ko", "co hay ko") &&
+            !containsAny(q, "phim", "movie", "tap", "season")) {
+            return true;
+        }
+
+        // Math questions
+        if (q.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
+            return true;
+        }
+
+        // General knowledge not related to movies
+        if (containsAny(q, "thu do", "capital", "tong thong", "president", "toan hoc", "math") &&
+            !containsAny(q, "phim", "movie")) {
+            return true;
+        }
+
+        // Very short queries without movie keywords (likely random)
+        if (q.length() < 15 && !containsAny(q, "phim", "movie", "xem", "goi y", "top", "hay")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * ✅ Handle off-topic queries gracefully without calling OpenAI
+     */
+    private ChatResponse handleOffTopicQuery(String userName, String convId) {
+        String answer = String.format(
+                "Xin lỗi %s, mình là trợ lý tìm phim nên chỉ có thể giúp bạn với các câu hỏi về phim, " +
+                        "thể loại, diễn viên, hoặc gợi ý xem gì. " +
+                        "Bạn có thể thử hỏi như:\n" +
+                        "• \"Gợi ý phim hành động Hàn Quốc\"\n" +
+                        "• \"Phim anime hay nhất\"\n" +
+                        "• \"Có khuyến mãi gì không?\"\n\n" +
+                        "Dưới đây là vài gợi ý phim hot hiện tại:",
+                userName
+        );
+
+        // Get top movies as suggestions
+        var topMovies = movieFilterService.getTopMovies(8);
+
+        ChatResponse resp = ChatResponse.builder()
+                .answer(answer)
+                .suggestions(topMovies)
+                .showSuggestions(!topMovies.isEmpty())
+                .promos(List.of())
+                .showPromos(false)
+                .build();
+
+        // Persist memory
+        persistMemory(convId, "", answer, topMovies, false);
+
+        return resp;
+    }
+
+    /**
+     * ✅ FAST-PATH: Xử lý query lọc thuần (country/genre/year) KHÔNG gọi LLM
+     * Target: ≤300ms server time
+     */
+    private ChatResponse handlePureFilterQuery(IntentParser.Intent intent, String userName,
+                                               String convId, String userMessage) {
+        // ✅ SEMANTIC SEARCH: Sử dụng semantic understanding
+        // "hoạt hình" → also search "anime", "thiếu nhi", etc.
+        var filtered = movieFilterService.filterMoviesWithSemanticFallback(
+                intent.getGenres(),
+                intent.getCountries(),
+                intent.getYearMin(),
+                intent.getYearMax(),
+                8
+        );
+
+        // Build response template
+        // Convert country names to Vietnamese for friendly response
+        String countriesText = intent.getCountries().isEmpty() ? "" :
+                String.join(", ", intent.getCountries().stream()
+                        .map(this::toVietnameseCountryName)
+                        .toList()) + " ";
+
+        String genresText = intent.getGenres().isEmpty() ? "" :
+                "thể loại " + String.join(", ", intent.getGenres().stream()
+                        .map(this::toVietnameseGenreName)
+                        .toList());
+
+        String answer;
+        if (filtered.isEmpty()) {
+            // Không tìm thấy → gợi ý thay thế
+            answer = String.format("Mình chưa tìm thấy phim %s%s phù hợp. Thử thay đổi bộ lọc hoặc xem gợi ý khác nhé!",
+                    countriesText, genresText);
+
+            // ✅ Gợi ý thay thế: lấy phim hot hiện tại
+            filtered = movieFilterService.getTopMovies(8);
+        } else {
+            // ✅ SMART MESSAGE: Giải thích nếu dùng semantic fallback
+            // Check if we used semantic expansion (found movies but different genre names)
+            boolean usedSemanticFallback = filtered.stream()
+                    .anyMatch(m -> m.getGenres() != null &&
+                            m.getGenres().stream().noneMatch(g ->
+                                    intent.getGenres().stream().anyMatch(wanted ->
+                                            vnNorm(g).equals(vnNorm(wanted)))));
+
+            if (usedSemanticFallback && !intent.getGenres().isEmpty()) {
+                // Explain semantic match
+                answer = String.format("Mình tìm thấy %d phim %sliên quan đến %s cho %s:",
+                        filtered.size(),
+                        countriesText,
+                        genresText,
+                        userName);
+            } else {
+                // Normal match
+                answer = String.format("Mình tìm thấy %d phim %s%s cho %s:",
+                        filtered.size(),
+                        countriesText,
+                        genresText,
+                        userName);
+            }
+        }
+
+        ChatResponse resp = ChatResponse.builder()
+                .answer(answer)
+                .suggestions(filtered)
+                .showSuggestions(!filtered.isEmpty())
+                .promos(List.of())
+                .showPromos(false)
+                .build();
+
+        // Persist memory
+        persistMemory(convId, userMessage, answer, filtered, true);
+
+        return resp;
+    }
 
     private record UserCtx(String userId, String userName) {}
 
@@ -207,15 +401,25 @@ public class AiController {
         var today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
 
         // 1) Lọc Promotion đang hoạt động trong khung ngày
-        var activePromos = promotionService.listAll().stream()
+        var allPromos = promotionService.listAll();
+        log.debug("🎁 Total promotions in DB: {}", allPromos.size());
+
+        var activePromos = allPromos.stream()
                 .filter(p -> {
                     String st = normStatus(p.getStatus());
                     boolean okStatus = "ACTIVE".equals(st) || st.isBlank();
                     boolean okStart  = (p.getStartDate() == null) || !today.isBefore(p.getStartDate());
                     boolean okEnd    = (p.getEndDate()   == null) || !today.isAfter(p.getEndDate());
-                    return okStatus && okStart && okEnd;
+                    boolean result = okStatus && okStart && okEnd;
+                    if (!result) {
+                        log.debug("❌ Filtered out promo: {} | status={} | startDate={} | endDate={} | today={}",
+                                p.getPromotionName(), p.getStatus(), p.getStartDate(), p.getEndDate(), today);
+                    }
+                    return result;
                 })
                 .toList();
+
+        log.info("🎁 Active promotions after filter: {} (out of {})", activePromos.size(), allPromos.size());
 
         var promoCards = new java.util.ArrayList<PromoSuggestionDTO>();
 
@@ -297,6 +501,17 @@ public class AiController {
         String answer = promoCards.isEmpty()
                 ? "Hiện chưa có khuyến mãi/voucher đang hoạt động."
                 : "Đây là các khuyến mãi/voucher đang hoạt động. Bấm vào để sao chép mã và dùng khi thanh toán:";
+
+        log.info("🎁 Final promo cards: {} | answer: {}", promoCards.size(),
+                promoCards.isEmpty() ? "No promos" : "Has promos");
+
+        if (promoCards.isEmpty()) {
+            log.warn("⚠️ No active promos found! Check database:");
+            log.warn("   - Are there promotions with status='ACTIVE'?");
+            log.warn("   - Are start/end dates valid for today ({})?", today);
+            log.warn("   - Do promotion lines have status='ACTIVE'?");
+            log.warn("   - Do promotion details (vouchers/packages) exist?");
+        }
 
         return ChatResponse.builder()
                 .answer(answer)
@@ -579,4 +794,47 @@ public class AiController {
     }
 
     private static <T> List<T> nullSafe(List<T> list) { return list == null ? List.of() : list; }
+
+    /**
+     * Convert English country name to Vietnamese for friendly display
+     */
+    private String toVietnameseCountryName(String englishName) {
+        return switch (englishName) {
+            case "South Korea" -> "Hàn Quốc";
+            case "Japan" -> "Nhật Bản";
+            case "United States" -> "Mỹ";
+            case "China" -> "Trung Quốc";
+            case "Thailand" -> "Thái Lan";
+            case "Vietnam" -> "Việt Nam";
+            case "Taiwan" -> "Đài Loan";
+            case "Hong Kong" -> "Hồng Kông";
+            case "United Kingdom" -> "Anh";
+            case "France" -> "Pháp";
+            default -> englishName; // Giữ nguyên nếu không có mapping
+        };
+    }
+
+    /**
+     * Convert genre key to Vietnamese for friendly display
+     */
+    private String toVietnameseGenreName(String genreKey) {
+        return switch (genreKey) {
+            case "hanh dong" -> "hành động";
+            case "hai" -> "hài";
+            case "tinh cam" -> "tình cảm";
+            case "kinh di" -> "kinh dị";
+            case "hoat hinh" -> "hoạt hình";
+            case "phieu luu" -> "phiêu lưu";
+            case "tam ly" -> "tâm lý";
+            case "gia dinh" -> "gia đình";
+            case "vien tuong" -> "viễn tưởng";
+            case "khoa hoc" -> "khoa học";
+            case "chien tranh" -> "chiến tranh";
+            case "vo thuat" -> "võ thuật";
+            case "bi an" -> "bí ẩn";
+            case "hinh su" -> "hình sự";
+            case "the thao" -> "thể thao";
+            default -> genreKey; // Giữ nguyên nếu không có mapping
+        };
+    }
 }
