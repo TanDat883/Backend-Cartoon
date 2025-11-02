@@ -305,9 +305,16 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         // 5. Check if room has viewers (if not force)
         if (!force) {
             java.util.List<flim.backendcartoon.entities.WatchRoomMember> onlineMembers = watchRoomMemberService.getOnlineMembers(roomId);
-            if (!onlineMembers.isEmpty()) {
+
+            // ✅ FIX: Exclude the actor (person deleting) from viewer count
+            // Only count OTHER online viewers, not the host themselves
+            long otherViewersCount = onlineMembers.stream()
+                .filter(member -> !actorId.equals(member.getUserId()))
+                .count();
+
+            if (otherViewersCount > 0) {
                 throw new flim.backendcartoon.exception.RoomHasViewersException(
-                    "Cannot delete room with " + onlineMembers.size() + " active viewers. Use force=true to override"
+                    "Cannot delete room with " + otherViewersCount + " other active viewers. Use force=true to override"
                 );
             }
         }
