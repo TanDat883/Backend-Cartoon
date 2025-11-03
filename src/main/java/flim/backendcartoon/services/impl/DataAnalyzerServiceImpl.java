@@ -787,20 +787,19 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
 
         long totalRedemptions = withAnyPromotion.size();
         long uniqueUsers = withAnyPromotion.stream().map(Payment::getUserId).filter(Objects::nonNull).distinct().count();
-        long totalDiscountGranted = withAnyPromotion.stream()
-                .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
-                .filter(Objects::nonNull)
-                .mapToLong(pd -> L(pd.getDiscountAmount())).sum();
 
+        // ✅ FIX: Calculate actual discount from original - final
         long totalOriginalAmount = withAnyPromotion.stream()
-        .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
+                .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
                 .filter(Objects::nonNull)
                 .mapToLong(pd -> L(pd.getOriginalAmount())).sum();
 
         long totalFinalAmount = withAnyPromotion.stream()
-            .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
+                .map(payment -> paymentDetailRepository.findById(payment.getPaymentId()))
                 .filter(Objects::nonNull)
                 .mapToLong(pd -> L(pd.getFinalAmount())).sum();
+
+        long totalDiscountGranted = totalOriginalAmount - totalFinalAmount;
 
         // first/last
         var dates = withAnyPromotion.stream().map(this::paymentLocalDate)
@@ -834,9 +833,13 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                     for (var p : list) {
                         var pd = getPD(p);
                         if (pd == null) continue;
-                        sumDisc += L(pd.getDiscountAmount());
-                        sumOri  += L(pd.getOriginalAmount());
-                        sumFin  += L(pd.getFinalAmount());
+                        // ✅ FIX: Giảm giá = Giá gốc - Thu (sau giảm)
+                        long originalAmt = L(pd.getOriginalAmount());
+                        long finalAmt = L(pd.getFinalAmount());
+                        long actualDiscount = originalAmt - finalAmt;
+                        sumDisc += actualDiscount;
+                        sumOri  += originalAmt;
+                        sumFin  += finalAmt;
                         LocalDate d = paymentLocalDate(p);
                         if (d != null) {
                             if (f == null || d.isBefore(f)) f = d;
@@ -912,9 +915,13 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                     for (var p : list) {
                         var pd = getPD(p);
                         if (pd == null) continue;
-                        sumDisc += L(pd.getDiscountAmount());
-                        sumOri  += L(pd.getOriginalAmount());
-                        sumFin  += L(pd.getFinalAmount());
+                        // ✅ FIX: Giảm giá = Giá gốc - Thu (sau giảm)
+                        long originalAmt = L(pd.getOriginalAmount());
+                        long finalAmt = L(pd.getFinalAmount());
+                        long actualDiscount = originalAmt - finalAmt;
+                        sumDisc += actualDiscount;
+                        sumOri  += originalAmt;
+                        sumFin  += finalAmt;
                         LocalDate d = paymentLocalDate(p);
                         if (d != null) {
                             if (f == null || d.isBefore(f)) f = d;
@@ -1002,9 +1009,13 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
             sums.computeIfAbsent(lineId, k -> new long[4]);
             var arr = sums.get(lineId);
             arr[0] += 1;
-            arr[1] += L(pd.getDiscountAmount());
-            arr[2] += L(pd.getOriginalAmount());
-            arr[3] += L(pd.getFinalAmount());
+            // ✅ FIX: Giảm giá = Giá gốc - Thu (sau giảm), KHÔNG lấy discountAmount trực tiếp
+            long originalAmt = L(pd.getOriginalAmount());
+            long finalAmt = L(pd.getFinalAmount());
+            long actualDiscount = originalAmt - finalAmt;
+            arr[1] += actualDiscount;  // Tổng giảm giá thực tế
+            arr[2] += originalAmt;     // Tổng giá gốc
+            arr[3] += finalAmt;        // Tổng thu (sau giảm)
             lineToPromo.put(lineId, pid);
             lineTypeMap.put(lineId, type);
         }
@@ -1088,7 +1099,9 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                 case MONTH -> YearMonth.from(d).toString();
             };
             usage.computeIfPresent(key, (k, v) -> v + 1);
-            discount.computeIfPresent(key, (k, v) -> v + L(pd.getDiscountAmount()));
+            // ✅ FIX: Giảm giá = Giá gốc - Thu (sau giảm)
+            long actualDiscount = L(pd.getOriginalAmount()) - L(pd.getFinalAmount());
+            discount.computeIfPresent(key, (k, v) -> v + actualDiscount);
         }
 
         var labels = new ArrayList<>(usage.keySet());
@@ -1133,9 +1146,13 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
             for (var p : list) {
                 var pd = getPD(p);
                 if (pd == null) continue;
-                sumDisc += L(pd.getDiscountAmount());
-                sumOri  += L(pd.getOriginalAmount());
-                sumFin  += L(pd.getFinalAmount());
+                // ✅ FIX: Giảm giá = Giá gốc - Thu (sau giảm)
+                long originalAmt = L(pd.getOriginalAmount());
+                long finalAmt = L(pd.getFinalAmount());
+                long actualDiscount = originalAmt - finalAmt;
+                sumDisc += actualDiscount;
+                sumOri  += originalAmt;
+                sumFin  += finalAmt;
                 LocalDate d = paymentLocalDate(p);
                 if (d != null) {
                     if (f == null || d.isBefore(f)) f = d;
@@ -1173,15 +1190,18 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
                 .toList();
 
         // 2) Map payment -> detail (ưu tiên by paymentId, fallback paymentCode)
-        Map<Long, PaymentDetail> detailById = new HashMap<>();
+        // ✅ FIX: Use correct key types - paymentId is String, paymentCode is Long
+        Map<String, PaymentDetail> detailById = new HashMap<>();
         Map<Long, PaymentDetail> detailByCode = new HashMap<>();
         for (Payment p : all) {
-            PaymentDetail pd = paymentDetailRepository.findById(p.getPaymentId());
-            if (pd != null) detailById.put(p.getPaymentCode(), pd);
+            if (p.getPaymentId() != null) {
+                PaymentDetail pd = paymentDetailRepository.findById(p.getPaymentId());
+                if (pd != null) detailById.put(p.getPaymentId(), pd);  // ✅ Key = paymentId (String)
+            }
             if (p.getPaymentCode() != null) {
                 try {
                     PaymentDetail pd2 = paymentDetailRepository.findByPaymentCode(p.getPaymentCode());
-                    if (pd2 != null) detailByCode.put(p.getPaymentCode(), pd2);
+                    if (pd2 != null) detailByCode.put(p.getPaymentCode(), pd2);  // ✅ Key = paymentCode (Long)
                 } catch (Throwable ignore) {}
             }
         }
@@ -1201,13 +1221,16 @@ public class DataAnalyzerServiceImpl implements DataAnalyzerService {
             // số liệu tiền
             long fin  = p.getFinalAmount() == null ? 0 : p.getFinalAmount();
             long orig = 0, disc = 0;
-            PaymentDetail pd = (detailById.get(p.getPaymentId()) != null)
-                    ? detailById.get(p.getPaymentId())
-                    : (p.getPaymentCode() != null ? detailByCode.get(p.getPaymentCode()) : null);
+            // ✅ FIX: Get from correct map with correct key type
+            PaymentDetail pd = detailById.get(p.getPaymentId());  // paymentId is String
+            if (pd == null && p.getPaymentCode() != null) {
+                pd = detailByCode.get(p.getPaymentCode());  // paymentCode is Long
+            }
             if (pd != null) {
                 if (pd.getFinalAmount()   != null) fin  = pd.getFinalAmount();
                 if (pd.getOriginalAmount()!= null) orig = pd.getOriginalAmount();
-                if (pd.getDiscountAmount()!= null) disc = pd.getDiscountAmount();
+                // ✅ Giảm giá = Giá gốc - Thu (sau giảm)
+                disc = orig - fin;
             }
 
             it.setTxCount(it.getTxCount() + 1);
