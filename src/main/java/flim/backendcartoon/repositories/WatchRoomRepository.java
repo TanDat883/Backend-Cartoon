@@ -16,10 +16,7 @@ package flim.backendcartoon.repositories;
 import flim.backendcartoon.entities.Promotion;
 import flim.backendcartoon.entities.WatchRoom;
 import org.springframework.stereotype.Repository;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
-import software.amazon.awssdk.enhanced.dynamodb.Expression;
-import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+import software.amazon.awssdk.enhanced.dynamodb.*;
 
 import java.util.List;
 @Repository
@@ -68,5 +65,10 @@ public class WatchRoomRepository {
     // CẢNH BÁO: scan chỉ nên dùng tạm để test
     public List<WatchRoom> findAll() {
         return table.scan().items().stream().toList();
+    }
+
+    //xóa phòng
+    public void deleteRoom (String roomId){
+        table.deleteItem(Key.builder().partitionValue(roomId).build());
     }
 }

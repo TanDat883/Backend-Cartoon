@@ -18,6 +18,8 @@ import flim.backendcartoon.entities.DTO.response.VideoStateDTO;
 import flim.backendcartoon.entities.DTO.request.JoinRoomRequest;
 import flim.backendcartoon.entities.DTO.response.JoinRoomResponse;
 import flim.backendcartoon.entities.DTO.response.WatchRoomResponse;
+import flim.backendcartoon.entities.Role;
+import flim.backendcartoon.entities.User;
 import flim.backendcartoon.entities.WatchRoom;
 import flim.backendcartoon.repositories.MovieRepository;
 import flim.backendcartoon.repositories.UserReponsitory;
@@ -288,14 +290,14 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         }
 
         // 3. Get user role
-        flim.backendcartoon.entities.User user = userReponsitory.findById(actorId);
+        User user = userReponsitory.findById(actorId);
         if (user == null) {
             throw new flim.backendcartoon.exception.UnauthorizedException("User not found");
         }
 
         // 4. Check permission: must be ADMIN or host
         String hostUserId = room.getHostUserId() != null ? room.getHostUserId() : room.getUserId();
-        boolean isAdmin = user.getRole() == flim.backendcartoon.entities.Role.ADMIN;
+        boolean isAdmin = user.getRole() == Role.ADMIN;
         boolean isHost = actorId.equals(hostUserId);
 
         if (!isAdmin && !isHost) {
@@ -342,6 +344,12 @@ public class WatchRoomServiceImpl implements WatchRoomService {
         System.out.println("🗑️ Deleted " + deletedMembers + " members from room " + roomId);
 
         System.out.println("✅ Room deleted: roomId=" + roomId + ", deletedBy=" + actorId);
+
+        //10 Delete room
+        if(roomId != null && !roomId.isBlank()) {
+            watchRoomRepository.deleteRoom(roomId);
+        }
+
     }
 
     /**
