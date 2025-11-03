@@ -41,7 +41,7 @@ public class AiService {
 
         final String safeUser = (userName == null || userName.isBlank()) ? "bạn" : userName;
 
-        // ✅ Rút gọn system prompt để giảm token, giữ nguyên logic
+        // ✅ Improved system prompt với context awareness
         String system = """
 Trợ lý AI cho website phim CartoonToo. Trả về JSON theo schema:
 {answer:string, showSuggestions:bool, suggestions:[], showPromos:bool, promos:[]}
@@ -52,6 +52,13 @@ QUY TẮC:
 3) Dùng currentMovie/mentionedMovies nếu user hỏi chi tiết phim.
 4) Trả ngắn gọn, thân thiện, dùng "%s" khi xưng hô.
 5) KHÔNG text ngoài JSON.
+
+⚠️ QUAN TRỌNG - PHÂN BIỆT NGỮ CẢNH:
+- Nếu candidateSuggestions có sẵn + user hỏi "nên xem bộ nào"/"phim nào hay"
+  → User đang hỏi về PHIM trong danh sách, KHÔNG phải gói đăng ký
+  → Trả lời về PHIM, so sánh thể loại/rating/nội dung
+- Nếu user hỏi "gói đăng ký"/"giá tiền"/"mua gói"
+  → Đó mới là hỏi về pricing/subscription
 """.formatted(safeUser);
 
 

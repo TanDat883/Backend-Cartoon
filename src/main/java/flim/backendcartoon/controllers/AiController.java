@@ -80,16 +80,24 @@ public class AiController {
         // Ý định người dùng (fallback từ rule cũ)
         final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
 
-        // ✅ NEW: Detect pricing queries
-        final boolean wantsPricing = containsAny(q,
-            "goi dang ky","goi nao","goi gi","goi thanh vien",
-            "gia tien","gia ca","bao nhieu tien","phi","cost","price",
-            "premium","basic","vip","membership","subscription",
-            "dang ky","mua goi","thanh toan");
-
         // Phim ngữ cảnh
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
         List<Movie> mentioned = findMentionedMovies(q);
+
+        // ✅ Get prior suggestions from conversation history (for context awareness)
+        List<MovieSuggestionDTO> prior = isBlank(convId) ? List.of() : memory.getSuggestions(convId);
+
+        // ✅ FIX: Detect pricing queries MORE PRECISELY
+        // Must have EXPLICIT pricing keywords, not just "gói" or "nào"
+        final boolean wantsPricing =
+            // Explicit package/pricing keywords
+            (containsAny(q, "goi dang ky","goi thanh vien","goi premium","goi mega","goi combo","goi no ads") ||
+             containsAny(q, "gia tien","gia ca","bao nhieu tien","phi","cost","price","package","pricing") ||
+             containsAny(q, "dang ky goi","mua goi","thanh toan goi","nang cap goi"))
+            // ✅ AND must NOT be in movie recommendation context
+            && !containsAny(q, "phim","bo","tap","xem","truyen","anime","movie","film","series")
+            // ✅ AND must NOT have prior movie suggestions (user đang hỏi về phim)
+            && prior.isEmpty();
 
         //nhận diện gợi ý
         final boolean explicitRec = intent.isWantsRec() || containsAny(q,
@@ -108,8 +116,7 @@ public class AiController {
         boolean wantsRec = explicitRec || (!asksInfo && !wantsPromo && !wantsPricing);
         if (asksInfo || wantsPricing) wantsRec = false;
 
-        // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước
-        List<MovieSuggestionDTO> prior = isBlank(convId) ? List.of() : memory.getSuggestions(convId);
+        // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước (already loaded above)
         List<MovieSuggestionDTO> candidates = !prior.isEmpty()
                 ? prior
                 : recService.recommendForUser(user.userId, req.getCurrentMovieId(), 8);
