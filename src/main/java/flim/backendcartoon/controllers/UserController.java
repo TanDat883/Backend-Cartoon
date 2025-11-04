@@ -123,4 +123,53 @@ public class UserController {
         List<VipSubscription> packages = vipSubscriptionService.UserVipSubscriptions(userId);
         return ResponseEntity.ok(packages);
     }
+
+    /**
+     * Check VIP subscription status for watch party eligibility
+     * Required: COMBO_PREMIUM_MEGA_PLUS package with ACTIVE status
+     */
+    @GetMapping("/{userId}/vip-status")
+    public ResponseEntity<?> getVipStatus(@PathVariable String userId) {
+        try {
+            User user = userService.findUserById(userId);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("error", "Không tìm thấy người dùng"));
+            }
+
+            // Tìm subscription COMBO_PREMIUM_MEGA_PLUS đang active
+            VipSubscription vipSub = vipSubscriptionService
+                    .findActiveVipByUserIdAndPackageType(
+                            userId,
+                            flim.backendcartoon.entities.PackageType.COMBO_PREMIUM_MEGA_PLUS
+                    );
+
+            if (vipSub == null) {
+                // Trả về thông tin user không có gói COMBO
+                return ResponseEntity.ok(Map.of(
+                        "userId", userId,
+                        "packageType", "",
+                        "status", "NONE",
+                        "endDate", "",
+                        "message", "Chưa có gói COMBO PREMIUM"
+                ));
+            }
+
+            // Trả về thông tin subscription
+            return ResponseEntity.ok(Map.of(
+                    "userId", userId,
+                    "vipId", vipSub.getVipId() != null ? vipSub.getVipId() : "",
+                    "packageId", vipSub.getPackageId() != null ? vipSub.getPackageId() : "",
+                    "packageType", vipSub.getPackageType().name(),
+                    "status", vipSub.getStatus() != null ? vipSub.getStatus() : "",
+                    "startDate", vipSub.getStartDate() != null ? vipSub.getStartDate() : "",
+                    "endDate", vipSub.getEndDate() != null ? vipSub.getEndDate() : "",
+                    "orderCode", vipSub.getOrderCode() != null ? vipSub.getOrderCode() : ""
+            ));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Lỗi hệ thống: " + e.getMessage()));
+        }
+    }
 }
