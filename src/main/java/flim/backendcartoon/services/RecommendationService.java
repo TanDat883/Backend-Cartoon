@@ -56,14 +56,17 @@ public class RecommendationService {
         return candidates.stream()
                 .filter(m -> !exclude.contains(m.getMovieId()))
                 .limit(limit)
-                .map(m -> new MovieSuggestionDTO(
-                        m.getMovieId(),
-                        m.getTitle(),
-                        m.getThumbnailUrl(),
-                        m.getGenres(),
-                        m.getViewCount(),
-                        m.getAvgRating()
-                ))
+                .map(m -> {
+                    MovieSuggestionDTO dto = new MovieSuggestionDTO();
+                    dto.setMovieId(m.getMovieId());
+                    dto.setTitle(m.getTitle());
+                    dto.setThumbnailUrl(m.getThumbnailUrl());
+                    dto.setGenres(m.getGenres());
+                    dto.setViewCount(m.getViewCount());
+                    dto.setAvgRating(m.getAvgRating());
+                    dto.setScore(null);
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 }

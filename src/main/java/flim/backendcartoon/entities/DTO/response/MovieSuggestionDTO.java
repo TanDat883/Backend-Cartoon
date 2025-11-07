@@ -16,4 +16,5 @@ public class MovieSuggestionDTO {
     private List<String> genres;
     private Long viewCount;
     private Double avgRating;
+    private Double score; // Personalization similarity score (Patch 3)
 }

@@ -31,7 +31,7 @@ public class UserSignal {
     private String eventType;           // "click_movie" | "view_engaged" | etc.
     private String movieId;             // Which movie (nullable for search_query)
     private String movieTitle;          // Denormalized for easy display
-    private Map<String, Object> metadata; // Flexible: {source: "chatbot", watchTime: 35, query: "anime hay"}
+    private Map<String, String> metadata; // Flexible: {source: "chatbot", watchTime: "35", query: "anime hay"}
     private Long ttl;                   // DynamoDB TTL: 90 days
 
     @DynamoDbPartitionKey
@@ -82,11 +82,11 @@ public class UserSignal {
     }
 
     @DynamoDbAttribute("metadata")
-    public Map<String, Object> getMetadata() {
+    public Map<String, String> getMetadata() {
         return metadata != null ? metadata : new HashMap<>();
     }
 
-    public void setMetadata(Map<String, Object> metadata) {
+    public void setMetadata(Map<String, String> metadata) {
         this.metadata = metadata;
     }
 

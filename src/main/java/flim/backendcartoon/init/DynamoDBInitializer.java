@@ -43,6 +43,10 @@ public class DynamoDBInitializer implements CommandLineRunner {
         createTableIfNotExists(WatchRoomMember.class, "WatchRoomMember");
         createTableIfNotExists(RoomMessage.class, "RoomMessage");
 
+        createTableIfNotExists(UserProfile.class, "UserProfile");
+        createTableIfNotExists(UserSignal.class, "UserSignal");
+        createTableIfNotExists(ItemEmbedding.class, "ItemEmbedding");
+
     }
 
     private <T> void createTableIfNotExists(Class<T> clazz, String tableName) {

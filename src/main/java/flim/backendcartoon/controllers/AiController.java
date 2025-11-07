@@ -124,15 +124,23 @@ public class AiController {
         // --- Nếu user hỏi theo thể loại (vd: anime/hoạt hình) → ghi đè candidates bằng danh sách đã lọc ---
         Set<String> wantedGenres = detectWantedGenres(q);
         if (!wantedGenres.isEmpty()) {
-            var filtered = movieService.findAllMovies().stream()
+            List<MovieSuggestionDTO> filtered = movieService.findAllMovies().stream()
                     .filter(m -> movieHasAnyGenreNormalized(m, wantedGenres))
                     .sorted((a,b) -> Long.compare(
                             (b.getViewCount()==null?0:b.getViewCount()),
                             (a.getViewCount()==null?0:a.getViewCount())))
                     .limit(8)
-                    .map(m -> new MovieSuggestionDTO(
-                            m.getMovieId(), m.getTitle(), m.getThumbnailUrl(),
-                            m.getGenres(), m.getViewCount(), m.getAvgRating()))
+                    .map(m -> {
+                        MovieSuggestionDTO dto = new MovieSuggestionDTO();
+                        dto.setMovieId(m.getMovieId());
+                        dto.setTitle(m.getTitle());
+                        dto.setThumbnailUrl(m.getThumbnailUrl());
+                        dto.setGenres(m.getGenres());
+                        dto.setViewCount(m.getViewCount());
+                        dto.setAvgRating(m.getAvgRating());
+                        dto.setScore(null); // Not a personalized recommendation
+                        return dto;
+                    })
                     .toList();
 
             if (!filtered.isEmpty()) {
