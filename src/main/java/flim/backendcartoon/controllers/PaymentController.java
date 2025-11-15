@@ -27,7 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import vn.payos.type.CheckoutResponseData;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -120,7 +120,7 @@ public class PaymentController {
         }
 
         // Gọi PayOS để tạo link thanh toán
-        CheckoutResponseData data = paymentService.createPaymentLink(
+        CreatePaymentLinkResponse data = paymentService.createPaymentLink(
                 productName, description, Math.toIntExact(finalAmount),
                 req.getReturnUrl(), req.getCancelUrl()
         );
@@ -226,11 +226,17 @@ public class PaymentController {
                 VipSubscription vipSubscription = vipSubscriptionService.findActiveVipByUserIdAndPackageType(user.getUserId(), packageType);
 
                 if (vipSubscription != null) {
-                    // Nếu đã có gói VIP, lấy ngày kết thúc của gói hiện tại làm ngày bắt đầu của gói mới
+                    LocalDate today = LocalDate.now();
                     LocalDate currentEndDate = LocalDate.parse(vipSubscription.getEndDate());
-                    // Chỉ sử dụng ngày kết thúc nếu nó là trong tương lai
-                    if (currentEndDate.isAfter(startDate)) {
+
+                    // Nếu ngày kết thúc hiện tại >= hôm nay
+                    // (nghĩa là còn hiệu lực hoặc hết hạn đúng hôm nay)
+                    if (!currentEndDate.isBefore(today)) {
+                        // gói mới bắt đầu từ ngày hôm sau
                         startDate = currentEndDate.plusDays(1);
+                    } else {
+                        // nếu đã hết hạn từ lâu thì cho start từ hôm nay
+                        startDate = today;
                     }
                 }
 
@@ -361,6 +367,19 @@ public class PaymentController {
         try {
             paymentService.markRefundedByPaymentCode(paymentCode);
             return ResponseEntity.ok("Đã cập nhật trạng thái đơn thành REFUNDED và vô hiệu gói VIP liên quan.");
+        } catch (BaseException ex) {
+            return ResponseEntity.status(409).body(ex.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/refund/{paymentCode}/reject")
+    public ResponseEntity<?> rejectRefund(
+            @PathVariable long paymentCode) {
+        try {
+            paymentService.rejectRefundByPaymentCode(paymentCode);
+            return ResponseEntity.ok("Đã cập nhật trạng thái đơn thành REFUND_REJECTED.");
         } catch (BaseException ex) {
             return ResponseEntity.status(409).body(ex.getMessage());
         } catch (Exception e) {

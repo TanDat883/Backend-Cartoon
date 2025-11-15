@@ -15,7 +15,6 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.Payment;
 import flim.backendcartoon.entities.PaymentDetail;
-import flim.backendcartoon.entities.User;
 import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.exception.BaseException;
 import flim.backendcartoon.repositories.PaymentDetailRepository;
@@ -23,15 +22,18 @@ import flim.backendcartoon.repositories.PaymentRepository;
 import flim.backendcartoon.repositories.VipSubscriptionRepository;
 import flim.backendcartoon.services.PaymentService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import vn.payos.PayOS;
-import vn.payos.type.CheckoutResponseData;
-import vn.payos.type.ItemData;
-import vn.payos.type.PaymentData;
-import vn.payos.type.PaymentLinkData;
+import vn.payos.exception.PayOSException;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
+import vn.payos.model.v2.paymentRequests.PaymentLinkItem;
 
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -56,46 +58,100 @@ public class PaymentServiceImpl implements PaymentService {
         this.vipSubscriptionRepository = vipSubscriptionRepository;
     }
 
+//    @Override
+//    public CreatePaymentLinkResponse createPaymentLink(String productName, String description, int amount, String returnUrl, String cancelUrl) {
+//        long orderCode = System.currentTimeMillis(); // unique
+//
+//        ItemData item = ItemData.builder()
+//                .name(productName)
+//                .price(amount)
+//                .quantity(1)
+//                .build();
+//
+//        PaymentData paymentData = PaymentData.builder()
+//                .orderCode(orderCode)
+//                .amount(amount)
+//                .description(description)
+//                .returnUrl(returnUrl)
+//                .cancelUrl(cancelUrl)
+//                .item(item)
+//                .build();
+//        try {
+//
+//            return payOS.createPaymentLink(paymentData);
+//        }catch (Exception e) {
+//            throw new BaseException("Failed to create payment link: " + e.getMessage());
+//        }
+//    }
+//
+//    @Override
+//    public PaymentLinkData getPayment(long paymentCode) {
+//        try {
+//            return payOS.getPaymentLinkInformation(paymentCode);
+//        } catch (Exception e) {
+//            throw new BaseException("Failed to retrieve order: " + e.getMessage());
+//        }
+//    }
+//
+//    @Override
+//    public PaymentLinkData cancelPayment(long paymentCode) throws Exception {
+//        try {
+//            return payOS.cancelPaymentLink(paymentCode, null);
+//        } catch (Exception e) {
+//            throw new BaseException("Failed to cancel order: " + e.getMessage());
+//        }
+//    }
+
     @Override
-    public CheckoutResponseData createPaymentLink(String productName, String description, int amount, String returnUrl, String cancelUrl) {
-        long orderCode = System.currentTimeMillis(); // unique
+    public CreatePaymentLinkResponse createPaymentLink(
+            String productName,
+            String description,
+            long amount,
+            String returnUrl,
+            String cancelUrl
+    ) {
+        // payOS khuyến nghị dùng orderCode là số, thường là timestamp (second)
+        long orderCode = System.currentTimeMillis() / 1000;
 
-        ItemData item = ItemData.builder()
-                .name(productName)
-                .price(amount)
-                .quantity(1)
-                .build();
-
-        PaymentData paymentData = PaymentData.builder()
+        CreatePaymentLinkRequest req = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)
                 .amount(amount)
                 .description(description)
                 .returnUrl(returnUrl)
                 .cancelUrl(cancelUrl)
-                .item(item)
+                // nếu cần item chi tiết:
+                 .items(List.of(
+                     PaymentLinkItem.builder()
+                         .name(productName)
+                         .price(amount)
+                         .quantity(1)
+                         .build()
+                 ))
                 .build();
-        try {
 
-            return payOS.createPaymentLink(paymentData);
-        }catch (Exception e) {
+        try {
+            return payOS.paymentRequests().create(req);
+        } catch (PayOSException e) {
             throw new BaseException("Failed to create payment link: " + e.getMessage());
         }
     }
 
     @Override
-    public PaymentLinkData getPayment(long paymentCode) {
+    public PaymentLink getPayment(long paymentCode) {
         try {
-            return payOS.getPaymentLinkInformation(paymentCode);
-        } catch (Exception e) {
+            // id có thể là orderCode hoặc paymentLinkId, mình dùng chính orderCode
+            return payOS.paymentRequests().get(String.valueOf(paymentCode));
+        } catch (PayOSException e) {
             throw new BaseException("Failed to retrieve order: " + e.getMessage());
         }
     }
 
     @Override
-    public PaymentLinkData cancelPayment(long paymentCode) throws Exception {
+    public PaymentLink cancelPayment(long paymentCode) {
         try {
-            return payOS.cancelPaymentLink(paymentCode, null);
-        } catch (Exception e) {
+            // cancellationReason cho null cũng được nếu không cần ghi lý do
+            return payOS.paymentRequests().cancel(String.valueOf(paymentCode), null);
+        } catch (PayOSException e) {
             throw new BaseException("Failed to cancel order: " + e.getMessage());
         }
     }
@@ -215,5 +271,15 @@ public class PaymentServiceImpl implements PaymentService {
                 vipSubscriptionRepository.save(vip);
             }
         }
+    }
+
+    @Override
+    public void rejectRefundByPaymentCode(long paymentCode) {
+        Payment payment = paymentRepository.findByPaymentCode(paymentCode);
+        if (payment == null) throw new BaseException("Không tìm thấy đơn hàng");
+
+        // Chuyển trạng thái trở lại SUCCESS và xóa flag refundRequested
+        payment.setRefundRequested(false);
+        paymentRepository.update(payment);
     }
 }

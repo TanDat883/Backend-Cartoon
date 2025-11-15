@@ -9,12 +9,9 @@ package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.Payment;
 import flim.backendcartoon.entities.PaymentDetail;
-import flim.backendcartoon.entities.User;
 import org.springframework.data.domain.Page;
-import vn.payos.type.CheckoutResponseData;
-import vn.payos.type.PaymentLinkData;
-
-import java.util.List;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.v2.paymentRequests.PaymentLink;
 
 /*
  * @description
@@ -23,9 +20,28 @@ import java.util.List;
  * @created: 09-July-2025 12:28 PM
  */
 public interface PaymentService {
-    CheckoutResponseData createPaymentLink(String productName, String description, int amount, String returnUrl, String cancelUrl) throws Exception;
-    PaymentLinkData getPayment(long paymentCode) throws Exception;
-    PaymentLinkData cancelPayment(long paymentCode) throws Exception;
+//    CheckoutResponseData createPaymentLink(String productName, String description, int amount, String returnUrl, String cancelUrl) throws Exception;
+//    PaymentLinkData getPayment(long paymentCode) throws Exception;
+//    PaymentLinkData cancelPayment(long paymentCode) throws Exception;
+
+    CreatePaymentLinkResponse createPaymentLink(
+            String productName,
+            String description,
+            long amount,
+            String returnUrl,
+            String cancelUrl
+    ) throws Exception;
+
+
+    /**
+     * Lấy thông tin link thanh toán theo orderCode (paymentCode của em)
+     */
+    PaymentLink getPayment(long paymentCode) throws Exception;
+
+    /**
+     * Hủy link thanh toán theo orderCode
+     */
+    PaymentLink cancelPayment(long paymentCode) throws Exception;
 
     Payment createPayment(String userId, String packageId, Long paymentCode, Long finalAmount);
     void updatePaymentStatus(String paymentId, String newStatus);
@@ -42,6 +58,7 @@ public interface PaymentService {
     PaymentDetail findPaymentDetailByPaymentCode(Long paymentCode);
 
     void markRefundedByPaymentCode(long paymentCode);
+    void rejectRefundByPaymentCode(long paymentCode);
 }
 
     
