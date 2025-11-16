@@ -25,6 +25,32 @@ import java.util.stream.Collectors;
 public class AiController {
 
     private static final int HISTORY_LIMIT = 12;
+    private static final String[] PRICING_PACKAGE_TOKENS = {
+        "goi", "goi dang ky", "dang ky goi", "goi thanh vien", "goi xem phim",
+        "mua goi", "chon goi", "goi vip", "goi premium", "goi mega", "goi mega plus",
+        "goi combo", "goi no ads", "goi khong quang cao"
+    };
+    private static final String[] PRICING_PAYMENT_TOKENS = {
+        "mua", "dang ky", "thanh toan", "tra phi", "gia han", "nang cap", "upgrade",
+        "payment", "pay", "chon mua", "su dung goi"
+    };
+    private static final String[] PRICING_PRICE_TOKENS = {
+        "gia", "gia tien", "gia ca", "bao nhieu", "bao nhieu tien", "bao nhieu mot thang",
+        "cost", "price", "phi", "tien", "bao nhieu la"
+    };
+    private static final String[] PACKAGE_TYPE_TOKENS = {
+        "premium", "mega", "mega plus", "mega plus combo", "combo", "combo premium",
+        "combo mega", "combo mega plus", "no ads", "khong quang cao"
+    };
+    private static final String[] PRICING_DURATION_TOKENS = {
+        "30 ngay", "90 ngay", "180 ngay", "360 ngay", "1 thang", "3 thang",
+        "6 thang", "12 thang", "mot thang", "ba thang", "sau thang", "mot nam"
+    };
+    private static final String[] POLITE_ACK_TOKENS = {
+        "cam on", "camon", "cám ơn", "thank", "thanks", "thank you",
+        "ok", "oke", "okie", "okela", "duoc roi", "dc roi", "duoc", "roi",
+        "hay qua", "tuyet", "great", "nice"
+    };
 
     private final UserService userService;
     private final PromotionService promotionService;
@@ -53,6 +79,13 @@ public class AiController {
 
         final String rawQ = nullSafe(req.getMessage());
         final String q = vnNorm(rawQ); // chuẩn hoá để match không dấu
+
+        // ✅ Handle polite acknowledgements early (e.g., "cảm ơn", "ok", "thanks")
+        if (isPoliteAcknowledgement(q)) {
+            ChatResponse ack = buildPoliteAckResponse(user.userName);
+            persistMemory(convId, rawQ, ack.getAnswer(), List.of(), false);
+            return ResponseEntity.ok(ack);
+        }
 
         // ✅ FAST-PATH: Parse intent trước khi xử lý logic phức tạp
         IntentParser.Intent intent = intentParser.parse(rawQ);
@@ -88,16 +121,22 @@ public class AiController {
         List<MovieSuggestionDTO> prior = isBlank(convId) ? List.of() : memory.getSuggestions(convId);
 
         // ✅ FIX: Detect pricing queries MORE PRECISELY
-        // Must have EXPLICIT pricing keywords, not just "gói" or "nào"
-        final boolean wantsPricing =
-            // Explicit package/pricing keywords
-            (containsAny(q, "goi dang ky","goi thanh vien","goi premium","goi mega","goi combo","goi no ads") ||
-             containsAny(q, "gia tien","gia ca","bao nhieu tien","phi","cost","price","package","pricing") ||
-             containsAny(q, "dang ky goi","mua goi","thanh toan goi","nang cap goi"))
-            // ✅ AND must NOT be in movie recommendation context
-            && !containsAny(q, "phim","bo","tap","xem","truyen","anime","movie","film","series")
-            // ✅ AND must NOT have prior movie suggestions (user đang hỏi về phim)
-            && prior.isEmpty();
+        final boolean mentionsPackageKeyword = containsAnyToken(q, PRICING_PACKAGE_TOKENS);
+        final boolean mentionsPackageType = containsAnyToken(q, PACKAGE_TYPE_TOKENS);
+        final boolean mentionsPaymentKeyword = containsAnyToken(q, PRICING_PAYMENT_TOKENS);
+        final boolean mentionsPriceKeyword = containsAnyToken(q, PRICING_PRICE_TOKENS);
+        final boolean mentionsDurationKeyword = containsAnyToken(q, PRICING_DURATION_TOKENS);
+
+        final boolean strongPricingIntent =
+            (mentionsPackageKeyword && (mentionsPriceKeyword || mentionsPaymentKeyword || mentionsDurationKeyword || mentionsPackageType)) ||
+            (mentionsPackageType && (mentionsPriceKeyword || mentionsPaymentKeyword || mentionsDurationKeyword)) ||
+            (mentionsPriceKeyword && mentionsPaymentKeyword);
+
+        final boolean mentionsMovieContext = containsAny(q,
+                "phim","bo","tap","xem","truyen","anime","movie","film","series",
+                "dien vien","dao dien","trailer","noi dung","season");
+
+        final boolean wantsPricing = strongPricingIntent && (!mentionsMovieContext || mentionsPackageKeyword || mentionsPackageType);
 
         //nhận diện gợi ý
         final boolean explicitRec = intent.isWantsRec() || containsAny(q,
@@ -1079,5 +1118,32 @@ public class AiController {
             case "the thao" -> "thể thao";
             default -> genreKey; // Giữ nguyên nếu không có mapping
         };
+    }
+
+    private static boolean containsAnyToken(String normalizedText, String[] tokens) {
+        if (normalizedText == null || normalizedText.isEmpty()) return false;
+        for (String token : tokens) {
+            if (token != null && !token.isBlank() && normalizedText.contains(token)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isPoliteAcknowledgement(String normalizedQ) {
+        return containsAnyToken(normalizedQ, POLITE_ACK_TOKENS)
+                && normalizedQ.length() <= 24; // short polite acks only
+    }
+
+    private ChatResponse buildPoliteAckResponse(String userName) {
+        String safeName = (userName == null || userName.isBlank()) ? "bạn" : userName;
+        String answer = "Không có chi, " + safeName + "! Nếu cần mình có thể tư vấn gói VIP, khuyến mãi, hoặc gợi ý phim phù hợp cho bạn.";
+        return ChatResponse.builder()
+                .answer(answer)
+                .suggestions(List.of())
+                .showSuggestions(false)
+                .promos(List.of())
+                .showPromos(false)
+                .build();
     }
 }
