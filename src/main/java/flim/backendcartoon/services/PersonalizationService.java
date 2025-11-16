@@ -1,6 +1,7 @@
 package flim.backendcartoon.services;
 
 import flim.backendcartoon.entities.*;
+import flim.backendcartoon.entities.DTO.response.MovieSuggestionDTO;
 import flim.backendcartoon.repositories.ItemEmbeddingRepository;
 import flim.backendcartoon.repositories.MovieRepository;
 import flim.backendcartoon.repositories.UserProfileRepository;
@@ -27,6 +28,7 @@ public class PersonalizationService {
     private final UserProfileRepository userProfileRepo;
     private final ItemEmbeddingRepository itemEmbeddingRepo;
     private final MovieRepository movieRepo;
+    private final RecommendationService recommendationService;
 
     /**
      * Track user behavior signal (Patch 1)
@@ -76,14 +78,16 @@ public class PersonalizationService {
      */
     public List<ScoredMovie> getPersonalizedRecommendations(String userId, int limit) {
         try {
-            // Step 1: Get user profile (Patch 4)
             Optional<UserProfile> profileOpt = userProfileRepo.findByUserId(userId);
             if (profileOpt.isEmpty() || profileOpt.get().getUserVector() == null) {
-                log.info("No profile found for userId: {}, returning popular movies", userId);
-                return getPopularMoviesFallback(limit);
+                log.info("No profile found for userId: {}, delegating to RecommendationService", userId);
+                return fromRecommendationService(userId, limit);
             }
-
             UserProfile profile = profileOpt.get();
+            if (profile.getUserVector() == null) {
+                log.info("Profile for userId: {} lacks userVector, deriving from signals", userId);
+                return buildRecommendationsFromSignals(userId, limit);
+            }
             List<Float> userVector = profile.getUserVector();
 
             // Step 2: Get candidate movies (Patch 4 - Prefilter)
@@ -126,6 +130,50 @@ public class PersonalizationService {
             log.error("Failed to get personalized recommendations for userId: {}", userId, e);
             return getPopularMoviesFallback(limit);
         }
+    }
+
+    private List<ScoredMovie> fromRecommendationService(String userId, int limit) {
+        List<MovieSuggestionDTO> recommendations = recommendationService.recommendForUser(userId, null, limit);
+        if (recommendations.isEmpty()) {
+            log.info("RecommendationService returned empty list for userId: {}, fallback popular", userId);
+            return getPopularMoviesFallback(limit);
+        }
+        return recommendations.stream()
+            .map(dto -> new ScoredMovie(dto.getMovieId(), dto.getScore() != null ? dto.getScore() : 0.0))
+            .collect(Collectors.toList());
+    }
+
+    private List<ScoredMovie> buildRecommendationsFromSignals(String userId, int limit) {
+        List<UserSignal> signals = userSignalRepo.findRecentByUserId(userId, 200);
+        if (signals.isEmpty()) {
+            log.info("No signals for userId: {}, falling back to trending", userId);
+            return getPopularMoviesFallback(limit);
+        }
+
+        Set<String> likedGenres = new HashSet<>();
+        Set<String> excludeMovieIds = new HashSet<>();
+        for (UserSignal signal : signals) {
+            if (signal.getMovieId() == null) continue;
+            Movie movie = movieRepo.findById(signal.getMovieId());
+            if (movie != null && movie.getGenres() != null) {
+                likedGenres.addAll(movie.getGenres());
+            }
+            excludeMovieIds.add(signal.getMovieId());
+        }
+
+        List<MovieSuggestionDTO> recommendations = recommendationService.recommendForUser(userId, null, limit * 2);
+        List<ScoredMovie> scored = recommendations.stream()
+            .filter(dto -> dto.getMovieId() != null && !excludeMovieIds.contains(dto.getMovieId()))
+            .limit(limit)
+            .map(dto -> new ScoredMovie(dto.getMovieId(), dto.getScore() != null ? dto.getScore() : 0.0))
+            .collect(Collectors.toList());
+
+        if (scored.isEmpty()) {
+            log.info("RecommendationService returned no data for userId: {}, fallback to trending", userId);
+            return getPopularMoviesFallback(limit);
+        }
+
+        return scored;
     }
 
     /**
@@ -310,4 +358,3 @@ public class PersonalizationService {
         }
     }
 }
-
