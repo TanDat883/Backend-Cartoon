@@ -53,10 +53,18 @@ public class AwsConfig {
                 .build();
     }
 
+//    @Bean
+//    public SnsClient snsClient() {
+//        return SnsClient.create();
+//    }
     @Bean
     public SnsClient snsClient() {
-        return SnsClient.create();
+        return SnsClient.builder()
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
+                .build();
     }
+
 
     @Bean
     public S3Client s3Client() {
