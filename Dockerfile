@@ -7,6 +7,9 @@ WORKDIR /app
 COPY build.gradle settings.gradle gradlew /app/
 COPY gradle /app/gradle
 
+# Cấp quyền thực thi cho gradlew
+RUN chmod +x gradlew
+
 # Copy mã nguồn và file .env
 COPY src /app/src
 #COPY .env /app/.env
