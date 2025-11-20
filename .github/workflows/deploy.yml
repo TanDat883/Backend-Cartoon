@@ -46,15 +46,16 @@ jobs:
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/cartoon-backend:latest
             
             # 2. Stop và xóa container cũ (nếu đang chạy)
-            docker stop cartoon-backend || true
-            docker rm cartoon-backend || true
+            sudo docker stop cartoon-backend || true
+            sudo docker rm cartoon-backend || true
             
             # 3. Chạy container mới
-            docker run -d \
-              --name cartoon-backend \
-              -p 8080:8080 \
-              --restart unless-stopped \
-              ${{ secrets.DOCKERHUB_USERNAME }}/cartoon-backend:latest
+            sudo docker run -d \
+            --name cartoon-backend \
+            -p 8080:8080 \
+            --restart unless-stopped \
+            --env-file /home/ubuntu/cartoon-backend/.env \
+            ${{ secrets.DOCKERHUB_USERNAME }}/cartoon-backend:latest
             
             # 4. Dọn dẹp các image cũ không dùng đến để tiết kiệm ổ cứng
-            docker image prune -f
+            sudo docker image prune -f
