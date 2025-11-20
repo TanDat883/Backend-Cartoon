@@ -75,7 +75,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000","https://backend-cartoon.vercel.app"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000","https://frontend-cartoon-azure.vercel.app"));
         configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
         configuration.setAllowedHeaders(List.of("*")); // đủ, không cần gọi 2 lần
         configuration.setExposedHeaders(List.of("*")); // nếu thực sự cần
