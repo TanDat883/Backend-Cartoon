@@ -9,7 +9,7 @@ COPY gradle /app/gradle
 
 # Copy mã nguồn và file .env
 COPY src /app/src
-COPY .env /app/.env
+#COPY .env /app/.env
 
 # Build ứng dụng (bỏ qua test)
 RUN ./gradlew build --no-daemon -x test
@@ -24,7 +24,7 @@ WORKDIR /app
 #COPY --from=build /app/build/libs/*.jar app.jar
 COPY --from=build /app/build/libs/*SNAPSHOT.jar app.jar
 # Copy file .env từ build stage
-COPY --from=build /app/.env .env
+#COPY --from=build /app/.env .env
 
 # Expose port và chạy ứng dụng
 EXPOSE 8080
