@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://frontend-cartoon-azure.vercel.app")
 @RestController
 @RequestMapping("/episodes")
 public class EpisodeController {

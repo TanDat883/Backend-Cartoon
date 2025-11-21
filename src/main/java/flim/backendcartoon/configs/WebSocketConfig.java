@@ -32,7 +32,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Endpoint WebSocket cho watch together
         registry.addEndpoint("/ws/watch")
-                .setAllowedOriginPatterns("http://localhost:3000", "http://localhost:*")
+                .setAllowedOriginPatterns("http://localhost:3000", "http://localhost:*", "https://api.cartoon-too.me", "https://api.cartoon-too.me:*", "https://frontend-cartoon-azure.vercel.app", "https://frontend-cartoon-azure.vercel.app:*")
                 .withSockJS();
     }
 }
