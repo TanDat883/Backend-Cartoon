@@ -24,7 +24,9 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping({"/api/watchrooms", "/watchrooms"})  // Support both paths
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:*"})
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:*",
+        "https://frontend-cartoon-azure.vercel.app", "https://frontend-cartoon-azure.vercel.app:*",
+        "https://api.cartoon-too.me", "https://api.cartoon-too.me:*"})
 public class WatchRoomRestController {
 
     private static final Logger log = LoggerFactory.getLogger(WatchRoomRestController.class);
