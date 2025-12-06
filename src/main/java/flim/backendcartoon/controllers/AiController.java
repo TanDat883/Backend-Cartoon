@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -23,6 +24,23 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
 public class AiController {
+
+    // ✅ OPTIMIZATION 1: Movie Info Cache (5 phút TTL)
+    private final ConcurrentHashMap<String, CachedMovieInfo> movieInfoCache = new ConcurrentHashMap<>();
+
+    private static class CachedMovieInfo {
+        final Map<String, Object> info;
+        final long timestamp;
+
+        CachedMovieInfo(Map<String, Object> info) {
+            this.info = info;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - timestamp > 5 * 60 * 1000; // 5 phút
+        }
+    }
 
     private static final int HISTORY_LIMIT = 12;
     private static final String[] PRICING_PACKAGE_TOKENS = {
@@ -304,24 +322,52 @@ public class AiController {
         }
 
         // ✅ Obviously off-topic patterns
-        // Personal questions about people (not actors/directors)
+
+        // 1. Coding/Programming questions
+        if (containsAny(q, "code", "coding", "lap trinh", "java", "python", "javascript",
+                "html", "css", "function", "ham", "class", "bien", "variable",
+                "viet code", "viet ham", "code giup", "giup viet code", "viet giup",
+                "algorithm", "debug", "error", "exception", "syntax",
+                "react", "reactjs", "nodejs", "typescript", "php", "laravel",
+                "spring boot", "django", "flutter", "kotlin", "golang") &&
+            !containsAny(q, "phim", "movie")) {
+            return true;
+        }
+
+        // 2. Homework/School questions (toán, lý, hóa...)
+        if (containsAny(q, "bai tap", "bai toan", "giai bai", "homework",
+                "tinh tong", "tinh hieu", "tinh tich", "tinh toan", "giai phuong trinh",
+                "cong thuc", "formula", "toan hoc", "vat ly", "hoa hoc",
+                "tinh", "calculate", "solve", "giai giup", "giup giai") &&
+            !containsAny(q, "phim", "movie")) {
+            return true;
+        }
+
+        // 3. Math expressions (2+2, 5*3, etc.)
+        if (q.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
+            return true;
+        }
+
+        // 4. Personal questions about people (not actors/directors)
         if (containsAny(q, "co dinh ko", "co dep ko", "co gioi ko", "co hay ko") &&
             !containsAny(q, "phim", "movie", "tap", "season")) {
             return true;
         }
 
-        // Math questions
-        if (q.matches(".*\\d+\\s*[+\\-*/]\\s*\\d+.*")) {
-            return true;
-        }
-
-        // General knowledge not related to movies
-        if (containsAny(q, "thu do", "capital", "tong thong", "president", "toan hoc", "math") &&
+        // 5. General knowledge not related to movies
+        if (containsAny(q, "thu do", "capital", "tong thong", "president") &&
             !containsAny(q, "phim", "movie")) {
             return true;
         }
 
-        // Very short queries without movie keywords (likely random)
+        // 6. Weather, news, time questions
+        if (containsAny(q, "thoi tiet", "weather", "tin tuc", "news",
+                "may gio", "what time", "ngay nay") &&
+            !containsAny(q, "phim", "movie")) {
+            return true;
+        }
+
+        // 7. Very short queries without movie keywords (likely random)
         if (q.length() < 15 && !containsAny(q, "phim", "movie", "xem", "goi y", "top", "hay")) {
             return true;
         }
@@ -334,29 +380,31 @@ public class AiController {
      */
     private ChatResponse handleOffTopicQuery(String userName, String convId) {
         String answer = String.format(
-                "Xin lỗi %s, mình là trợ lý tìm phim nên chỉ có thể giúp bạn với các câu hỏi về phim, " +
-                        "thể loại, diễn viên, hoặc gợi ý xem gì. " +
-                        "Bạn có thể thử hỏi như:\n" +
+                "Xin lỗi %s, mình là trợ lý chuyên tư vấn về phim ảnh và khuyến mãi của hệ thống. " +
+                        "Mình chỉ có thể giúp bạn với:\n" +
+                        "• Tìm phim theo thể loại, quốc gia, diễn viên\n" +
+                        "• Giới thiệu phim hot, phim hay\n" +
+                        "• Thông tin khuyến mãi, ưu đãi\n" +
+                        "• Đánh giá và nhận xét phim\n\n" +
+                        "Bạn có thể hỏi mình như:\n" +
                         "• \"Gợi ý phim hành động Hàn Quốc\"\n" +
                         "• \"Phim anime hay nhất\"\n" +
                         "• \"Có khuyến mãi gì không?\"\n\n" +
-                        "Dưới đây là vài gợi ý phim hot hiện tại:",
+                        "Hãy thử hỏi mình về phim bạn nhé! 🎬",
                 userName
         );
 
-        // Get top movies as suggestions
-        var topMovies = movieFilterService.getTopMovies(8);
-
+        // ✅ OFF-TOPIC: KHÔNG hiển thị suggestions để tránh confuse user
         ChatResponse resp = ChatResponse.builder()
                 .answer(answer)
-                .suggestions(topMovies)
-                .showSuggestions(!topMovies.isEmpty())
+                .suggestions(List.of())
+                .showSuggestions(false)
                 .promos(List.of())
                 .showPromos(false)
                 .build();
 
-        // Persist memory
-        persistMemory(convId, "", answer, topMovies, false);
+        // Persist memory (without suggestions)
+        persistMemory(convId, "", answer, List.of(), false);
 
         return resp;
     }
@@ -806,6 +854,14 @@ public class AiController {
      */
     private Map<String, Object> toMovieInfo(Movie m) throws AuthorException {
         if (m == null) return null;
+
+        // Kiểm tra cache trước
+        CachedMovieInfo cached = movieInfoCache.get(m.getMovieId());
+        if (cached != null && !cached.isExpired()) {
+            log.info("✅ Cache hit for movieId: {}", m.getMovieId());
+            return cached.info;
+        }
+
         var seasons = seasonService.findByMovieId(m.getMovieId());
         int eps = seasons.stream().mapToInt(s -> episodeService.countBySeasonId(s.getSeasonId())).sum();
 
@@ -850,6 +906,11 @@ public class AiController {
                         "name", a.getName(),
                         "role", a.getAuthorRole().name()))
                 .toList());
+
+        // Lưu vào cache
+        movieInfoCache.put(m.getMovieId(), new CachedMovieInfo(info));
+        log.info("✅ Cached movie info for movieId: {}", m.getMovieId());
+
         return info;
     }
 
@@ -991,7 +1052,7 @@ public class AiController {
             Map.entry("Giả Tưởng", List.of("gia tuong", "fantasy", "ky ao")),
             Map.entry("Hoàng Cung", List.of("hoang cung", "imperial palace", "royal court", "palace")),
             Map.entry("Hoạt Hình", List.of("hoat hinh", "animation", "animated", "cartoon")),
-            Map.entry("Hài", List.of("hai", "hai huoc", "comedy", "funny", "sitcom")),
+            Map.entry("Hài", List.of( "hai huoc", "comedy", "funny", "sitcom")),
             Map.entry("Hành Động", List.of("hanh dong", "action", "fight", "combat")),
             Map.entry("Hình Sự", List.of("hinh su", "crime", "police", "detective", "trinh tham")),
             Map.entry("Học Đường", List.of("hoc duong", "school", "campus", "high school", "college")),

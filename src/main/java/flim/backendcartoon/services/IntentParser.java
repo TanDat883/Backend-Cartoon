@@ -28,7 +28,7 @@ public class IntentParser {
     // Map genre keywords
     private static final Map<String, Set<String>> GENRE_KEYWORDS = Map.ofEntries(
             Map.entry("hanh dong", Set.of("hanh dong", "action", "fight")),
-            Map.entry("hai", Set.of("hai", "comedy", "hai huoc", "sitcom")),
+            Map.entry("hai", Set.of( "comedy", "hai huoc", "sitcom")),
             Map.entry("tinh cam", Set.of("tinh cam", "romance", "lang man", "love")),
             Map.entry("kinh di", Set.of("kinh di", "horror", "ma", "scary", "ghost")),
             Map.entry("hoat hinh", Set.of("hoat hinh", "anime", "cartoon", "animation", "애니메이션")),
