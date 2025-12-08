@@ -21,6 +21,9 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/movies")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:*",
+        "https://frontend-cartoon-azure.vercel.app", "https://frontend-cartoon-azure.vercel.app:*",
+        "https://api.cartoon-too.me", "https://api.cartoon-too.me:*"})
 public class MovieController {
 
     @Autowired
