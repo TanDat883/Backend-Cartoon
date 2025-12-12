@@ -89,5 +89,13 @@ public class VipSubscriptionRepository {
                 .filter(vip -> vip.getUserId() != null && vip.getUserId().equals(userId))
                 .collect(Collectors.toList());
     }
+
+    public List<VipSubscription> findByPackageIdAndStatus(String packageId, String status) {
+        return StreamSupport.stream(
+                table.scan().items().spliterator(), false)
+                .filter(vip -> vip.getPackageId() != null && vip.getPackageId().equals(packageId))
+                .filter(vip -> vip.getStatus() != null && vip.getStatus().equalsIgnoreCase(status))
+                .collect(Collectors.toList());
+    }
 }
 

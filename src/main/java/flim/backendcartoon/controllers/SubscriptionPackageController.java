@@ -12,9 +12,11 @@ import flim.backendcartoon.entities.DTO.request.SubscriptionPackageRequest;
 import flim.backendcartoon.entities.DTO.response.SubscriptionPackageResponse;
 import flim.backendcartoon.entities.SubscriptionPackage;
 import flim.backendcartoon.entities.User;
+import flim.backendcartoon.entities.VipSubscription;
 import flim.backendcartoon.services.PricingService;
 import flim.backendcartoon.services.S3Service;
 import flim.backendcartoon.services.SubscriptionPackageService;
+import flim.backendcartoon.services.VipSubscriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.ILoggerFactory;
@@ -39,6 +41,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionPackageController {
     private final SubscriptionPackageService subscriptionPackageService;
+    private final VipSubscriptionService vipSubscriptionService;
     private final PricingService pricingService;
     private final S3Service s3Service;
     private final ObjectMapper objectMapper;
@@ -144,6 +147,17 @@ public class SubscriptionPackageController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{packageId}/has-active-subscriptions")
+    public ResponseEntity<Boolean> hasActiveSubscriptions(@PathVariable String packageId) {
+        try {
+            boolean hasActive = vipSubscriptionService.hasActiveSubscriptionsForPackage(packageId);
+            return ResponseEntity.ok(hasActive);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(false);
         }
     }
 }

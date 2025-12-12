@@ -15,14 +15,11 @@ package flim.backendcartoon.services.impl;
 
 import flim.backendcartoon.entities.PackageType;
 import flim.backendcartoon.entities.VipSubscription;
-import flim.backendcartoon.exception.BaseException;
-import flim.backendcartoon.exception.ResourceNotFoundException;
 import flim.backendcartoon.repositories.VipSubscriptionRepository;
 import flim.backendcartoon.services.VipSubscriptionService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -109,5 +106,25 @@ public class VipSubscriptionServiceImpl implements VipSubscriptionService {
         }
         return best;
     }
+
+    @Override
+    public boolean hasActiveSubscriptionsForPackage(String packageId) {
+        List<VipSubscription> vips = repository.findByPackageIdAndStatus(packageId, "ACTIVE");
+        LocalDate today = LocalDate.now();
+
+        for (VipSubscription vip : vips) {
+            LocalDate endDate;
+            try {
+                endDate = LocalDate.parse(vip.getEndDate());
+            } catch (Exception e) {
+                continue;
+            }
+            if (!endDate.isBefore(today)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
 

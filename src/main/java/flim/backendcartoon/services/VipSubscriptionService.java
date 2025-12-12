@@ -28,6 +28,8 @@ public interface VipSubscriptionService {
 
     PackageType findUserHighestActiveTier(String userId);
 
+    boolean hasActiveSubscriptionsForPackage(String packageId);
+
 }
 
     
