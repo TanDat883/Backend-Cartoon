@@ -385,7 +385,7 @@ public class AiController {
                         "• Thông tin khuyến mãi, ưu đãi\n" +
                         "• Đánh giá và nhận xét phim\n\n" +
                         "Bạn có thể hỏi mình như:\n" +
-                        "• \"Gợi ý phim hành động hay\"\n" +
+                        "• \"Gợi ý phim hành động hay \"\n" +
                         "• \"Phim anime mới nhất\"\n" +
                         "• \"Có khuyến mãi gì không?\"\n\n" +
                         "Hãy thử hỏi mình về phim bạn nhé! 🎬",
