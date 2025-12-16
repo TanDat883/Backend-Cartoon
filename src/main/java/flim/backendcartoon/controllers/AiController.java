@@ -120,8 +120,15 @@ public class AiController {
             return ResponseEntity.ok(offTopicResponse);
         }
 
+        // ✅ CRITICAL FIX: Expand fast-path to include queries with "tìm", "gợi ý", etc.
+        // Pure filter = has genre OR country OR year (regardless of other keywords)
+        boolean hasClearFilters = !intent.getGenres().isEmpty() ||
+                                  !intent.getCountries().isEmpty() ||
+                                  intent.getYearMin() != null;
+
         // ✅ FAST-PATH: Xử lý query lọc thuần KHÔNG gọi LLM
-        if (intent.isPureFilter()) {
+        // Includes: "tìm phim hành động 2026", "phim tình cảm lãng mạn", etc.
+        if (intent.isPureFilter() || (hasClearFilters && !intent.isAsksInfo())) {
             ChatResponse fastResponse = handlePureFilterQuery(intent, user.userName, convId, rawQ);
             long tEnd = System.currentTimeMillis();
             log.info("⏱️ Fast-path completed | latency={}ms | no_llm_call=true", (tEnd - tStart));
@@ -135,8 +142,22 @@ public class AiController {
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
         List<Movie> mentioned = findMentionedMovies(q);
 
+        // ✅ CRITICAL FIX: Detect NEGATIVE intent (user says NO/refuses previous suggestions)
+        boolean isNegativeIntent = detectNegativeIntent(rawQ);
+
         // ✅ Get prior suggestions from conversation history (for context awareness)
-        List<MovieSuggestionDTO> prior = isBlank(convId) ? List.of() : memory.getSuggestions(convId);
+        // 🐛 FIX: RESET prior suggestions if user expresses negative intent
+        List<MovieSuggestionDTO> prior = (isBlank(convId) || isNegativeIntent)
+                ? List.of()
+                : memory.getSuggestions(convId);
+
+        if (isNegativeIntent) {
+            log.warn("🚫 NEGATIVE INTENT detected: {} | Resetting conversation context", rawQ);
+            // Clear previous suggestions to avoid repeating what user rejected
+            if (!isBlank(convId)) {
+                memory.setSuggestions(convId, List.of());
+            }
+        }
 
         // ✅ FIX: Detect pricing queries MORE PRECISELY
         final boolean mentionsPackageKeyword = containsAnyToken(q, PRICING_PACKAGE_TOKENS);
@@ -173,39 +194,13 @@ public class AiController {
         boolean wantsRec = explicitRec || (!asksInfo && !wantsPromo && !wantsPricing);
         if (asksInfo || wantsPricing) wantsRec = false;
 
-        // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước (already loaded above)
+        // ✅ REMOVED legacy genre filtering - now handled by fast-path
+        // Candidate suggestions: ưu tiên những gì đã hiển thị ở phiên trước
         List<MovieSuggestionDTO> candidates = !prior.isEmpty()
                 ? prior
                 : recService.recommendForUser(user.userId, req.getCurrentMovieId(), 8);
 
-        // --- Nếu user hỏi theo thể loại (vd: anime/hoạt hình) → ghi đè candidates bằng danh sách đã lọc ---
-        Set<String> wantedGenres = detectWantedGenres(q);
-        if (!wantedGenres.isEmpty()) {
-            List<MovieSuggestionDTO> filtered = movieService.findAllMovies().stream()
-                    .filter(m -> movieHasAnyGenreNormalized(m, wantedGenres))
-                    .sorted((a,b) -> Long.compare(
-                            (b.getViewCount()==null?0:b.getViewCount()),
-                            (a.getViewCount()==null?0:a.getViewCount())))
-                    .limit(8)
-                    .map(m -> {
-                        MovieSuggestionDTO dto = new MovieSuggestionDTO();
-                        dto.setMovieId(m.getMovieId());
-                        dto.setTitle(m.getTitle());
-                        dto.setThumbnailUrl(m.getThumbnailUrl());
-                        dto.setGenres(m.getGenres());
-                        dto.setViewCount(m.getViewCount());
-                        dto.setAvgRating(m.getAvgRating());
-                        dto.setScore(null); // Not a personalized recommendation
-                        return dto;
-                    })
-                    .toList();
 
-            if (!filtered.isEmpty()) {
-                candidates = filtered;
-            }
-        }
-
-        
         // Lịch sử hội thoại
         List<ChatMemoryService.ChatMsg> prev = isBlank(convId)
                 ? List.of()
@@ -278,7 +273,7 @@ public class AiController {
 
         String answer = "Chào " + user.userName + "! Mình có thể tìm phim theo thể loại, quốc gia, chủ đề, "
                 + "hoặc gợi ý dựa trên sở thích của bạn.\nBạn thử các câu như:\n"
-                + "- \"Gợi ý phim hành động Hàn\"\n- \"Top phim gia đình hot\"\n- \"Phim chiếu rạp mới\"\n"
+                + "- \"Gợi ý phim hành động hay\"\n- \"Top phim gia đình hot\"\n- \"Phim chiếu rạp mới nhất\"\n"
                 + "Dưới đây là vài đề xuất dành cho bạn:";
 
         ChatResponse resp = ChatResponse.builder()
@@ -292,7 +287,10 @@ public class AiController {
         if (!isBlank(conversationId)) {
             memory.reset(conversationId);
             memory.append(conversationId, "assistant", answer);
-            memory.setSuggestions(conversationId, suggestions);
+            // 🐛 CRITICAL FIX: KHÔNG lưu welcome suggestions vào memory!
+            // Vì đây là suggestions MẶC ĐỊNH, không phải từ user query
+            // Nếu lưu → GPT sẽ bị nhiễm bởi các phim random (Hàn Quốc, etc.)
+            // memory.setSuggestions(conversationId, suggestions); // ← REMOVED
         }
         return ResponseEntity.ok(resp);
     }
@@ -387,8 +385,8 @@ public class AiController {
                         "• Thông tin khuyến mãi, ưu đãi\n" +
                         "• Đánh giá và nhận xét phim\n\n" +
                         "Bạn có thể hỏi mình như:\n" +
-                        "• \"Gợi ý phim hành động Hàn Quốc\"\n" +
-                        "• \"Phim anime hay nhất\"\n" +
+                        "• \"Gợi ý phim hành động hay\"\n" +
+                        "• \"Phim anime mới nhất\"\n" +
                         "• \"Có khuyến mãi gì không?\"\n\n" +
                         "Hãy thử hỏi mình về phim bạn nhé! 🎬",
                 userName
@@ -415,23 +413,35 @@ public class AiController {
      */
     private ChatResponse handlePureFilterQuery(IntentParser.Intent intent, String userName,
                                                String convId, String userMessage) {
-        // ✅ SEMANTIC SEARCH: Sử dụng semantic understanding
-        // "hoạt hình" → also search "anime", "thiếu nhi", etc.
-        var filtered = movieFilterService.filterMoviesWithSemanticFallback(
+        // ✅ STRICT FILTER: KHÔNG dùng semantic fallback - chỉ exact match + year filter
+        var filtered = movieFilterService.filterMovies(
                 intent.getGenres(),
                 intent.getCountries(),
                 intent.getYearMin(),
                 intent.getYearMax(),
-                8
+                20  // Tăng limit để có nhiều kết quả hơn
         );
 
-        // Build response template
-        // Convert country names to Vietnamese for friendly response
+        // 🐛 CRITICAL FIX: Build response ONLY from CURRENT query, NOT from conversation history!
+        // User query: "phim hành động 2025" (no country)
+        // → Response should NOT mention "Hàn Quốc" even if previous turn was about Korea!
+
+        String yearText = "";
+        if (intent.getYearMin() != null) {
+            if (intent.getYearMax() != null && !intent.getYearMin().equals(intent.getYearMax())) {
+                yearText = " năm " + intent.getYearMin() + "-" + intent.getYearMax();
+            } else {
+                yearText = " năm " + intent.getYearMin();
+            }
+        }
+
+        // ✅ CRITICAL: Only mention country if query explicitly has country filter
         String countriesText = intent.getCountries().isEmpty() ? "" :
                 String.join(", ", intent.getCountries().stream()
                         .map(this::toVietnameseCountryName)
                         .toList()) + " ";
 
+        // ✅ CRITICAL: Only mention genre if query explicitly has genre filter
         String genresText = intent.getGenres().isEmpty() ? "" :
                 "thể loại " + String.join(", ", intent.getGenres().stream()
                         .map(this::toVietnameseGenreName)
@@ -439,48 +449,40 @@ public class AiController {
 
         String answer;
         if (filtered.isEmpty()) {
-            // Không tìm thấy → gợi ý thay thế
-            answer = String.format("Mình chưa tìm thấy phim %s%s phù hợp. Thử thay đổi bộ lọc hoặc xem gợi ý khác nhé!",
-                    countriesText, genresText);
+            // 🐛 FIX: Khi KHÔNG tìm thấy → KHÔNG show phim gợi ý khác
+            // Response phải consistent: "không tìm thấy" → suggestions = []
+            answer = String.format("Mình chưa tìm thấy phim %s%s%s phù hợp. Bạn có thể thử:\n" +
+                            "• Thay đổi thể loại hoặc quốc gia\n" +
+                            "• Mở rộng khoảng năm\n" +
+                            "• Hỏi mình gợi ý phim tổng quát",
+                    countriesText, genresText, yearText);
 
-            // ✅ Gợi ý thay thế: lấy phim hot hiện tại
-            filtered = movieFilterService.getTopMovies(8);
+            // ✅ CRITICAL FIX: Khi không tìm thấy → KHÔNG trả suggestions
+            // Tránh confuse user với phim không liên quan
         } else {
-            // ✅ SMART MESSAGE: Giải thích nếu dùng semantic fallback
-            // Check if we used semantic expansion (found movies but different genre names)
-            boolean usedSemanticFallback = filtered.stream()
-                    .anyMatch(m -> m.getGenres() != null &&
-                            m.getGenres().stream().noneMatch(g ->
-                                    intent.getGenres().stream().anyMatch(wanted ->
-                                            vnNorm(g).equals(vnNorm(wanted)))));
-
-            if (usedSemanticFallback && !intent.getGenres().isEmpty()) {
-                // Explain semantic match
-                answer = String.format("Mình tìm thấy %d phim %sliên quan đến %s cho %s:",
-                        filtered.size(),
-                        countriesText,
-                        genresText,
-                        userName);
-            } else {
-                // Normal match
-                answer = String.format("Mình tìm thấy %d phim %s%s cho %s:",
-                        filtered.size(),
-                        countriesText,
-                        genresText,
-                        userName);
-            }
+            // ✅ SUCCESS: Tìm thấy phim match chính xác
+            answer = String.format("Mình tìm thấy %d phim %s%s%s cho %s:",
+                    filtered.size(),
+                    countriesText,
+                    genresText,
+                    yearText,
+                    userName);
         }
 
         ChatResponse resp = ChatResponse.builder()
                 .answer(answer)
-                .suggestions(filtered)
+                .suggestions(filtered)  // Chỉ show khi thực sự tìm thấy
                 .showSuggestions(!filtered.isEmpty())
                 .promos(List.of())
                 .showPromos(false)
                 .build();
 
         // Persist memory
-        persistMemory(convId, userMessage, answer, filtered, true);
+        persistMemory(convId, userMessage, answer, filtered, !filtered.isEmpty());
+
+        log.info("🔍 Filter result | genres={} | countries={} | year={}-{} | found={} | showSuggestions={}",
+                intent.getGenres(), intent.getCountries(), intent.getYearMin(), intent.getYearMax(),
+                filtered.size(), !filtered.isEmpty());
 
         return resp;
     }
@@ -1089,6 +1091,43 @@ public class AiController {
             Map.entry("T13+", List.of("t13", "13+", "teen", "pg 13")),
             Map.entry("T18+", List.of("t18", "18+", "adult"))
     );
+
+    /**
+     * ✅ CRITICAL: Detect negative intent - user says NO or refuses suggestions
+     * Examples: "tôi không muốn", "không có nhu cầu", "không phải", "đừng gợi ý"
+     */
+    private boolean detectNegativeIntent(String query) {
+        if (query == null || query.isBlank()) return false;
+
+        String q = vnNorm(query.toLowerCase());
+
+        // Negative keywords
+        String[] negativePatterns = {
+            // Explicit rejection
+            "khong muon", "khong can", "khong thich", "khong co nhu cau",
+            "dung goi y", "dung tim", "dung hoi", "dung neu",
+            "toi khong", "minh khong", "em khong",
+
+            // Correction/Clarification
+            "khong phai", "sai roi", "nham roi", "khong dung",
+            "toi khong co", "toi khong hoi", "toi khong tim",
+
+            // Strong refusal
+            "thoi", "bo di", "thoi khong", "chang muon",
+
+            // English
+            "i dont want", "dont want", "not interested", "no need",
+            "i didnt", "i did not", "thats wrong", "not what i asked"
+        };
+
+        for (String pattern : negativePatterns) {
+            if (q.contains(pattern)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Detect wanted genres from query

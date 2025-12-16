@@ -125,24 +125,25 @@ public class MovieFilterService {
         if (wantedGenres == null || wantedGenres.isEmpty()) return true;
         if (movie.getGenres() == null || movie.getGenres().isEmpty()) return false;
 
-        // ✅ SEMANTIC MATCHING: Hiểu quan hệ giữa genres
-        // Example: user tìm "hoạt hình" → also match "anime", "thiếu nhi"
-        for (String wantedGenre : wantedGenres) {
-            // Use semantic matching instead of exact match
-            if (genreSemantics.movieMatchesGenreSemantically(
-                    new HashSet<>(movie.getGenres()), wantedGenre)) {
-                return true;
-            }
+        // 🐛 FIX: STRICT MATCHING - không dùng semantic vì match quá rộng
+        // User hỏi "hành động" → CHỈ trả phim có genre "Hành Động"
+        // KHÔNG trả "Gia Đình", "Tình Cảm", "Hài" như bug hiện tại
 
-            // Fallback to traditional matching if semantic fails
+        for (String wantedGenre : wantedGenres) {
             String wantedNorm = vnNorm(wantedGenre);
+
             for (String movieGenre : movie.getGenres()) {
                 String movieNorm = vnNorm(movieGenre);
-                if (movieNorm.contains(wantedNorm) || wantedNorm.contains(movieNorm)) {
+
+                // Exact match hoặc substring match
+                if (movieNorm.equals(wantedNorm) ||
+                    movieNorm.contains(wantedNorm) ||
+                    wantedNorm.contains(movieNorm)) {
                     return true;
                 }
             }
         }
+
         return false;
     }
 

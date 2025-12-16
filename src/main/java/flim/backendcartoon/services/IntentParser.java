@@ -25,23 +25,23 @@ public class IntentParser {
         private boolean asksInfo; // hỏi thông tin chi tiết về phim
     }
 
-    // Map genre keywords
+    // Map genre keywords - CANONICAL NAMES match với database
     private static final Map<String, Set<String>> GENRE_KEYWORDS = Map.ofEntries(
-            Map.entry("hanh dong", Set.of("hanh dong", "action", "fight")),
-            Map.entry("hai", Set.of( "comedy", "hai huoc", "sitcom")),
-            Map.entry("tinh cam", Set.of("tinh cam", "romance", "lang man", "love")),
-            Map.entry("kinh di", Set.of("kinh di", "horror", "ma", "scary", "ghost")),
-            Map.entry("hoat hinh", Set.of("hoat hinh", "anime", "cartoon", "animation", "애니메이션")),
-            Map.entry("phieu luu", Set.of("phieu luu", "adventure", "quest")),
-            Map.entry("tam ly", Set.of("tam ly", "drama", "chinh kich", "psychological")),
-            Map.entry("gia dinh", Set.of("gia dinh", "family", "tre em", "kids")),
-            Map.entry("vien tuong", Set.of("vien tuong", "fantasy", "than thoai", "magic")),
-            Map.entry("khoa hoc", Set.of("khoa hoc", "sci-fi", "science fiction", "vien tuong khoa hoc")),
-            Map.entry("chien tranh", Set.of("chien tranh", "war", "military", "army", "soldier")),
-            Map.entry("vo thuat", Set.of("vo thuat", "martial arts", "kung fu", "wushu")),
-            Map.entry("bi an", Set.of("bi an", "mystery", "trinh tham", "detective")),
-            Map.entry("hinh su", Set.of("hinh su", "crime", "police", "criminal")),
-            Map.entry("the thao", Set.of("the thao", "sports", "sport"))
+            Map.entry("Hành Động", Set.of("hanh dong", "action", "fight")),
+            Map.entry("Hài", Set.of("hai", "comedy", "hai huoc", "sitcom")),
+            Map.entry("Tình Cảm", Set.of("tinh cam", "romance", "lang man", "love")),
+            Map.entry("Kinh Dị", Set.of("kinh di", "horror", "ma", "scary", "ghost")),
+            Map.entry("Hoạt Hình", Set.of("hoat hinh", "anime", "cartoon", "animation", "애니메이션")),
+            Map.entry("Phiêu Lưu", Set.of("phieu luu", "adventure", "quest")),
+            Map.entry("Tâm Lý", Set.of("tam ly", "drama", "chinh kich", "psychological")),
+            Map.entry("Gia Đình", Set.of("gia dinh", "family", "tre em", "kids")),
+            Map.entry("Viễn Tưởng", Set.of("vien tuong", "fantasy", "than thoai", "magic")),
+            Map.entry("Khoa Học", Set.of("khoa hoc", "sci-fi", "science fiction", "vien tuong khoa hoc")),
+            Map.entry("Chiến Tranh", Set.of("chien tranh", "war", "military", "army", "soldier")),
+            Map.entry("Võ Thuật", Set.of("vo thuat", "martial arts", "kung fu", "wushu")),
+            Map.entry("Bí Ẩn", Set.of("bi an", "mystery", "trinh tham", "detective")),
+            Map.entry("Hình Sự", Set.of("hinh su", "crime", "police", "criminal")),
+            Map.entry("Thể Thao", Set.of("the thao", "sports", "sport"))
     );
 
     // Map country keywords → CANONICAL ENGLISH NAME (match database)
@@ -135,6 +135,15 @@ public class IntentParser {
         // Pure filter = có genre hoặc country, KHÔNG hỏi thông tin chi tiết, KHÔNG hỏi khuyến mãi
         boolean hasFilter = !intent.getGenres().isEmpty() || !intent.getCountries().isEmpty() || intent.getYearMin() != null;
         intent.setPureFilter(hasFilter && !intent.isAsksInfo() && !intent.isWantsPromo());
+
+        // 🐛 DEBUG: Log intent parsing để track hallucination bugs
+        if (hasFilter) {
+            System.out.println("🔍 [IntentParser] Query: " + query);
+            System.out.println("   └─ Genres: " + intent.getGenres());
+            System.out.println("   └─ Countries: " + intent.getCountries());
+            System.out.println("   └─ Year: " + intent.getYearMin() + (intent.getYearMax() != null && !intent.getYearMin().equals(intent.getYearMax()) ? "-" + intent.getYearMax() : ""));
+            System.out.println("   └─ isPureFilter: " + intent.isPureFilter());
+        }
 
         return intent;
     }
