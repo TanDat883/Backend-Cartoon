@@ -22,6 +22,56 @@ public class MovieFilterService {
     private final GenreSemantics genreSemantics;
 
     /**
+     * ✅ Search movies by title (with fuzzy matching)
+     * Handles: "đảo ấu trùng", "dao au trung", etc.
+     */
+    public List<MovieSuggestionDTO> searchByTitle(String titleQuery, Integer yearMin, Integer yearMax, int limit) {
+        if (titleQuery == null || titleQuery.isBlank()) {
+            return List.of();
+        }
+
+        long tStart = System.currentTimeMillis();
+        String queryNorm = vnNorm(titleQuery.toLowerCase());
+
+        var result = movieService.findAllMovies().stream()
+                .filter(m -> {
+                    // Match against title, original title, or slug
+                    String titleNorm = vnNorm(m.getTitle() != null ? m.getTitle().toLowerCase() : "");
+                    String originalNorm = vnNorm(m.getOriginalTitle() != null ? m.getOriginalTitle().toLowerCase() : "");
+                    String slugNorm = vnNorm(m.getSlug() != null ? m.getSlug().toLowerCase() : "");
+
+                    return titleNorm.contains(queryNorm) ||
+                           queryNorm.contains(titleNorm) ||
+                           originalNorm.contains(queryNorm) ||
+                           queryNorm.contains(originalNorm) ||
+                           slugNorm.contains(queryNorm);
+                })
+                .filter(m -> matchesYearRange(m, yearMin, yearMax))
+                .sorted(Comparator.comparing(
+                        (Movie m) -> m.getViewCount() == null ? 0L : m.getViewCount(),
+                        Comparator.reverseOrder()
+                ))
+                .limit(limit)
+                .map(m -> {
+                    MovieSuggestionDTO dto = new MovieSuggestionDTO();
+                    dto.setMovieId(m.getMovieId());
+                    dto.setTitle(m.getTitle());
+                    dto.setThumbnailUrl(m.getThumbnailUrl());
+                    dto.setGenres(m.getGenres());
+                    dto.setViewCount(m.getViewCount());
+                    dto.setAvgRating(m.getAvgRating());
+                    dto.setScore(null);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        long tEnd = System.currentTimeMillis();
+        log.debug("⏱️ searchByTitle | query='{}' | found={} | latency={}ms", titleQuery, result.size(), (tEnd - tStart));
+
+        return result;
+    }
+
+    /**
      * Lọc phim theo genres, countries, year range
      * Tối ưu với sorting theo view count
      */
@@ -29,7 +79,23 @@ public class MovieFilterService {
                                                   Integer yearMin, Integer yearMax, int limit) {
         long tStart = System.currentTimeMillis();
 
-        var result = movieService.findAllMovies().stream()
+        // ✅ DEBUG: Log all movies in database
+        var allMovies = movieService.findAllMovies();
+        log.info("🔍 [DEBUG] Total movies in DB: {}", allMovies.size());
+        log.info("🔍 [DEBUG] Filter criteria: genres={}, countries={}, year={}-{}",
+                genres, countries, yearMin, yearMax);
+
+        // ✅ DEBUG: Check genre matching for first few movies
+        if (!genres.isEmpty()) {
+            log.info("🔍 [DEBUG] Checking genre matches:");
+            allMovies.stream().limit(10).forEach(m -> {
+                boolean matches = matchesGenres(m, genres);
+                log.info("   Movie: {} | Genres: {} | Matches: {}",
+                        m.getTitle(), m.getGenres(), matches);
+            });
+        }
+
+        var result = allMovies.stream()
                 .filter(m -> matchesGenres(m, genres))
                 .filter(m -> matchesCountries(m, countries))
                 .filter(m -> matchesYearRange(m, yearMin, yearMax))
@@ -52,49 +118,41 @@ public class MovieFilterService {
                 .collect(Collectors.toList());
 
         long tEnd = System.currentTimeMillis();
-        log.debug("⏱️ filterMovies | found={} | latency={}ms", result.size(), (tEnd - tStart));
+        log.info("⏱️ filterMovies | found={} | latency={}ms", result.size(), (tEnd - tStart));
 
         return result;
     }
 
     /**
      * ✅ SMART FILTER: Tìm với semantic understanding
-     * Nếu không tìm thấy exact match, tự động thử related genres
+     * LUÔN expand genres để hiểu "Hoạt Hình" = "Anime" = "Thiếu Nhi"
      */
     public List<MovieSuggestionDTO> filterMoviesWithSemanticFallback(
             Set<String> genres, Set<String> countries,
             Integer yearMin, Integer yearMax, int limit) {
 
-        // Try exact match first
-        var results = filterMovies(genres, countries, yearMin, yearMax, limit);
-
-        if (!results.isEmpty()) {
-            log.debug("✅ Found {} movies with exact match", results.size());
-            return results;
-        }
-
-        // ✅ SMART FALLBACK: Try related genres
+        // ✅ ALWAYS expand genres for better matching
+        Set<String> searchGenres = genres;
         if (genres != null && !genres.isEmpty()) {
-            log.debug("⚠️ No exact match, trying semantic fallback for genres: {}", genres);
-
             Set<String> expandedGenres = new HashSet<>();
             for (String genre : genres) {
                 expandedGenres.addAll(genreSemantics.getRelatedGenres(genre));
             }
 
-            log.debug("🔍 Expanded genres: {} → {}", genres, expandedGenres);
-
-            results = filterMovies(expandedGenres, countries, yearMin, yearMax, limit);
-
-            if (!results.isEmpty()) {
-                log.info("✅ Found {} movies with semantic fallback", results.size());
-                return results;
-            }
+            log.info("🔍 Semantic expansion: {} → {}", genres, expandedGenres);
+            searchGenres = expandedGenres;
         }
 
-        // Still nothing? Return empty (controller will handle top movies fallback)
-        log.debug("❌ No movies found even with semantic fallback");
-        return List.of();
+        // Search with expanded genres
+        var results = filterMovies(searchGenres, countries, yearMin, yearMax, limit);
+
+        if (!results.isEmpty()) {
+            log.info("✅ Found {} movies with semantic search", results.size());
+        } else {
+            log.warn("❌ No movies found even with semantic expansion");
+        }
+
+        return results;
     }
 
     /**

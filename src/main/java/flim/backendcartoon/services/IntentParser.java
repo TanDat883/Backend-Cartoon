@@ -23,18 +23,23 @@ public class IntentParser {
         private boolean wantsPromo;
         private boolean wantsRec;
         private boolean asksInfo; // hỏi thông tin chi tiết về phim
+        private boolean isTitleSearch; // ✅ true = user đang tìm phim theo tên cụ thể
+        private String searchTitle; // ✅ Extracted movie title from query
     }
 
     // Map genre keywords - CANONICAL NAMES match với database
+    // ✅ FIX: Add "Anime" as separate genre since database uses "Anime" not "Hoạt Hình"
     private static final Map<String, Set<String>> GENRE_KEYWORDS = Map.ofEntries(
             Map.entry("Hành Động", Set.of("hanh dong", "action", "fight")),
             Map.entry("Hài", Set.of("hai", "comedy", "hai huoc", "sitcom")),
             Map.entry("Tình Cảm", Set.of("tinh cam", "romance", "lang man", "love")),
             Map.entry("Kinh Dị", Set.of("kinh di", "horror", "ma", "scary", "ghost")),
-            Map.entry("Hoạt Hình", Set.of("hoat hinh", "anime", "cartoon", "animation", "애니메이션")),
+            Map.entry("Hoạt Hình", Set.of("hoat hinh", "cartoon", "animation", "애니메이션")),
+            Map.entry("Anime", Set.of("anime")),  // ✅ Separate entry for Anime
             Map.entry("Phiêu Lưu", Set.of("phieu luu", "adventure", "quest")),
             Map.entry("Tâm Lý", Set.of("tam ly", "drama", "chinh kich", "psychological")),
             Map.entry("Gia Đình", Set.of("gia dinh", "family", "tre em", "kids")),
+            Map.entry("Thiếu Nhi", Set.of("thieu nhi", "tre em nho")),  // ✅ Add Thiếu Nhi
             Map.entry("Viễn Tưởng", Set.of("vien tuong", "fantasy", "than thoai", "magic")),
             Map.entry("Khoa Học", Set.of("khoa hoc", "sci-fi", "science fiction", "vien tuong khoa hoc")),
             Map.entry("Chiến Tranh", Set.of("chien tranh", "war", "military", "army", "soldier")),
@@ -79,7 +84,28 @@ public class IntentParser {
             "recommend", "suggest", "hay khong", "hay ko"
     );
 
+    // ✅ Negative context patterns - to avoid extracting keywords from negative sentences
+    private static final Set<String> NEGATIVE_PATTERNS = Set.of(
+            "khong phai", "ko phai", "chu ko", "chu khong",
+            "khong muon", "ko muon", "khong thich", "ko thich",
+            "dung", "dung la", "stop"
+    );
+
+    // ✅ Chatbot conversation keywords - questions about the chatbot itself, NOT movie searches
+    private static final Set<String> CHATBOT_CONVERSATION_KEYWORDS = Set.of(
+            "ban la", "ban co phai", "ban biet", "ban ten gi", "ban may tuoi",
+            "gioi tinh", "con trai", "con gai", "con nguoi", "ai tao ra ban",
+            "ban song o dau", "ban lam gi", "ban thich gi", "tam su",
+            "cho toi tien", "giup toi", "alo alo", "hello", "hi bot"
+    );
+
     private static final Pattern YEAR_PATTERN = Pattern.compile("\\b(19|20)\\d{2}\\b");
+
+    // ✅ Title search patterns: "tôi muốn xem phim X", "phim X có không", "tìm phim X"
+    private static final Set<String> TITLE_SEARCH_TRIGGERS = Set.of(
+            "muon xem phim", "tim phim", "phim", "xem phim", "co phim",
+            "phim nao ten", "ten phim", "phim ten la"
+    );
 
     public Intent parse(String query) {
         Intent intent = new Intent();
@@ -98,15 +124,25 @@ public class IntentParser {
         // Detect info questions (asks about specific movie details)
         intent.setAsksInfo(containsAny(q, INFO_KEYWORDS));
 
-        // Extract genres
-        for (Map.Entry<String, Set<String>> entry : GENRE_KEYWORDS.entrySet()) {
-            if (containsAny(q, entry.getValue())) {
-                intent.getGenres().add(entry.getKey());
+        // ✅ Detect title search: "tôi muốn xem phim đảo ấu trùng 2018"
+        // Extract potential movie title by removing common keywords
+        String titleCandidate = extractTitleCandidate(query, q);
+
+        // ✅ Check if query has negative context (e.g., "không phải Trung Quốc")
+        boolean hasNegativeContext = containsAny(q, NEGATIVE_PATTERNS);
+
+        // Extract genres (skip if negative context)
+        if (!hasNegativeContext) {
+            for (Map.Entry<String, Set<String>> entry : GENRE_KEYWORDS.entrySet()) {
+                if (containsAny(q, entry.getValue())) {
+                    intent.getGenres().add(entry.getKey());
+                }
             }
         }
 
-        // Extract countries (with context-aware filtering)
-        for (Map.Entry<String, Set<String>> entry : COUNTRY_KEYWORDS.entrySet()) {
+        // Extract countries (with context-aware filtering, skip if negative context)
+        if (!hasNegativeContext) {
+            for (Map.Entry<String, Set<String>> entry : COUNTRY_KEYWORDS.entrySet()) {
             for (String keyword : entry.getValue()) {
                 // Skip single-letter or ambiguous keywords in question contexts
                 if (keyword.length() <= 2 && (q.contains("hay ko") || q.contains("hay khong") ||
@@ -120,6 +156,7 @@ public class IntentParser {
                 }
             }
         }
+        }
 
         // Extract year
         var matcher = YEAR_PATTERN.matcher(query);
@@ -131,18 +168,30 @@ public class IntentParser {
             } catch (NumberFormatException ignored) {}
         }
 
+        // ✅ Check if this is a title search (has movie title candidate but NO genre/country keywords)
+        // This distinguishes "phim đảo ấu trùng" (title search) from "phim hành động" (genre filter)
+        if (titleCandidate != null && !titleCandidate.isBlank() &&
+            intent.getGenres().isEmpty() && intent.getCountries().isEmpty()) {
+            intent.setTitleSearch(true);
+            intent.setSearchTitle(titleCandidate);
+        }
+
         // Determine if it's a pure filter query
-        // Pure filter = có genre hoặc country, KHÔNG hỏi thông tin chi tiết, KHÔNG hỏi khuyến mãi
+        // Pure filter = có genre hoặc country, KHÔNG hỏi thông tin chi tiết, KHÔNG hỏi khuyến mãi, KHÔNG phải title search
         boolean hasFilter = !intent.getGenres().isEmpty() || !intent.getCountries().isEmpty() || intent.getYearMin() != null;
-        intent.setPureFilter(hasFilter && !intent.isAsksInfo() && !intent.isWantsPromo());
+        intent.setPureFilter(hasFilter && !intent.isAsksInfo() && !intent.isWantsPromo() && !intent.isTitleSearch());
 
         // 🐛 DEBUG: Log intent parsing để track hallucination bugs
-        if (hasFilter) {
+        if (hasFilter || intent.isTitleSearch()) {
             System.out.println("🔍 [IntentParser] Query: " + query);
             System.out.println("   └─ Genres: " + intent.getGenres());
             System.out.println("   └─ Countries: " + intent.getCountries());
             System.out.println("   └─ Year: " + intent.getYearMin() + (intent.getYearMax() != null && !intent.getYearMin().equals(intent.getYearMax()) ? "-" + intent.getYearMax() : ""));
             System.out.println("   └─ isPureFilter: " + intent.isPureFilter());
+            System.out.println("   └─ isTitleSearch: " + intent.isTitleSearch());
+            if (intent.isTitleSearch()) {
+                System.out.println("   └─ searchTitle: " + intent.getSearchTitle());
+            }
         }
 
         return intent;
@@ -155,6 +204,63 @@ public class IntentParser {
             }
         }
         return false;
+    }
+
+    /**
+     * ✅ Extract potential movie title from query
+     * Example: "tôi muốn xem phim đảo ấu trùng 2018" → "đảo ấu trùng"
+     */
+    private String extractTitleCandidate(String originalQuery, String normalized) {
+        // ✅ CRITICAL: Skip if this is a chatbot conversation, NOT a movie search
+        if (containsAny(normalized, CHATBOT_CONVERSATION_KEYWORDS)) {
+            return null;  // This is about the chatbot, not a movie title
+        }
+
+        // Remove common search triggers
+        String cleaned = normalized;
+        cleaned = cleaned.replaceAll("\\btoi muon xem phim\\b", "");
+        cleaned = cleaned.replaceAll("\\bmuon xem phim\\b", "");
+        cleaned = cleaned.replaceAll("\\bmuon xem\\b", "");  // ✅ Add "muốn xem" without "phim"
+        cleaned = cleaned.replaceAll("\\btoi muon\\b", "");  // ✅ Add "tôi muốn"
+        cleaned = cleaned.replaceAll("\\btim phim\\b", "");
+        cleaned = cleaned.replaceAll("\\bxem phim\\b", "");
+        cleaned = cleaned.replaceAll("\\bco phim\\b", "");
+        cleaned = cleaned.replaceAll("\\bphim\\b", "");
+        cleaned = cleaned.replaceAll("\\btoi\\b", "");  // ✅ Remove "tôi"
+        cleaned = cleaned.replaceAll("\\bxem\\b", "");  // ✅ Remove "xem"
+        cleaned = cleaned.replaceAll("\\bkhong\\b", "");
+        cleaned = cleaned.replaceAll("\\bko\\b", "");
+
+        // Remove year patterns
+        cleaned = cleaned.replaceAll("\\b(19|20)\\d{2}\\b", "");
+
+        // Remove question words
+        cleaned = cleaned.replaceAll("\\bco\\b", "");
+        cleaned = cleaned.replaceAll("\\bkhong\\b", "");
+
+        cleaned = cleaned.trim();
+
+        // ✅ FIX: If cleaned text is a genre/country keyword, DON'T treat as title
+        // Check if it matches any genre keyword
+        for (Map.Entry<String, Set<String>> entry : GENRE_KEYWORDS.entrySet()) {
+            if (entry.getValue().contains(cleaned)) {
+                return null;  // It's a genre, not a title
+            }
+        }
+
+        // Check if it matches any country keyword
+        for (Map.Entry<String, Set<String>> entry : COUNTRY_KEYWORDS.entrySet()) {
+            if (entry.getValue().contains(cleaned)) {
+                return null;  // It's a country, not a title
+            }
+        }
+
+        // If we have something left with at least 3 characters, consider it a title candidate
+        if (cleaned.length() >= 3) {
+            return cleaned;
+        }
+
+        return null;
     }
 
     private String vnNorm(String s) {

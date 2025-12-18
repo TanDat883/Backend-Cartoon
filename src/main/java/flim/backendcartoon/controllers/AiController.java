@@ -120,6 +120,27 @@ public class AiController {
             return ResponseEntity.ok(offTopicResponse);
         }
 
+        // ✅ CRITICAL: Load currentMovie BEFORE fast-path checks
+        // If user is on movie detail/watch page, they might ask about "this movie"
+        Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
+        List<Movie> mentioned = findMentionedMovies(q);
+
+        // ✅ CRITICAL: If user has currentMovie context and asks info questions,
+        // MUST use LLM (not fast-path) to understand context like "nội dung của phim này"
+        boolean hasMovieContext = current != null || !mentioned.isEmpty();
+        boolean shouldUseLLM = hasMovieContext && (intent.isAsksInfo() ||
+                                                   containsAny(q, "noi dung", "cua phim", "phim nay",
+                                                              "tac gia", "dao dien", "dien vien"));
+
+        // ✅ FAST-PATH: Title search (e.g., "tôi muốn xem phim đảo ấu trùng 2018")
+        // SKIP if user is asking about current movie context
+        if (!shouldUseLLM && intent.isTitleSearch() && intent.getSearchTitle() != null) {
+            ChatResponse titleResponse = handleTitleSearchQuery(intent, user.userName, convId, rawQ);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Title search completed | latency={}ms | no_llm_call=true", (tEnd - tStart));
+            return ResponseEntity.ok(titleResponse);
+        }
+
         // ✅ CRITICAL FIX: Expand fast-path to include queries with "tìm", "gợi ý", etc.
         // Pure filter = has genre OR country OR year (regardless of other keywords)
         boolean hasClearFilters = !intent.getGenres().isEmpty() ||
@@ -128,7 +149,8 @@ public class AiController {
 
         // ✅ FAST-PATH: Xử lý query lọc thuần KHÔNG gọi LLM
         // Includes: "tìm phim hành động 2026", "phim tình cảm lãng mạn", etc.
-        if (intent.isPureFilter() || (hasClearFilters && !intent.isAsksInfo())) {
+        // SKIP if user is asking about current movie context
+        if (!shouldUseLLM && (intent.isPureFilter() || (hasClearFilters && !intent.isAsksInfo()))) {
             ChatResponse fastResponse = handlePureFilterQuery(intent, user.userName, convId, rawQ);
             long tEnd = System.currentTimeMillis();
             log.info("⏱️ Fast-path completed | latency={}ms | no_llm_call=true", (tEnd - tStart));
@@ -137,10 +159,6 @@ public class AiController {
 
         // Ý định người dùng (fallback từ rule cũ)
         final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
-
-        // Phim ngữ cảnh
-        Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
-        List<Movie> mentioned = findMentionedMovies(q);
 
         // ✅ CRITICAL FIX: Detect NEGATIVE intent (user says NO/refuses previous suggestions)
         boolean isNegativeIntent = detectNegativeIntent(rawQ);
@@ -413,8 +431,9 @@ public class AiController {
      */
     private ChatResponse handlePureFilterQuery(IntentParser.Intent intent, String userName,
                                                String convId, String userMessage) {
-        // ✅ STRICT FILTER: KHÔNG dùng semantic fallback - chỉ exact match + year filter
-        var filtered = movieFilterService.filterMovies(
+        // ✅ SMART FILTER: Dùng semantic fallback để hiểu "Hoạt Hình" = "Anime" = "Thiếu Nhi"
+        // User hỏi "hoạt hình" → tìm cả phim có genre "Anime", "Thiếu Nhi", "Hoạt Hình"
+        var filtered = movieFilterService.filterMoviesWithSemanticFallback(
                 intent.getGenres(),
                 intent.getCountries(),
                 intent.getYearMin(),
@@ -483,6 +502,55 @@ public class AiController {
         log.info("🔍 Filter result | genres={} | countries={} | year={}-{} | found={} | showSuggestions={}",
                 intent.getGenres(), intent.getCountries(), intent.getYearMin(), intent.getYearMax(),
                 filtered.size(), !filtered.isEmpty());
+
+        return resp;
+    }
+
+    /**
+     * ✅ Handle title search query without calling LLM
+     * Example: "tôi muốn xem phim đảo ấu trùng 2018"
+     */
+    private ChatResponse handleTitleSearchQuery(IntentParser.Intent intent, String userName,
+                                                String convId, String userMessage) {
+        var filtered = movieFilterService.searchByTitle(
+                intent.getSearchTitle(),
+                intent.getYearMin(),
+                intent.getYearMax(),
+                10
+        );
+
+        String yearText = "";
+        if (intent.getYearMin() != null) {
+            yearText = " năm " + intent.getYearMin();
+        }
+
+        String answer;
+        if (filtered.isEmpty()) {
+            answer = String.format("Mình chưa tìm thấy phim \"%s\"%s. Bạn có thể thử:\n" +
+                            "• Kiểm tra lại tên phim\n" +
+                            "• Thử tên khác của phim\n" +
+                            "• Hỏi mình gợi ý phim tổng quát",
+                    intent.getSearchTitle(), yearText);
+        } else {
+            answer = String.format("Mình tìm thấy %d phim \"%s\"%s cho %s:",
+                    filtered.size(),
+                    intent.getSearchTitle(),
+                    yearText,
+                    userName);
+        }
+
+        ChatResponse resp = ChatResponse.builder()
+                .answer(answer)
+                .suggestions(filtered)
+                .showSuggestions(!filtered.isEmpty())
+                .promos(List.of())
+                .showPromos(false)
+                .build();
+
+        persistMemory(convId, userMessage, answer, filtered, !filtered.isEmpty());
+
+        log.info("🔍 Title search result | title='{}' | year={} | found={} | showSuggestions={}",
+                intent.getSearchTitle(), intent.getYearMin(), filtered.size(), !filtered.isEmpty());
 
         return resp;
     }

@@ -43,12 +43,16 @@ public class GenreSemantics {
 
     /**
      * Genre synonyms - Các tên gọi khác nhau của cùng 1 thể loại
+     * ✅ CRITICAL: Thêm semantic relationships để hiểu "Hoạt Hình" ≈ "Anime" ≈ "Thiếu Nhi"
      */
     private static final Map<String, Set<String>> GENRE_SYNONYMS = Map.of(
-            "Hoạt Hình", Set.of("Anime", "Animation", "Cartoon", "hoạt hình", "hoat hinh", "anime"),
-            "Anime", Set.of("Hoạt Hình", "Animation", "anime", "hoat hinh"),
-            "Thiếu Nhi", Set.of("Trẻ Em", "Kids", "Children", "Gia Đình", "Family", "thieu nhi", "tre em"),
-            "Gia Đình", Set.of("Family", "Thiếu Nhi", "Kids", "gia dinh", "family"),
+            // Animation cluster - Rất quan trọng!
+            "Hoạt Hình", Set.of("Anime", "Animation", "Cartoon", "hoạt hình", "hoat hinh", "anime", "Thiếu Nhi"),
+            "Anime", Set.of("Hoạt Hình", "Animation", "anime", "hoat hinh", "Thiếu Nhi", "Cartoon"),
+            "Thiếu Nhi", Set.of("Trẻ Em", "Kids", "Children", "Gia Đình", "Family", "thieu nhi", "tre em", "Hoạt Hình", "Anime"),
+            "Gia Đình", Set.of("Family", "Thiếu Nhi", "Kids", "gia dinh", "family", "Hoạt Hình", "Anime"),
+
+            // Other genres
             "Hành Động", Set.of("Action", "hanh dong", "action"),
             "Tâm Lý", Set.of("Drama", "Chính Kịch", "tam ly", "drama"),
             "Kinh Dị", Set.of("Horror", "kinh di", "horror", "scary"),
