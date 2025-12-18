@@ -120,6 +120,10 @@ public class AiController {
             return ResponseEntity.ok(offTopicResponse);
         }
 
+        // ✅ CRITICAL: Detect promo queries BEFORE fast-path
+        // Promo keywords: "khuyến mãi", "ưu đãi", "voucher", "mã giảm", etc.
+        final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
+
         // ✅ CRITICAL: Load currentMovie BEFORE fast-path checks
         // If user is on movie detail/watch page, they might ask about "this movie"
         Movie current = isBlank(req.getCurrentMovieId()) ? null : movieService.findMovieById(req.getCurrentMovieId());
@@ -131,6 +135,21 @@ public class AiController {
         boolean shouldUseLLM = hasMovieContext && (intent.isAsksInfo() ||
                                                    containsAny(q, "noi dung", "cua phim", "phim nay",
                                                               "tac gia", "dao dien", "dien vien"));
+
+        // ✅ EARLY RETURN: Handle promo queries BEFORE fast-path
+        if (wantsPromo) {
+            log.info("⏱️ Promo query detected | building promo response...");
+            List<MovieSuggestionDTO> candidates = recService.recommendForUser(user.userId, req.getCurrentMovieId(), 8);
+            ChatResponse promoResp = buildPromoResponse(false, candidates);
+            log.info("✅ Promo response built | promos_count={} | has_promos={}",
+                    promoResp.getPromos() != null ? promoResp.getPromos().size() : 0,
+                    promoResp.getShowPromos());
+            persistMemory(isBlank(req.getConversationId()) ? null : req.getConversationId(),
+                         rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), false);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Promo query completed | latency={}ms", (tEnd - tStart));
+            return ResponseEntity.ok(promoResp);
+        }
 
         // ✅ FAST-PATH: Title search (e.g., "tôi muốn xem phim đảo ấu trùng 2018")
         // SKIP if user is asking about current movie context
@@ -157,8 +176,7 @@ public class AiController {
             return ResponseEntity.ok(fastResponse);
         }
 
-        // Ý định người dùng (fallback từ rule cũ)
-        final boolean wantsPromo = intent.isWantsPromo() || containsAny(q, "khuyen mai","uu dai","voucher","ma giam","promo","giam gia");
+        // ✅ NOTE: wantsPromo already declared before fast-path (line ~114)
 
         // ✅ CRITICAL FIX: Detect NEGATIVE intent (user says NO/refuses previous suggestions)
         boolean isNegativeIntent = detectNegativeIntent(rawQ);
@@ -235,18 +253,8 @@ public class AiController {
             return ResponseEntity.ok(pricingResp);
         }
 
-        // Nếu hỏi khuyến mãi → trả thẳng dữ liệu, không gọi AI
-        if (wantsPromo) {
-            log.info("⏱️ Promo query detected | building promo response...");
-            ChatResponse promoResp = buildPromoResponse(wantsRec, candidates);
-            log.info("✅ Promo response built | promos_count={} | has_promos={}",
-                    promoResp.getPromos() != null ? promoResp.getPromos().size() : 0,
-                    promoResp.getShowPromos());
-            persistMemory(convId, rawQ, promoResp.getAnswer(), promoResp.getSuggestions(), wantsRec);
-            long tEnd = System.currentTimeMillis();
-            log.info("⏱️ Promo query completed | latency={}ms", (tEnd - tStart));
-            return ResponseEntity.ok(promoResp);
-        }
+        // ✅ NOTE: wantsPromo is already handled BEFORE fast-path (line ~135)
+        // No need to check again here
 
         // Gọi AI với đầy đủ context (phim hiện tại + phim được nhắc)
         List<Map<String, ?>> mentionedInfos = mentioned.stream()
