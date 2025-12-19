@@ -156,6 +156,99 @@ public class MovieFilterService {
     }
 
     /**
+     * ✅ Get top-rated movies (sorted by avgRating DESC)
+     * Example: "phim có đánh giá cao nhất"
+     */
+    public List<MovieSuggestionDTO> getTopRatedMovies(Set<String> genres, Set<String> countries, int limit) {
+        long tStart = System.currentTimeMillis();
+
+        // Expand genres if provided
+        final Set<String> searchGenres;
+        if (genres != null && !genres.isEmpty()) {
+            Set<String> expandedGenres = new HashSet<>();
+            for (String genre : genres) {
+                expandedGenres.addAll(genreSemantics.getRelatedGenres(genre));
+            }
+            log.info("🔍 Semantic expansion for top rated: {} → {}", genres, expandedGenres);
+            searchGenres = expandedGenres;
+        } else {
+            searchGenres = genres;
+        }
+
+        var results = movieService.findAllMovies().stream()
+                .filter(m -> matchesGenres(m, searchGenres))
+                .filter(m -> matchesCountries(m, countries))
+                .filter(m -> m.getAvgRating() != null && m.getAvgRating() > 0) // Must have rating
+                .sorted(Comparator.comparing(
+                        (Movie m) -> m.getAvgRating(),
+                        Comparator.reverseOrder()
+                ))
+                .limit(limit)
+                .map(m -> {
+                    MovieSuggestionDTO dto = new MovieSuggestionDTO();
+                    dto.setMovieId(m.getMovieId());
+                    dto.setTitle(m.getTitle());
+                    dto.setThumbnailUrl(m.getThumbnailUrl());
+                    dto.setGenres(m.getGenres());
+                    dto.setViewCount(m.getViewCount());
+                    dto.setAvgRating(m.getAvgRating());
+                    dto.setScore(null);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        long tEnd = System.currentTimeMillis();
+        log.info("⏱️ getTopRatedMovies | found={} | latency={}ms", results.size(), (tEnd - tStart));
+        return results;
+    }
+
+    /**
+     * ✅ Get most viewed movies (sorted by viewCount DESC)
+     * Example: "phim có nhiều lượt xem nhất"
+     */
+    public List<MovieSuggestionDTO> getTopViewedMovies(Set<String> genres, Set<String> countries, int limit) {
+        long tStart = System.currentTimeMillis();
+
+        // Expand genres if provided
+        final Set<String> searchGenres;
+        if (genres != null && !genres.isEmpty()) {
+            Set<String> expandedGenres = new HashSet<>();
+            for (String genre : genres) {
+                expandedGenres.addAll(genreSemantics.getRelatedGenres(genre));
+            }
+            log.info("🔍 Semantic expansion for top viewed: {} → {}", genres, expandedGenres);
+            searchGenres = expandedGenres;
+        } else {
+            searchGenres = genres;
+        }
+
+        var results = movieService.findAllMovies().stream()
+                .filter(m -> matchesGenres(m, searchGenres))
+                .filter(m -> matchesCountries(m, countries))
+                .sorted(Comparator.comparing(
+                        (Movie m) -> m.getViewCount() == null ? 0L : m.getViewCount(),
+                        Comparator.reverseOrder()
+                ))
+                .limit(limit)
+                .map(m -> {
+                    MovieSuggestionDTO dto = new MovieSuggestionDTO();
+                    dto.setMovieId(m.getMovieId());
+                    dto.setTitle(m.getTitle());
+                    dto.setThumbnailUrl(m.getThumbnailUrl());
+                    dto.setGenres(m.getGenres());
+                    dto.setViewCount(m.getViewCount());
+                    dto.setAvgRating(m.getAvgRating());
+                    dto.setScore(null);
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        long tEnd = System.currentTimeMillis();
+        log.info("⏱️ getTopViewedMovies | found={} | latency={}ms", results.size(), (tEnd - tStart));
+        return results;
+    }
+
+    /**
      * Lấy phim hot nhất (fallback khi không tìm thấy)
      */
     public List<MovieSuggestionDTO> getTopMovies(int limit) {

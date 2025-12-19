@@ -81,7 +81,11 @@ public class IntentParser {
     private static final Set<String> REC_KEYWORDS = Set.of(
             "goi y", "de xuat", "xem gi", "nen xem", "top", "trending",
             "hay nhat", "phu hop", "phim nao hay", "co phim nao hay", "co gi xem",
-            "recommend", "suggest", "hay khong", "hay ko"
+            "recommend", "suggest", "hay khong", "hay ko",
+            // ✅ Rating/ranking related queries
+            "cao nhat", "tot nhat", "xuat sac nhat", "danh gia cao", "rating cao",
+            "luot xem nhieu", "pho bien nhat", "noi bat nhat", "hot nhat",
+            "best rated", "highest rating", "most viewed", "most popular"
     );
 
     // ✅ Negative context patterns - to avoid extracting keywords from negative sentences
@@ -214,6 +218,12 @@ public class IntentParser {
         // ✅ CRITICAL: Skip if this is a chatbot conversation, NOT a movie search
         if (containsAny(normalized, CHATBOT_CONVERSATION_KEYWORDS)) {
             return null;  // This is about the chatbot, not a movie title
+        }
+
+        // ✅ CRITICAL: Skip if this is a recommendation query, NOT a title search
+        // Examples: "phim nào có lượt đánh giá cao nhất", "top phim hay nhất"
+        if (containsAny(normalized, REC_KEYWORDS)) {
+            return null;  // This is asking for recommendations, not searching for a specific title
         }
 
         // Remove common search triggers

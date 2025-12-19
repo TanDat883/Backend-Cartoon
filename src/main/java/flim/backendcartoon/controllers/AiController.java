@@ -151,6 +151,19 @@ public class AiController {
             return ResponseEntity.ok(promoResp);
         }
 
+        // ✅ FAST-PATH: Rating/View Count queries (e.g., "phim có rating cao nhất", "phim có nhiều lượt xem nhất")
+        boolean asksTopRated = containsAny(q, "rating cao", "danh gia cao", "cao nhat", "tot nhat", "xuat sac nhat");
+        boolean asksTopViewed = containsAny(q, "luot xem nhieu", "luot xem cao", "xem nhieu", "pho bien nhat", "hot nhat", "noi bat nhat");
+
+        if (!shouldUseLLM && (asksTopRated || asksTopViewed)) {
+            ChatResponse rankingResponse = handleRankingQuery(asksTopRated, asksTopViewed,
+                                                              intent.getGenres(), intent.getCountries(),
+                                                              user.userName, convId, rawQ);
+            long tEnd = System.currentTimeMillis();
+            log.info("⏱️ Ranking query completed | latency={}ms | no_llm_call=true", (tEnd - tStart));
+            return ResponseEntity.ok(rankingResponse);
+        }
+
         // ✅ FAST-PATH: Title search (e.g., "tôi muốn xem phim đảo ấu trùng 2018")
         // SKIP if user is asking about current movie context
         if (!shouldUseLLM && intent.isTitleSearch() && intent.getSearchTitle() != null) {
@@ -559,6 +572,59 @@ public class AiController {
 
         log.info("🔍 Title search result | title='{}' | year={} | found={} | showSuggestions={}",
                 intent.getSearchTitle(), intent.getYearMin(), filtered.size(), !filtered.isEmpty());
+
+        return resp;
+    }
+
+    /**
+     * ✅ Handle rating/view count ranking queries without calling LLM
+     * Examples: "phim có rating cao nhất", "phim có nhiều lượt xem nhất"
+     */
+    private ChatResponse handleRankingQuery(boolean byRating, boolean byViewCount,
+                                           Set<String> genres, Set<String> countries,
+                                           String userName, String convId, String userMessage) {
+        List<MovieSuggestionDTO> filtered;
+        String rankingType;
+
+        if (byRating) {
+            // Sort by avgRating DESC
+            filtered = movieFilterService.getTopRatedMovies(genres, countries, 10);
+            rankingType = "đánh giá cao nhất";
+        } else {
+            // Sort by viewCount DESC
+            filtered = movieFilterService.getTopViewedMovies(genres, countries, 10);
+            rankingType = "nhiều lượt xem nhất";
+        }
+
+        String genresText = genres.isEmpty() ? "" :
+                "thể loại " + String.join(", ", genres) + " ";
+        String countriesText = countries.isEmpty() ? "" :
+                String.join(", ", countries) + " ";
+
+        String answer;
+        if (filtered.isEmpty()) {
+            answer = String.format("Mình chưa tìm thấy phim %s%s%s. Bạn có thể thử:\n" +
+                            "• Thay đổi thể loại hoặc quốc gia\n" +
+                            "• Hỏi mình gợi ý phim tổng quát",
+                    countriesText, genresText, rankingType);
+        } else {
+            answer = String.format("Mình tìm thấy %d phim %s%s%s cho %s:",
+                    filtered.size(), countriesText, genresText, rankingType, userName);
+        }
+
+        ChatResponse resp = ChatResponse.builder()
+                .answer(answer)
+                .suggestions(filtered)
+                .showSuggestions(!filtered.isEmpty())
+                .promos(List.of())
+                .showPromos(false)
+                .build();
+
+        persistMemory(convId, userMessage, answer, filtered, !filtered.isEmpty());
+
+        log.info("🏆 Ranking result | type={} | genres={} | countries={} | found={} | showSuggestions={}",
+                byRating ? "rating" : "viewCount", genres, countries,
+                filtered.size(), !filtered.isEmpty());
 
         return resp;
     }
