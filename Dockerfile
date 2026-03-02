@@ -29,6 +29,6 @@ COPY --from=build /app/build/libs/*SNAPSHOT.jar app.jar
 # Copy file .env từ build stage
 #COPY --from=build /app/.env .env
 
-# Expose port và chạy ứng dụng
+# Expose port và chạy ứng dụngs
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app/app.jar"]
