@@ -23,10 +23,10 @@ public class CloudFrontService {
     private final CloudFrontClient cloudFrontClient;
 
 
-    @Value("${aws.cloudfront.distribution-id:EUVCNTE9CJQKF}")
+    @Value("${aws.cloudfront.distribution-id:E3A1STOLZFBLZ9}")
     private String distributionId;
 
-    @Value("${aws.cloudfront.domain:d621tiwb61jda.cloudfront.net}")
+    @Value("${aws.cloudfront.domain:d16nj59miafh1i.cloudfront.net}")
     private String cloudFrontDomain;
 
     @Value("${aws.cloudfront.enabled:true}")
