@@ -15,7 +15,7 @@ COPY src /app/src
 #COPY .env /app/.env
 
 # Build ứng dụng (bỏ qua test)
-#RUN ./gradlew build --no-daemon -x test s
+#RUN ./gradlew build --no-daemon -x test 
 RUN gradle build --no-daemon -x test
 # Run stage
 #FROM openjdk:21-jdk-slim
