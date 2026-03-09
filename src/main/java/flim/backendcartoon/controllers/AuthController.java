@@ -245,44 +245,44 @@ public class AuthController {
     }
 
     // 3. ĐĂNG NHẬP (LẤY ĐỦ TOKEN + DỮ LIỆU NGƯỜI DÙNG)
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        String username = request.get("username"); // Số điện thoại
-        String password = request.get("password");
-
-        try {
-            String secretHash = calculateSecretHash(clientId, clientSecret, username);
-
-            InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
-                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
-                    .clientId(clientId)
-                    .authParameters(Map.of(
-                            "USERNAME", username,
-                            "PASSWORD", password,
-                            "SECRET_HASH", secretHash
-                    ))
-                    .build();
-
-            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
-            AuthenticationResultType result = authResponse.authenticationResult();
-
-            // Lấy thông tin từ DB của mình
-            User myUser = userService.findUserByPhoneNumber(username);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("accessToken", result.accessToken());
-            response.put("idToken", result.idToken());
-            response.put("refreshToken", result.refreshToken());
-            response.put("expiresIn", result.expiresIn());
-            response.put("user", myUser); // Trả về thông tin từ DB (ID, Name, Role...)
-
-            return ResponseEntity.ok(response);
-        } catch (NotAuthorizedException e) {
-            return ResponseEntity.status(401).body("Sai số điện thoại hoặc mật khẩu");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Lỗi đăng nhập: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/login")
+//    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+//        String username = request.get("username"); // Số điện thoại
+//        String password = request.get("password");
+//
+//        try {
+//            String secretHash = calculateSecretHash(clientId, clientSecret, username);
+//
+//            InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
+//                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
+//                    .clientId(clientId)
+//                    .authParameters(Map.of(
+//                            "USERNAME", username,
+//                            "PASSWORD", password,
+//                            "SECRET_HASH", secretHash
+//                    ))
+//                    .build();
+//
+//            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
+//            AuthenticationResultType result = authResponse.authenticationResult();
+//
+//            // Lấy thông tin từ DB của mình
+//            User myUser = userService.findUserByPhoneNumber(username);
+//
+//            Map<String, Object> response = new HashMap<>();
+//            response.put("accessToken", result.accessToken());
+//            response.put("idToken", result.idToken());
+//            response.put("refreshToken", result.refreshToken());
+//            response.put("expiresIn", result.expiresIn());
+//            response.put("user", myUser); // Trả về thông tin từ DB (ID, Name, Role...)
+//
+//            return ResponseEntity.ok(response);
+//        } catch (NotAuthorizedException e) {
+//            return ResponseEntity.status(401).body("Sai số điện thoại hoặc mật khẩu");
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Lỗi đăng nhập: " + e.getMessage());
+//        }
+//    }
 
     // 4. QUÊN MẬT KHẨU (DEMO)
     @PostMapping("/forgot-password/send-otp")
@@ -327,75 +327,75 @@ public class AuthController {
     /**
      * API: Đăng nhập User qua Cognito
      */
-//    @PostMapping("/login")
-//    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-//        String username = request.get("username");
-//        String password = request.get("password");
-//
-//        try {
-//            // Tính toán SECRET_HASH
-//            String secretHash = calculateSecretHash(clientId, clientSecret, username);
-//
-//            // Gửi yêu cầu đăng nhập
-//            InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
-//                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
-//                    .clientId(clientId)
-//                    .authParameters(Map.of(
-//                            "USERNAME", username,
-//                            "PASSWORD", password,
-//                            "SECRET_HASH", secretHash
-//                    ))
-//                    .build();
-//
-//            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
-//            String idToken = authResponse.authenticationResult().idToken();
-//            String accessToken = authResponse.authenticationResult().accessToken();
-//            String refeshToken = authResponse.authenticationResult().refreshToken();
-//            Integer expiresIn = authResponse.authenticationResult().expiresIn();
-//
-//            // Truy vấn thông tin người dùng từ accessToken
-//            GetUserRequest getUserRequest = GetUserRequest.builder()
-//                    .accessToken(accessToken)  // Sử dụng accessToken thay vì idToken
-//                    .build();
-//
-//            GetUserResponse getUserResponse = cognitoClient.getUser(getUserRequest);
-//
-//            // Lấy thông tin người dùng trong cognito
-//            Map<String, String> userAttributes = new HashMap<>();
-//            for (AttributeType attribute : getUserResponse.userAttributes()) {
-//                userAttributes.put(attribute.name(), attribute.value());
-//            }
-//
-//            // Sử dụng số điện thoại để tìm người dùng trong DynamoDB hoặc cơ sở dữ liệu khác
-//            User my_user = userService.findUserByPhoneNumber(username); //username là phone number
-//            //set trạng thái online cho user
-//            if (my_user != null) {
-//
-//                userService.updateUser(my_user); // Lưu trạng thái online vào DB
-//            }
-//
-//            // Trả về dữ liệu kết hợp từ Cognito và hệ thống của bạn
-//            Map<String, Object> responseData = new HashMap<>();
-//            responseData.put("idToken", idToken);
-//            responseData.put("accessToken", accessToken);
-//            responseData.put("refeshToken", refeshToken);
-//            responseData.put("expiresIn", expiresIn);
-//            responseData.put("userAttributes", userAttributes);
-//            responseData.put("my_user", my_user);
-//
-//            responseData.put("username", username);
-//
-//            // Trả về ResponseEntity với dữ liệu người dùng
-//            return ResponseEntity.ok(responseData);
-//
-//        } catch (NotAuthorizedException e) {
-//            System.err.println("Login failed: Invalid username or password. Details: " + e.getMessage());
-//            return ResponseEntity.status(401).body("Invalid username or password");
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//            return ResponseEntity.status(500).body("Error during authentication: " + e.getMessage());
-//        }
-//    }
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+        String username = request.get("username");
+        String password = request.get("password");
+
+        try {
+            // Tính toán SECRET_HASH
+            String secretHash = calculateSecretHash(clientId, clientSecret, username);
+
+            // Gửi yêu cầu đăng nhập
+            InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
+                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
+                    .clientId(clientId)
+                    .authParameters(Map.of(
+                            "USERNAME", username,
+                            "PASSWORD", password,
+                            "SECRET_HASH", secretHash
+                    ))
+                    .build();
+
+            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
+            String idToken = authResponse.authenticationResult().idToken();
+            String accessToken = authResponse.authenticationResult().accessToken();
+            String refeshToken = authResponse.authenticationResult().refreshToken();
+            Integer expiresIn = authResponse.authenticationResult().expiresIn();
+
+            // Truy vấn thông tin người dùng từ accessToken
+            GetUserRequest getUserRequest = GetUserRequest.builder()
+                    .accessToken(accessToken)  // Sử dụng accessToken thay vì idToken
+                    .build();
+
+            GetUserResponse getUserResponse = cognitoClient.getUser(getUserRequest);
+
+            // Lấy thông tin người dùng trong cognito
+            Map<String, String> userAttributes = new HashMap<>();
+            for (AttributeType attribute : getUserResponse.userAttributes()) {
+                userAttributes.put(attribute.name(), attribute.value());
+            }
+
+            // Sử dụng số điện thoại để tìm người dùng trong DynamoDB hoặc cơ sở dữ liệu khác
+            User my_user = userService.findUserByPhoneNumber(username); //username là phone number
+            //set trạng thái online cho user
+            if (my_user != null) {
+
+                userService.updateUser(my_user); // Lưu trạng thái online vào DB
+            }
+
+            // Trả về dữ liệu kết hợp từ Cognito và hệ thống của bạn
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("idToken", idToken);
+            responseData.put("accessToken", accessToken);
+            responseData.put("refeshToken", refeshToken);
+            responseData.put("expiresIn", expiresIn);
+            responseData.put("userAttributes", userAttributes);
+            responseData.put("my_user", my_user);
+
+            responseData.put("username", username);
+
+            // Trả về ResponseEntity với dữ liệu người dùng
+            return ResponseEntity.ok(responseData);
+
+        } catch (NotAuthorizedException e) {
+            System.err.println("Login failed: Invalid username or password. Details: " + e.getMessage());
+            return ResponseEntity.status(401).body("Invalid username or password");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error during authentication: " + e.getMessage());
+        }
+    }
 
     //hàm làm mới token
     @PostMapping("/refresh")
