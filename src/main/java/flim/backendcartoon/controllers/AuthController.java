@@ -46,77 +46,166 @@ public class AuthController {
     private final Map<String, String> otpStore = new ConcurrentHashMap<>(); // Lưu OTP tạm thời
     private final Map<String, String> tempUserStore = new ConcurrentHashMap<>(); // Lưu thông tin tạm thời (password)
 
+//    @PostMapping("/send-otp")
+//    public ResponseEntity<?> sendVerificationCode(@RequestBody Map<String, String> request) {
+//        String phoneNumber = request.get("phoneNumber");
+//        String password = request.get("password");
+//
+//        try {
+//            // Kiểm tra thông tin đầu vào
+//            if (phoneNumber == null || phoneNumber.isEmpty() || password == null || password.isEmpty()) {
+//                throw new IllegalArgumentException("Phone number and password must not be empty");
+//            }
+//
+//            // Lưu thông tin người dùng tạm thời
+//            tempUserStore.put(phoneNumber, password);
+//
+//            // Thêm số điện thoại vào SNS Sandbox
+//            try {
+//                CreateSmsSandboxPhoneNumberRequest sandboxRequest = CreateSmsSandboxPhoneNumberRequest.builder()
+//                        .phoneNumber(phoneNumber)
+//                        .languageCode("en-US") // Ngôn ngữ tin nhắn
+//                        .build();
+//                snsClient.createSMSSandboxPhoneNumber(sandboxRequest);
+//            } catch (software.amazon.awssdk.services.sns.model.SnsException e) {
+//                // Nếu số đã tồn tại, bỏ qua lỗi
+//                if (!e.awsErrorDetails().errorMessage().contains("already exists")) {
+//                    throw e;
+//                }
+//            }
+//
+//            return ResponseEntity.ok(Map.of("message", "Verification code sent. Please check your SMS to verify the phone number."));
+//
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
+//        } catch (software.amazon.awssdk.services.sns.model.SnsException snsException) {
+//            return ResponseEntity.status(500).body("AWS SNS Error: " + snsException.awsErrorDetails().errorMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error sending verification code: " + e.getMessage());
+//        }
+//    }
+//
+//    @PostMapping("/verify-phone-and-create-user")
+//    public ResponseEntity<?> verifyPhoneAndCreateUser(@RequestBody Map<String, Object> requestData) {
+//        // Lấy thông tin từ requestData
+//        String phoneNumber = (String) requestData.get("phoneNumber");
+//        String verificationCode = (String) requestData.get("verificationCode");
+//        Map<String, String> userMap = (Map<String, String>) requestData.get("user");
+//
+//        //Test truyền dữ liệu
+//        System.out.println("verificationCode: " + verificationCode);
+//        System.out.println("phoneNumber: " + phoneNumber);
+//        System.out.println("userMap: " + userMap);
+//
+//        try {
+//            // Kiểm tra thông tin đầu vào
+//            if (phoneNumber == null || verificationCode == null || phoneNumber.isEmpty() || verificationCode.isEmpty()) {
+//                throw new IllegalArgumentException("Phone number and verification code must not be empty");
+//            }
+//
+//            // Xác thực số điện thoại trong SNS Sandbox
+//            VerifySmsSandboxPhoneNumberRequest verifyRequest = VerifySmsSandboxPhoneNumberRequest.builder()
+//                    .phoneNumber(phoneNumber)
+//                    .oneTimePassword(verificationCode)
+//                    .build();
+//            snsClient.verifySMSSandboxPhoneNumber(verifyRequest);
+//
+//            // Lấy mật khẩu tạm thời
+//            String password = tempUserStore.get(phoneNumber);
+//            if (password == null) {
+//                throw new IllegalStateException("Temporary password not found for phone number: " + phoneNumber);
+//            }
+//
+//            // Tạo User với Cognito
+//            AdminCreateUserRequest createUserRequest = AdminCreateUserRequest.builder()
+//                    .userPoolId(userPoolId)
+//                    .username(phoneNumber)
+//                    .temporaryPassword(password)
+//                    .userAttributes(
+//                            AttributeType.builder().name("phone_number").value(phoneNumber).build(),
+//                            AttributeType.builder().name("phone_number_verified").value("true").build()
+//                    )
+//                    .messageAction("SUPPRESS")
+//                    .build();
+//
+//            cognitoClient.adminCreateUser(createUserRequest);
+//
+//            // Đặt mật khẩu cố định
+//            AdminSetUserPasswordRequest setPasswordRequest = AdminSetUserPasswordRequest.builder()
+//                    .userPoolId(userPoolId)
+//                    .username(phoneNumber)
+//                    .password(password)
+//                    .permanent(true)
+//                    .build();
+//            cognitoClient.adminSetUserPassword(setPasswordRequest);
+//
+//            // Tạo User trong dynamodb
+//            // Chuyển đổi userMap thành đối tượng User
+//            User user = new User();
+//            user.setUserId(userMap.get("userId"));
+//            user.setDob(userMap.get("dob"));
+//            user.setUserName(userMap.get("userName"));
+//            user.setPhoneNumber(userMap.get("phoneNumber"));
+//            //role mặt định là USER
+//            user.setRole(Role.USER);
+//
+//            userService.createUser(user);
+//
+//            // Xóa dữ liệu tạm
+//            tempUserStore.remove(phoneNumber);
+//
+//            return ResponseEntity.ok(Map.of("message", "User created successfully", "username", phoneNumber));
+//
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
+//        } catch (software.amazon.awssdk.services.sns.model.SnsException snsException) {
+//            return ResponseEntity.status(500).body(Map.of("error", "AWS SNS Error", "details", snsException.awsErrorDetails().errorMessage()));
+//        } catch (CognitoIdentityProviderException e) {
+//            return ResponseEntity.badRequest().body(Map.of("error", "Error creating user", "details", e.getMessage()));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body(Map.of("error", "Unexpected error", "details", e.getMessage()));
+//        }
+//    }
+
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendVerificationCode(@RequestBody Map<String, String> request) {
         String phoneNumber = request.get("phoneNumber");
         String password = request.get("password");
 
         try {
-            // Kiểm tra thông tin đầu vào
             if (phoneNumber == null || phoneNumber.isEmpty() || password == null || password.isEmpty()) {
-                throw new IllegalArgumentException("Phone number and password must not be empty");
+                return ResponseEntity.badRequest().body("Số điện thoại và mật khẩu không được để trống");
             }
 
-            // Lưu thông tin người dùng tạm thời
             tempUserStore.put(phoneNumber, password);
+            // Giả lập OTP mặc định là 123456
+            otpStore.put(phoneNumber, "123456");
 
-            // Thêm số điện thoại vào SNS Sandbox
-            try {
-                CreateSmsSandboxPhoneNumberRequest sandboxRequest = CreateSmsSandboxPhoneNumberRequest.builder()
-                        .phoneNumber(phoneNumber)
-                        .languageCode("en-US") // Ngôn ngữ tin nhắn
-                        .build();
-                snsClient.createSMSSandboxPhoneNumber(sandboxRequest);
-            } catch (software.amazon.awssdk.services.sns.model.SnsException e) {
-                // Nếu số đã tồn tại, bỏ qua lỗi
-                if (!e.awsErrorDetails().errorMessage().contains("already exists")) {
-                    throw e;
-                }
-            }
-
-            return ResponseEntity.ok(Map.of("message", "Verification code sent. Please check your SMS to verify the phone number."));
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
-        } catch (software.amazon.awssdk.services.sns.model.SnsException snsException) {
-            return ResponseEntity.status(500).body("AWS SNS Error: " + snsException.awsErrorDetails().errorMessage());
+            return ResponseEntity.ok(Map.of(
+                    "message", "Mã xác thực đã được gửi (Demo: 123456)",
+                    "phoneNumber", phoneNumber
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error sending verification code: " + e.getMessage());
+            return ResponseEntity.status(500).body("Lỗi hệ thống: " + e.getMessage());
         }
     }
 
+    // 2. XÁC THỰC VÀ TẠO USER (DÙNG ADMIN CREATE ĐỂ TRÁNH SMS)
     @PostMapping("/verify-phone-and-create-user")
     public ResponseEntity<?> verifyPhoneAndCreateUser(@RequestBody Map<String, Object> requestData) {
-        // Lấy thông tin từ requestData
         String phoneNumber = (String) requestData.get("phoneNumber");
         String verificationCode = (String) requestData.get("verificationCode");
         Map<String, String> userMap = (Map<String, String>) requestData.get("user");
 
-        //Test truyền dữ liệu
-        System.out.println("verificationCode: " + verificationCode);
-        System.out.println("phoneNumber: " + phoneNumber);
-        System.out.println("userMap: " + userMap);
-
         try {
-            // Kiểm tra thông tin đầu vào
-            if (phoneNumber == null || verificationCode == null || phoneNumber.isEmpty() || verificationCode.isEmpty()) {
-                throw new IllegalArgumentException("Phone number and verification code must not be empty");
+            if (!"123456".equals(verificationCode)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Mã xác thực không chính xác"));
             }
 
-            // Xác thực số điện thoại trong SNS Sandbox
-            VerifySmsSandboxPhoneNumberRequest verifyRequest = VerifySmsSandboxPhoneNumberRequest.builder()
-                    .phoneNumber(phoneNumber)
-                    .oneTimePassword(verificationCode)
-                    .build();
-            snsClient.verifySMSSandboxPhoneNumber(verifyRequest);
-
-            // Lấy mật khẩu tạm thời
             String password = tempUserStore.get(phoneNumber);
-            if (password == null) {
-                throw new IllegalStateException("Temporary password not found for phone number: " + phoneNumber);
-            }
+            if (password == null) return ResponseEntity.status(404).body("Không tìm thấy dữ liệu đăng ký");
 
-            // Tạo User với Cognito
+            // Tạo user trên Cognito bằng quyền Admin (không gửi tin nhắn xác nhận)
             AdminCreateUserRequest createUserRequest = AdminCreateUserRequest.builder()
                     .userPoolId(userPoolId)
                     .username(phoneNumber)
@@ -127,10 +216,9 @@ public class AuthController {
                     )
                     .messageAction("SUPPRESS")
                     .build();
-
             cognitoClient.adminCreateUser(createUserRequest);
 
-            // Đặt mật khẩu cố định
+            // Set mật khẩu vĩnh viễn
             AdminSetUserPasswordRequest setPasswordRequest = AdminSetUserPasswordRequest.builder()
                     .userPoolId(userPoolId)
                     .username(phoneNumber)
@@ -139,49 +227,32 @@ public class AuthController {
                     .build();
             cognitoClient.adminSetUserPassword(setPasswordRequest);
 
-            // Tạo User trong dynamodb
-            // Chuyển đổi userMap thành đối tượng User
+            // Lưu vào Database riêng
             User user = new User();
             user.setUserId(userMap.get("userId"));
-            user.setDob(userMap.get("dob"));
             user.setUserName(userMap.get("userName"));
-            user.setPhoneNumber(userMap.get("phoneNumber"));
-            //role mặt định là USER
+            user.setPhoneNumber(phoneNumber);
             user.setRole(Role.USER);
-
             userService.createUser(user);
 
-            // Xóa dữ liệu tạm
             tempUserStore.remove(phoneNumber);
+            otpStore.remove(phoneNumber);
 
-            return ResponseEntity.ok(Map.of("message", "User created successfully", "username", phoneNumber));
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
-        } catch (software.amazon.awssdk.services.sns.model.SnsException snsException) {
-            return ResponseEntity.status(500).body(Map.of("error", "AWS SNS Error", "details", snsException.awsErrorDetails().errorMessage()));
-        } catch (CognitoIdentityProviderException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Error creating user", "details", e.getMessage()));
+            return ResponseEntity.ok(Map.of("message", "Đăng ký thành công!", "username", phoneNumber));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Unexpected error", "details", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of("error", "Lỗi tạo User", "details", e.getMessage()));
         }
     }
 
-
-
-    /**
-     * API: Đăng nhập User qua Cognito
-     */
+    // 3. ĐĂNG NHẬP (LẤY ĐỦ TOKEN + DỮ LIỆU NGƯỜI DÙNG)
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
-        String username = request.get("username");
+        String username = request.get("username"); // Số điện thoại
         String password = request.get("password");
 
         try {
-            // Tính toán SECRET_HASH
             String secretHash = calculateSecretHash(clientId, clientSecret, username);
 
-            // Gửi yêu cầu đăng nhập
             InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
                     .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
                     .clientId(clientId)
@@ -193,54 +264,138 @@ public class AuthController {
                     .build();
 
             InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
-            String idToken = authResponse.authenticationResult().idToken();
-            String accessToken = authResponse.authenticationResult().accessToken();
-            String refeshToken = authResponse.authenticationResult().refreshToken();
-            Integer expiresIn = authResponse.authenticationResult().expiresIn();
+            AuthenticationResultType result = authResponse.authenticationResult();
 
-            // Truy vấn thông tin người dùng từ accessToken
-            GetUserRequest getUserRequest = GetUserRequest.builder()
-                    .accessToken(accessToken)  // Sử dụng accessToken thay vì idToken
-                    .build();
+            // Lấy thông tin từ DB của mình
+            User myUser = userService.findUserByPhoneNumber(username);
 
-            GetUserResponse getUserResponse = cognitoClient.getUser(getUserRequest);
+            Map<String, Object> response = new HashMap<>();
+            response.put("accessToken", result.accessToken());
+            response.put("idToken", result.idToken());
+            response.put("refreshToken", result.refreshToken());
+            response.put("expiresIn", result.expiresIn());
+            response.put("user", myUser); // Trả về thông tin từ DB (ID, Name, Role...)
 
-            // Lấy thông tin người dùng trong cognito
-            Map<String, String> userAttributes = new HashMap<>();
-            for (AttributeType attribute : getUserResponse.userAttributes()) {
-                userAttributes.put(attribute.name(), attribute.value());
-            }
-
-            // Sử dụng số điện thoại để tìm người dùng trong DynamoDB hoặc cơ sở dữ liệu khác
-            User my_user = userService.findUserByPhoneNumber(username); //username là phone number
-            //set trạng thái online cho user
-            if (my_user != null) {
-
-                userService.updateUser(my_user); // Lưu trạng thái online vào DB
-            }
-
-            // Trả về dữ liệu kết hợp từ Cognito và hệ thống của bạn
-            Map<String, Object> responseData = new HashMap<>();
-            responseData.put("idToken", idToken);
-            responseData.put("accessToken", accessToken);
-            responseData.put("refeshToken", refeshToken);
-            responseData.put("expiresIn", expiresIn);
-            responseData.put("userAttributes", userAttributes);
-            responseData.put("my_user", my_user);
-
-            responseData.put("username", username);
-
-            // Trả về ResponseEntity với dữ liệu người dùng
-            return ResponseEntity.ok(responseData);
-
+            return ResponseEntity.ok(response);
         } catch (NotAuthorizedException e) {
-            System.err.println("Login failed: Invalid username or password. Details: " + e.getMessage());
-            return ResponseEntity.status(401).body("Invalid username or password");
+            return ResponseEntity.status(401).body("Sai số điện thoại hoặc mật khẩu");
         } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Error during authentication: " + e.getMessage());
+            return ResponseEntity.status(500).body("Lỗi đăng nhập: " + e.getMessage());
         }
     }
+
+    // 4. QUÊN MẬT KHẨU (DEMO)
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<?> sendOtpForPasswordReset(@RequestBody Map<String, String> request) {
+        String phoneNumber = request.get("phoneNumber");
+        otpStore.put(phoneNumber, "123456"); // Luôn là 123456 để demo
+        return ResponseEntity.ok(Map.of("message", "Mã khôi phục đã gửi (Demo: 123456)"));
+    }
+
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String phoneNumber = request.get("phoneNumber");
+        String newPassword = request.get("newPassword");
+
+        try {
+            AdminSetUserPasswordRequest resetReq = AdminSetUserPasswordRequest.builder()
+                    .userPoolId(userPoolId)
+                    .username(phoneNumber)
+                    .password(newPassword)
+                    .permanent(true)
+                    .build();
+            cognitoClient.adminSetUserPassword(resetReq);
+            return ResponseEntity.ok(Map.of("message", "Đặt lại mật khẩu thành công"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    private String calculateSecretHash(String clientId, String clientSecret, String username) {
+        try {
+            String message = username + clientId;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(clientSecret.getBytes(), "HmacSHA256");
+            mac.init(secretKey);
+            return Base64.getEncoder().encodeToString(mac.doFinal(message.getBytes()));
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi tính toán SECRET_HASH");
+        }
+    }
+
+
+    /**
+     * API: Đăng nhập User qua Cognito
+     */
+//    @PostMapping("/login")
+//    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+//        String username = request.get("username");
+//        String password = request.get("password");
+//
+//        try {
+//            // Tính toán SECRET_HASH
+//            String secretHash = calculateSecretHash(clientId, clientSecret, username);
+//
+//            // Gửi yêu cầu đăng nhập
+//            InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
+//                    .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
+//                    .clientId(clientId)
+//                    .authParameters(Map.of(
+//                            "USERNAME", username,
+//                            "PASSWORD", password,
+//                            "SECRET_HASH", secretHash
+//                    ))
+//                    .build();
+//
+//            InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
+//            String idToken = authResponse.authenticationResult().idToken();
+//            String accessToken = authResponse.authenticationResult().accessToken();
+//            String refeshToken = authResponse.authenticationResult().refreshToken();
+//            Integer expiresIn = authResponse.authenticationResult().expiresIn();
+//
+//            // Truy vấn thông tin người dùng từ accessToken
+//            GetUserRequest getUserRequest = GetUserRequest.builder()
+//                    .accessToken(accessToken)  // Sử dụng accessToken thay vì idToken
+//                    .build();
+//
+//            GetUserResponse getUserResponse = cognitoClient.getUser(getUserRequest);
+//
+//            // Lấy thông tin người dùng trong cognito
+//            Map<String, String> userAttributes = new HashMap<>();
+//            for (AttributeType attribute : getUserResponse.userAttributes()) {
+//                userAttributes.put(attribute.name(), attribute.value());
+//            }
+//
+//            // Sử dụng số điện thoại để tìm người dùng trong DynamoDB hoặc cơ sở dữ liệu khác
+//            User my_user = userService.findUserByPhoneNumber(username); //username là phone number
+//            //set trạng thái online cho user
+//            if (my_user != null) {
+//
+//                userService.updateUser(my_user); // Lưu trạng thái online vào DB
+//            }
+//
+//            // Trả về dữ liệu kết hợp từ Cognito và hệ thống của bạn
+//            Map<String, Object> responseData = new HashMap<>();
+//            responseData.put("idToken", idToken);
+//            responseData.put("accessToken", accessToken);
+//            responseData.put("refeshToken", refeshToken);
+//            responseData.put("expiresIn", expiresIn);
+//            responseData.put("userAttributes", userAttributes);
+//            responseData.put("my_user", my_user);
+//
+//            responseData.put("username", username);
+//
+//            // Trả về ResponseEntity với dữ liệu người dùng
+//            return ResponseEntity.ok(responseData);
+//
+//        } catch (NotAuthorizedException e) {
+//            System.err.println("Login failed: Invalid username or password. Details: " + e.getMessage());
+//            return ResponseEntity.status(401).body("Invalid username or password");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            return ResponseEntity.status(500).body("Error during authentication: " + e.getMessage());
+//        }
+//    }
 
     //hàm làm mới token
     @PostMapping("/refresh")
@@ -344,18 +499,18 @@ public class AuthController {
         }
     }
 
-    private String calculateSecretHash(String clientId, String clientSecret, String username) {
-        try {
-            String message = username + clientId;
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(clientSecret.getBytes(), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] hmac = mac.doFinal(message.getBytes());
-            return Base64.getEncoder().encodeToString(hmac);
-        } catch (Exception e) {
-            throw new RuntimeException("Error while calculating SECRET_HASH", e);
-        }
-    }
+//    private String calculateSecretHash(String clientId, String clientSecret, String username) {
+//        try {
+//            String message = username + clientId;
+//            Mac mac = Mac.getInstance("HmacSHA256");
+//            SecretKeySpec secretKey = new SecretKeySpec(clientSecret.getBytes(), "HmacSHA256");
+//            mac.init(secretKey);
+//            byte[] hmac = mac.doFinal(message.getBytes());
+//            return Base64.getEncoder().encodeToString(hmac);
+//        } catch (Exception e) {
+//            throw new RuntimeException("Error while calculating SECRET_HASH", e);
+//        }
+//    }
 
     // Tạo, Random OTP ngẫu nhiên với 6 chữ số
     private String generateOtp() {
@@ -363,40 +518,40 @@ public class AuthController {
     }
 
     // Gửi OTP cho người dùng khi quên mật khẩu
-    @PostMapping("/forgot-password/send-otp")
-    public ResponseEntity<?> sendOtpForPasswordReset(@RequestBody Map<String, String> request) {
-        String phoneNumber = request.get("phoneNumber");
-        System.out.println("phoneNumber: " + phoneNumber);
-
-        try {
-            // Kiểm tra thông tin đầu vào
-            if (phoneNumber == null || phoneNumber.isEmpty()) {
-                throw new IllegalArgumentException("Phone number must not be empty");
-            }
-
-            // Tạo OTP và lưu vào otpStore
-            String otp = generateOtp();
-            otpStore.put(phoneNumber, otp);  // Lưu OTP tạm thời
-
-            // Tạo tin nhắn để gửi OTP
-            String message = "Your OTP for password reset is: " + otp;
-
-            // Gửi OTP qua SNS
-            PublishRequest publishRequest = PublishRequest.builder()
-                    .phoneNumber(phoneNumber)  // Số điện thoại người nhận
-                    .message(message)           // Tin nhắn chứa OTP
-                    .build();
-
-            snsClient.publish(publishRequest);
-
-            return ResponseEntity.ok(Map.of("message", "OTP sent. Please check your SMS"));
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error sending OTP: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/forgot-password/send-otp")
+//    public ResponseEntity<?> sendOtpForPasswordReset(@RequestBody Map<String, String> request) {
+//        String phoneNumber = request.get("phoneNumber");
+//        System.out.println("phoneNumber: " + phoneNumber);
+//
+//        try {
+//            // Kiểm tra thông tin đầu vào
+//            if (phoneNumber == null || phoneNumber.isEmpty()) {
+//                throw new IllegalArgumentException("Phone number must not be empty");
+//            }
+//
+//            // Tạo OTP và lưu vào otpStore
+//            String otp = generateOtp();
+//            otpStore.put(phoneNumber, otp);  // Lưu OTP tạm thời
+//
+//            // Tạo tin nhắn để gửi OTP
+//            String message = "Your OTP for password reset is: " + otp;
+//
+//            // Gửi OTP qua SNS
+//            PublishRequest publishRequest = PublishRequest.builder()
+//                    .phoneNumber(phoneNumber)  // Số điện thoại người nhận
+//                    .message(message)           // Tin nhắn chứa OTP
+//                    .build();
+//
+//            snsClient.publish(publishRequest);
+//
+//            return ResponseEntity.ok(Map.of("message", "OTP sent. Please check your SMS"));
+//
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error sending OTP: " + e.getMessage());
+//        }
+//    }
 
     // Xác thực OTP khi người dùng quên mật khẩu
     @PostMapping("/forgot-password/verify-otp")
@@ -427,37 +582,37 @@ public class AuthController {
     }
 
     // Đặt lại mật khẩu mới cho người dùng khi quên mật khẩu
-    @PostMapping("/forgot-password/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
-        String phoneNumber = request.get("phoneNumber");
-        String newPassword = request.get("newPassword");
-        System.out.println("phoneNumber: " + phoneNumber);
-        System.out.println("newPassword: " + newPassword);
-
-        try {
-            // Kiểm tra thông tin đầu vào
-            if (phoneNumber == null || newPassword == null || phoneNumber.isEmpty() || newPassword.isEmpty()) {
-                throw new IllegalArgumentException("Phone number and new password must not be empty");
-            }
-
-            // Cập nhật mật khẩu mới cho người dùng trên Cognito
-            AdminSetUserPasswordRequest setPasswordRequest = AdminSetUserPasswordRequest.builder()
-                    .userPoolId(userPoolId)
-                    .username(phoneNumber)
-                    .password(newPassword)
-                    .permanent(true)
-                    .build();
-            cognitoClient.adminSetUserPassword(setPasswordRequest);
-
-            // Xóa OTP sau khi thay đổi mật khẩu
-            otpStore.remove(phoneNumber);
-
-            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
-
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error resetting password: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/forgot-password/reset-password")
+//    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+//        String phoneNumber = request.get("phoneNumber");
+//        String newPassword = request.get("newPassword");
+//        System.out.println("phoneNumber: " + phoneNumber);
+//        System.out.println("newPassword: " + newPassword);
+//
+//        try {
+//            // Kiểm tra thông tin đầu vào
+//            if (phoneNumber == null || newPassword == null || phoneNumber.isEmpty() || newPassword.isEmpty()) {
+//                throw new IllegalArgumentException("Phone number and new password must not be empty");
+//            }
+//
+//            // Cập nhật mật khẩu mới cho người dùng trên Cognito
+//            AdminSetUserPasswordRequest setPasswordRequest = AdminSetUserPasswordRequest.builder()
+//                    .userPoolId(userPoolId)
+//                    .username(phoneNumber)
+//                    .password(newPassword)
+//                    .permanent(true)
+//                    .build();
+//            cognitoClient.adminSetUserPassword(setPasswordRequest);
+//
+//            // Xóa OTP sau khi thay đổi mật khẩu
+//            otpStore.remove(phoneNumber);
+//
+//            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+//
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest().body("Invalid input: " + e.getMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error resetting password: " + e.getMessage());
+//        }
+//    }
 }
