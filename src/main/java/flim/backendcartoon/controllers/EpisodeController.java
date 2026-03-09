@@ -32,11 +32,11 @@ public class EpisodeController {
 
     private Episode toCdn(Episode ep) {
         if (ep == null) return null;
-        ep.setVideoUrl(cloudFrontService.convertToCloudFrontUrl(ep.getVideoUrl()));
+//        ep.setVideoUrl(cloudFrontService.convertToCloudFrontUrl(ep.getVideoUrl()));
         if (ep.getSubtitles()!=null){
             ep.getSubtitles().forEach(t -> {
                 if (t.getUrl()!=null && !t.getUrl().isBlank()){
-                    t.setUrl(cloudFrontService.convertToCloudFrontUrl(t.getUrl()));
+//                    t.setUrl(cloudFrontService.convertToCloudFrontUrl(t.getUrl()));
                 }
             });
         }
